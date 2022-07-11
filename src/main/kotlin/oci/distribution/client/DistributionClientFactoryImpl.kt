@@ -5,6 +5,7 @@ import com.fasterxml.jackson.datatype.jdk8.Jdk8Module
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jsonMapper
 import com.fasterxml.jackson.module.kotlin.kotlinModule
+import com.fasterxml.jackson.module.kotlin.readValue
 import im.toss.http.parser.HttpAuthCredentials
 import oci.distribution.client.model.domain.Proxy
 import oci.distribution.client.model.domain.RegistryCredentials
@@ -78,9 +79,9 @@ object DistributionClientFactory {
         val response = client.newCall(tokenAuthRequest).execute()
 
         if (response.isSuccessful) {
-            val token = mapper.readValue(response.body()!!.string(), TokenResponse::class.java).token
+            val tokenResponse: TokenResponse = mapper.readValue(response.body()!!.string())
             val request = request().newBuilder()
-                .addHeader("Authorization", "Bearer $token")
+                .addHeader("Authorization", "Bearer ${tokenResponse.token}")
                 .build()
 
             return proceed(request)

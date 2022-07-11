@@ -2,11 +2,15 @@ package oci.distribution.client
 
 import oci.distribution.client.model.domain.RegistryCredentials
 import oci.distribution.client.model.domain.Repository
+import oci.distribution.client.model.domain.Tag
 import java.net.URL
+import kotlin.system.exitProcess
 
 fun main() {
     onPrem()
     dockerHub()
+
+    exitProcess(0)
 }
 
 private fun onPrem() {
@@ -29,13 +33,13 @@ private fun onPrem() {
 fun dockerHub() {
     val client = DistributionClientFactory.create(URL("https://registry-1.docker.io"))
 
-    val repository = Repository("cmdjulian/mopy")
-    val tag = client.tags(repository).getOrThrow().first()
+    val repository = Repository("library/python")
+    val tag = client.tags(repository).getOrThrow().last()
     println(tag)
 
-    val manifest = client.manifest(repository, tag).getOrThrow()
+    val manifest = client.manifest(repository, Tag("latest")).getOrThrow()
     println(manifest)
 
-    val config = client.imageConfig(repository, tag).getOrThrow()
+    val config = client.imageConfig(repository, Tag("latest")).getOrThrow()
     println(config)
 }

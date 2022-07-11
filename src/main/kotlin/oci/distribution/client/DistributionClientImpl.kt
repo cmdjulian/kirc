@@ -67,6 +67,6 @@ internal class DistributionClientImpl(private val api: DistributionApi) : Distri
         return manifest(repository, reference)
             .map { it.config.digest }
             .mapCatching { digest -> blob(repository, digest).getOrThrow() }
-            .map { println(String(it)); mapper.readValue(it, ImageConfig::class.java) }
+            .map { mapper.readValue(it, ImageConfig::class.java) }
     }
 }
