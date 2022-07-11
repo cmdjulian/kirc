@@ -8,7 +8,7 @@ data class Config(
 
     val hostname: String?,
 
-    val domainName: String?,
+    val domainname: String?,
 
     val user: String?,
 

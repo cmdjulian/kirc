@@ -16,20 +16,20 @@ interface DistributionClient {
     /**
      * Get a list of repositories the registry holds.
      */
-    fun repositories(limit: Int? = null, last: Int? = null): List<Repository>
+    fun repositories(limit: Int? = null, last: Int? = null): Result<List<Repository>>
 
     /**
      * Get a list of tags for a certain repository.
      */
-    fun tags(repository: Repository, limit: Int? = null, last: Int? = null): List<Tag>
+    fun tags(repository: Repository, limit: Int? = null, last: Int? = null): Result<List<Tag>>
 
     /**
      * Retrieve a manifest.
      */
-    fun manifest(repository: Repository, reference: Reference): ManifestV2
+    fun manifest(repository: Repository, reference: Reference): Result<ManifestV2>
 
     /**
      * Get the config of an Image.
      */
-    fun imageConfig(repository: Repository, reference: Reference): ImageConfig
+    fun imageConfig(repository: Repository, reference: Reference): Result<ImageConfig>
 }

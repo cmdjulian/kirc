@@ -1,8 +1,12 @@
 package oci.distribution.client
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
+import com.fasterxml.jackson.module.kotlin.jsonMapper
+import com.fasterxml.jackson.module.kotlin.kotlinModule
 import im.toss.http.parser.HttpAuthCredentials
+import oci.distribution.client.model.domain.Proxy
 import oci.distribution.client.model.domain.RegistryCredentials
 import okhttp3.Credentials
 import okhttp3.HttpUrl
@@ -16,18 +20,23 @@ import retrofit2.converter.jackson.JacksonConverterFactory
 import java.net.URL
 
 private val client = OkHttpClient()
-private val mapper = ObjectMapper()
+val mapper = jsonMapper {
+    addModules(kotlinModule())
+    addModules(JavaTimeModule())
+    addModules(Jdk8Module())
+}
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 private data class TokenResponse(val token: String)
 
 object DistributionClientFactory {
 
-    fun create(url: URL, credentials: RegistryCredentials? = null): DistributionClient {
+    // TODO https://stackoverflow.com/a/35567936/9153701
+    fun create(url: URL, credentials: RegistryCredentials? = null, proxy: Proxy? = null): DistributionClient {
         val okHttpClient = OkHttpClient.Builder().apply { interceptors().add(interceptor(credentials)) }
         val retrofit = Retrofit.Builder()
-            .baseUrl(url.toString())
-            .addConverterFactory(JacksonConverterFactory.create())
+            .baseUrl("$url")
+            .addConverterFactory(JacksonConverterFactory.create(mapper))
             .client(okHttpClient.build())
             .build()
         val api = retrofit.create(DistributionApi::class.java)
@@ -45,6 +54,7 @@ object DistributionClientFactory {
             if (wwwAuthHeader != null) {
                 val wwwAuth = HttpAuthCredentials.parse(wwwAuthHeader)
 
+                response.close()
                 return@Interceptor when {
                     wwwAuth.scheme == "Basic" && credentials != null -> chain.retryWithBasicAuth(credentials)
                     wwwAuth.scheme == "Bearer" -> chain.retryWithTokenAuth(credentials, wwwAuth)
@@ -80,9 +90,9 @@ object DistributionClientFactory {
     }
 
     private fun tokenAuthRequest(credentials: RegistryCredentials?, wwwAuth: HttpAuthCredentials): Request {
-        val realm = wwwAuth.singleValueParams["realm"]!!
-        val service = wwwAuth.singleValueParams["service"]
-        val scope = wwwAuth.singleValueParams["scope"]
+        val realm = wwwAuth.singleValueParams["realm"]!!.replace("\"", "")
+        val service = wwwAuth.singleValueParams["service"]!!.replace("\"", "")
+        val scope = wwwAuth.singleValueParams["scope"]!!.replace("\"", "")
 
         val url = HttpUrl.parse(realm)!!.newBuilder()
             .addQueryParameter("service", service)
