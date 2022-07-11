@@ -1,5 +1,6 @@
 package oci.distribution.client.model.image
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.PropertyNamingStrategies
 import com.fasterxml.jackson.databind.annotation.JsonNaming
@@ -41,6 +42,9 @@ data class ImageConfig(
     val rootfs: RootFs?,
 
     @JsonProperty("moby.buildkit.buildinfo.v1")
-    val buildkit: String?
+    val buildkitBuildInfo: String?,
+
+    @JsonProperty("moby.buildkit.cache.v0")
+    val buildkitCache: String?,
 
 )
