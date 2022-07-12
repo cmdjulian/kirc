@@ -31,7 +31,7 @@ private fun onPrem() {
 }
 
 fun dockerHub() {
-    val client = DistributionClientFactory.create(URL("https://registry-1.docker.io"))
+    val client = DistributionClientFactory.create()
 
     val repository = Repository("library/python")
     val tag = client.tags(repository).getOrThrow().last()

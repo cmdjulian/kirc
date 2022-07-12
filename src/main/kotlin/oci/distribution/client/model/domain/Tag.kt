@@ -1,6 +1,9 @@
 package oci.distribution.client.model.domain
 
 @JvmInline
-value class Tag(override val value: String) : Reference {
+value class Tag(private val value: String) : Reference {
+    override val separator: Char
+        get() = ':'
+
     override fun toString(): String = value
 }

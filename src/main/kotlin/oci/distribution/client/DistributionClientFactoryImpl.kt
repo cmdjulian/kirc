@@ -7,7 +7,7 @@ import com.fasterxml.jackson.module.kotlin.jsonMapper
 import com.fasterxml.jackson.module.kotlin.kotlinModule
 import com.fasterxml.jackson.module.kotlin.readValue
 import im.toss.http.parser.HttpAuthCredentials
-import oci.distribution.client.model.domain.Proxy
+import oci.distribution.client.model.domain.ProxyConfig
 import oci.distribution.client.model.domain.RegistryCredentials
 import okhttp3.Credentials
 import okhttp3.HttpUrl
@@ -32,13 +32,24 @@ private data class TokenResponse(val token: String)
 
 object DistributionClientFactory {
 
-    // TODO https://stackoverflow.com/a/35567936/9153701
-    fun create(url: URL, credentials: RegistryCredentials? = null, proxy: Proxy? = null): DistributionClient {
-        val okHttpClient = OkHttpClient.Builder().apply { interceptors().add(interceptor(credentials)) }
+    private val DOCKER_HUB_URL = URL("https://registry-1.docker.io")
+
+    /**
+     * Create a DistributionClient for a registry. If no args are supplied the client is constructed for Docker Hub with
+     * no auth.
+     */
+    fun create(url: URL = DOCKER_HUB_URL, credentials: RegistryCredentials? = null, config: ProxyConfig? = null):
+        DistributionClient {
+
+        val httpClient = OkHttpClient.Builder()
+            .proxy(config?.proxy)
+            .apply { config?.authenticator?.run { proxyAuthenticator(this) } }
+            .apply { interceptors().add(interceptor(credentials)) }
+            .build()
         val retrofit = Retrofit.Builder()
             .baseUrl("$url")
             .addConverterFactory(JacksonConverterFactory.create(mapper))
-            .client(okHttpClient.build())
+            .client(httpClient)
             .build()
         val api = retrofit.create(DistributionApi::class.java)
 
