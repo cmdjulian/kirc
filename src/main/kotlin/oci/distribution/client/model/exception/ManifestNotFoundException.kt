@@ -1,5 +1,7 @@
 package oci.distribution.client.model.exception
 
 import oci.distribution.client.model.domain.Reference
+import oci.distribution.client.model.domain.Repository
 
-class ManifestNotFoundException(reference: Reference) : NotFoundException("Blob", reference.value)
+class ManifestNotFoundException(repository: Repository, reference: Reference) :
+    NotFoundException("Manifest", repository.toString(reference))
