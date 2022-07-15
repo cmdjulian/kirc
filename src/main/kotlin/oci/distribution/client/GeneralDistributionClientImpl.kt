@@ -16,7 +16,7 @@ import oci.distribution.client.model.manifest.ManifestV2
 import oci.distribution.client.utils.fold
 import java.net.ConnectException
 
-internal class DistributionClientImpl(private val api: DistributionApi) : DistributionClient {
+internal class GeneralDistributionClientImpl(private val api: DistributionApi) : GeneralDistributionClient {
 
     /**
      * Run the given [block] for an api request. Catch all Exceptions and try to map them to client specific ones.

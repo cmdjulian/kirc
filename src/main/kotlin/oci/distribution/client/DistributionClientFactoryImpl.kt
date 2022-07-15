@@ -39,7 +39,7 @@ object DistributionClientFactory {
      * no auth.
      */
     fun create(url: URL = DOCKER_HUB_URL, credentials: RegistryCredentials? = null, config: ProxyConfig? = null):
-        DistributionClient {
+        GeneralDistributionClient {
 
         val httpClient = OkHttpClient.Builder()
             .proxy(config?.proxy)
@@ -47,13 +47,13 @@ object DistributionClientFactory {
             .apply { interceptors().add(interceptor(credentials)) }
             .build()
         val retrofit = Retrofit.Builder()
-            .baseUrl("$url")
+            .baseUrl(url.let { if (it.toString() == "https://docker.io") DOCKER_HUB_URL else it })
             .addConverterFactory(JacksonConverterFactory.create(mapper))
             .client(httpClient)
             .build()
         val api = retrofit.create(DistributionApi::class.java)
 
-        return DistributionClientImpl(api)
+        return GeneralDistributionClientImpl(api)
     }
 
     private fun interceptor(credentials: RegistryCredentials?) = Interceptor { chain ->
