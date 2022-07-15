@@ -2,6 +2,11 @@ package oci.distribution.client.model.domain
 
 @JvmInline
 value class Tag(private val value: String) : Reference {
+
+    init {
+        require(value.matches(Regex("\\w[\\w.\\-]{0,127}"))) { "invalid tag" }
+    }
+
     override val separator: Char
         get() = ':'
 

@@ -1,5 +1,6 @@
 package oci.distribution.client
 
+import oci.distribution.client.model.domain.DockerImageName
 import oci.distribution.client.model.domain.RegistryCredentials
 import oci.distribution.client.model.domain.Repository
 import oci.distribution.client.model.domain.Tag
@@ -7,10 +8,24 @@ import java.net.URL
 import kotlin.system.exitProcess
 
 fun main() {
+    dockerfiles()
     onPrem()
     dockerHub()
 
     exitProcess(0)
+}
+
+fun dockerfiles() {
+    var i = DockerImageName.parse("name")
+    i = DockerImageName.parse("name:tag")
+    i = DockerImageName.parse("path/name")
+    i = DockerImageName.parse("path/name:tag")
+    i = DockerImageName.parse("some.registry/name")
+    i = DockerImageName.parse("some.registry/name:tag")
+    i = DockerImageName.parse("some.registry/path/name")
+    i = DockerImageName.parse("some.registry/path/name:tag")
+    i = DockerImageName.parse("some.registry/path/name@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+    i = DockerImageName.parse("some.registry/path/name:latest@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 }
 
 private fun onPrem() {

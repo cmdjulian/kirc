@@ -6,7 +6,7 @@ import oci.distribution.client.model.domain.Tag
 import oci.distribution.client.model.image.ImageConfig
 import oci.distribution.client.model.manifest.ManifestV2
 
-interface DistributionClient {
+interface GeneralDistributionClient {
 
     /**
      * Checks if the registry is reachable and configured correctly.
