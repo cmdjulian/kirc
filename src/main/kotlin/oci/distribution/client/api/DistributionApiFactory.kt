@@ -1,4 +1,4 @@
-package oci.distribution.client
+package oci.distribution.client.api
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module
@@ -6,11 +6,13 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jsonMapper
 import com.fasterxml.jackson.module.kotlin.kotlinModule
 import com.fasterxml.jackson.module.kotlin.readValue
+import com.haroldadmin.cnradapter.NetworkResponseAdapterFactory
 import im.toss.http.parser.HttpAuthCredentials
-import oci.distribution.client.model.domain.ProxyConfig
-import oci.distribution.client.model.domain.RegistryCredentials
+import oci.distribution.client.impl.DistributionClientImpl
+import oci.distribution.client.impl.DockerImageClientImpl
+import oci.distribution.client.model.oci.DockerImageSlug
 import okhttp3.Credentials
-import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
 import okhttp3.Interceptor.Chain
 import okhttp3.OkHttpClient
@@ -20,8 +22,15 @@ import retrofit2.Retrofit
 import retrofit2.converter.jackson.JacksonConverterFactory
 import java.net.URL
 
-private val client = OkHttpClient()
-val mapper = jsonMapper {
+private val client = OkHttpClient.Builder()
+    .apply {
+        interceptors().add { chain ->
+            chain.request().newBuilder().header("Accept", "application/json").build().let(chain::proceed)
+        }
+    }
+    .build()
+
+internal val mapper = jsonMapper {
     addModules(kotlinModule())
     addModules(JavaTimeModule())
     addModules(Jdk8Module())
@@ -30,7 +39,7 @@ val mapper = jsonMapper {
 @JsonIgnoreProperties(ignoreUnknown = true)
 private data class TokenResponse(val token: String)
 
-object DistributionClientFactory {
+object DistributionApiFactory {
 
     private val DOCKER_HUB_URL = URL("https://registry-1.docker.io")
 
@@ -39,7 +48,7 @@ object DistributionClientFactory {
      * no auth.
      */
     fun create(url: URL = DOCKER_HUB_URL, credentials: RegistryCredentials? = null, config: ProxyConfig? = null):
-        GeneralDistributionClient {
+        DistributionClient {
 
         val httpClient = OkHttpClient.Builder()
             .proxy(config?.proxy)
@@ -49,27 +58,45 @@ object DistributionClientFactory {
         val retrofit = Retrofit.Builder()
             .baseUrl(url.let { if (it.toString() == "https://docker.io") DOCKER_HUB_URL else it })
             .addConverterFactory(JacksonConverterFactory.create(mapper))
+            .addCallAdapterFactory(NetworkResponseAdapterFactory())
             .client(httpClient)
             .build()
         val api = retrofit.create(DistributionApi::class.java)
 
-        return GeneralDistributionClientImpl(api)
+        return DistributionClientImpl(api)
     }
+
+    fun create(
+        image: DockerImageSlug,
+        credentials: RegistryCredentials? = null,
+        config: ProxyConfig? = null,
+        insecure: Boolean = false
+    ): DockerImageClient = DockerImageClientImpl(
+        create(URL((if (insecure) "http://" else "https://") + image.registry.toString()), credentials, config),
+        image
+    )
 
     private fun interceptor(credentials: RegistryCredentials?) = Interceptor { chain ->
         val request = chain.request()
         val response = chain.proceed(request)
 
-        if (response.code() == 401) {
-            val wwwAuthHeader = response.header("Www-Authenticate", response.header("www-authenticate"))
+        if (response.code == 401) {
+            val wwwAuthHeader = response.anyHeader("Www-Authenticate", "www-authenticate", "WWW-Authenticate")
 
             if (wwwAuthHeader != null) {
                 val wwwAuth = HttpAuthCredentials.parse(wwwAuthHeader)
 
-                response.close()
                 return@Interceptor when {
-                    wwwAuth.scheme == "Basic" && credentials != null -> chain.retryWithBasicAuth(credentials)
-                    wwwAuth.scheme == "Bearer" -> chain.retryWithTokenAuth(credentials, wwwAuth)
+                    wwwAuth.scheme == "Basic" && credentials != null -> {
+                        response.close()
+                        chain.retryWithBasicAuth(credentials)
+                    }
+
+                    wwwAuth.scheme == "Bearer" -> {
+                        response.close()
+                        chain.retryWithTokenAuth(credentials, wwwAuth)
+                    }
+
                     else -> response
                 }
             }
@@ -85,12 +112,15 @@ object DistributionClientFactory {
             .let(this::proceed)
     }
 
-    private fun Chain.retryWithTokenAuth(credentials: RegistryCredentials?, wwwAuth: HttpAuthCredentials): Response {
+    private fun Chain.retryWithTokenAuth(
+        credentials: RegistryCredentials?,
+        wwwAuth: HttpAuthCredentials
+    ): Response {
         val tokenAuthRequest = tokenAuthRequest(credentials, wwwAuth)
         val response = client.newCall(tokenAuthRequest).execute()
 
         if (response.isSuccessful) {
-            val tokenResponse: TokenResponse = mapper.readValue(response.body()!!.string())
+            val tokenResponse: TokenResponse = mapper.readValue(response.body!!.string())
             val request = request().newBuilder()
                 .addHeader("Authorization", "Bearer ${tokenResponse.token}")
                 .build()
@@ -106,7 +136,8 @@ object DistributionClientFactory {
         val service = wwwAuth.singleValueParams["service"]!!.replace("\"", "")
         val scope = wwwAuth.singleValueParams["scope"]!!.replace("\"", "")
 
-        val url = HttpUrl.parse(realm)!!.newBuilder()
+        val url = realm.toHttpUrl()
+            .newBuilder()
             .addQueryParameter("service", service)
             .addQueryParameter("scope", scope)
             .build()
@@ -123,4 +154,14 @@ object DistributionClientFactory {
             .basicAuth(credentials)
             .build()
     }
+}
+
+@Suppress("SameParameterValue")
+private fun Response.anyHeader(vararg headers: String): String? {
+    for (header in headers) {
+        val candidate = header(header)
+        if (candidate != null) return candidate
+    }
+
+    return null
 }

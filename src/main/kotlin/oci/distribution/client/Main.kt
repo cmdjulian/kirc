@@ -1,13 +1,15 @@
 package oci.distribution.client
 
-import oci.distribution.client.model.domain.DockerImageName
-import oci.distribution.client.model.domain.RegistryCredentials
-import oci.distribution.client.model.domain.Repository
-import oci.distribution.client.model.domain.Tag
+import oci.distribution.client.api.DistributionApiFactory
+import oci.distribution.client.api.RegistryCredentials
+import oci.distribution.client.model.oci.DockerImageSlug
+import oci.distribution.client.model.oci.Repository
+import oci.distribution.client.model.oci.Tag
 import java.net.URL
 import kotlin.system.exitProcess
 
-fun main() {
+suspend fun main() {
+    client()
     dockerfiles()
     onPrem()
     dockerHub()
@@ -16,21 +18,21 @@ fun main() {
 }
 
 fun dockerfiles() {
-    var i = DockerImageName.parse("name")
-    i = DockerImageName.parse("name:tag")
-    i = DockerImageName.parse("path/name")
-    i = DockerImageName.parse("path/name:tag")
-    i = DockerImageName.parse("some.registry/name")
-    i = DockerImageName.parse("some.registry/name:tag")
-    i = DockerImageName.parse("some.registry/path/name")
-    i = DockerImageName.parse("some.registry/path/name:tag")
-    i = DockerImageName.parse("some.registry/path/name@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-    i = DockerImageName.parse("some.registry/path/name:latest@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+    var i = DockerImageSlug.parse("name")
+    i = DockerImageSlug.parse("name:tag")
+    i = DockerImageSlug.parse("path/name")
+    i = DockerImageSlug.parse("path/name:tag")
+    i = DockerImageSlug.parse("some.registry/name")
+    i = DockerImageSlug.parse("some.registry/name:tag")
+    i = DockerImageSlug.parse("some.registry/path/name")
+    i = DockerImageSlug.parse("some.registry/path/name:tag")
+    i = DockerImageSlug.parse("some.registry/path/name@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+    i = DockerImageSlug.parse("some.registry/path/name:latest@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 }
 
-private fun onPrem() {
+private suspend fun onPrem() {
     val creds = RegistryCredentials("changeMe", "changeMe")
-    val client = DistributionClientFactory.create(URL("http://localhost:5000"), creds)
+    val client = DistributionApiFactory.create(URL("http://localhost:5000"), creds)
 
     val repository = client.repositories().getOrThrow().first()
     println(repository)
@@ -41,12 +43,12 @@ private fun onPrem() {
     val manifest = client.manifest(repository, tag).getOrThrow()
     println(manifest)
 
-    val config = client.imageConfig(repository, tag).getOrThrow()
+    val config = client.config(repository, tag).getOrThrow()
     println(config)
 }
 
-fun dockerHub() {
-    val client = DistributionClientFactory.create()
+suspend fun dockerHub() {
+    val client = DistributionApiFactory.create()
 
     val repository = Repository("library/python")
     val tag = client.tags(repository).getOrThrow().last()
@@ -55,6 +57,41 @@ fun dockerHub() {
     val manifest = client.manifest(repository, Tag("latest")).getOrThrow()
     println(manifest)
 
-    val config = client.imageConfig(repository, Tag("latest")).getOrThrow()
+    val config = client.config(repository, Tag("latest")).getOrThrow()
     println(config)
+}
+
+suspend fun client() {
+    val slug = DockerImageSlug.parse("localhost:5000/registry:2")
+    val client = DistributionApiFactory.create(
+        slug,
+        credentials = RegistryCredentials("changeMe", "changeMe"),
+        insecure = true
+    )
+
+    // exists
+    println(client.exists())
+
+    // tags
+    val tags = client.tags()
+    println(tags.getOrThrow())
+
+    // Manifest
+    val manifest = client.manifest()
+    println(manifest.getOrThrow())
+
+    // Config
+    val config = client.config()
+    println(config.getOrThrow())
+
+    // size
+    val size = client.size()
+    println(size.getOrThrow())
+
+    // Image
+    val image = client.toDockerImage()
+    println(image.getOrThrow())
+
+    // delete
+    client.delete().getOrThrow()
 }

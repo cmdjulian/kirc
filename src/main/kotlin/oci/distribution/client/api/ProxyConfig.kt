@@ -1,4 +1,4 @@
-package oci.distribution.client.model.domain
+package oci.distribution.client.api
 
 import okhttp3.Authenticator
 import java.net.Proxy

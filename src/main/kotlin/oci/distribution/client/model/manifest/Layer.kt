@@ -1,7 +1,7 @@
 package oci.distribution.client.model.manifest
 
 import com.fasterxml.jackson.annotation.JsonCreator
-import oci.distribution.client.model.domain.Digest
+import oci.distribution.client.model.oci.Digest
 
 data class Layer(val mediaType: String, val size: Int, val digest: Digest) {
     companion object {

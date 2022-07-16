@@ -1,4 +1,4 @@
-package oci.distribution.client.model.domain
+package oci.distribution.client.model.oci
 
 /**
  * Parses a docker image name from a provided string.
@@ -17,7 +17,7 @@ package oci.distribution.client.model.domain
  *
  * etc.
  */
-data class DockerImageName(
+data class DockerImageSlug(
     val registry: Registry = Registry("docker.io"),
     val repository: Repository,
     val tag: Tag? = null,
@@ -27,7 +27,7 @@ data class DockerImageName(
     val reference: Reference = digest ?: tag ?: Tag("latest")
 
     companion object {
-        fun parse(image: String): DockerImageName {
+        fun parse(image: String): DockerImageSlug {
             val slashIndex = image.indexOf('/')
             val isRegistryMissing = slashIndex == -1 ||
                 "." !in image.substring(0, slashIndex) &&
@@ -39,8 +39,8 @@ data class DockerImageName(
             val (repository, tag, digest) = parseRepositoryAndVersion(remoteName)
 
             return when (registry) {
-                null -> DockerImageName(repository = repository, tag = tag, digest = digest)
-                else -> DockerImageName(registry, repository, tag, digest)
+                null -> DockerImageSlug(repository = repository, tag = tag, digest = digest)
+                else -> DockerImageSlug(registry, repository, tag, digest)
             }
         }
 
@@ -82,6 +82,6 @@ data class DockerImageName(
             else -> digest.separator + digest.toString()
         }
 
-        return registry.toString() + repository.toString() + tagComponent() + digestComponent()
+        return registry.toString() + '/' + repository.toString() + tagComponent() + digestComponent()
     }
 }
