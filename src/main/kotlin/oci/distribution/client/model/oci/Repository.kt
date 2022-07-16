@@ -1,4 +1,4 @@
-package oci.distribution.client.model.domain
+package oci.distribution.client.model.oci
 
 import java.nio.file.Path
 import java.util.Locale

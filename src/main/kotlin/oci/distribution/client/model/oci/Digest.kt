@@ -1,4 +1,4 @@
-package oci.distribution.client.model.domain
+package oci.distribution.client.model.oci
 
 @JvmInline
 value class Digest(private val value: String) : Reference {

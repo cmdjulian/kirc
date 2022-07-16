@@ -1,4 +1,4 @@
-package oci.distribution.client.model.domain
+package oci.distribution.client.model.oci
 
 sealed interface Reference {
     val separator: Char
