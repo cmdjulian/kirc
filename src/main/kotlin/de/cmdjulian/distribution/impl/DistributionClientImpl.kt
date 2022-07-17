@@ -3,7 +3,7 @@ package de.cmdjulian.distribution.impl
 import com.haroldadmin.cnradapter.NetworkResponse
 import de.cmdjulian.distribution.DistributionClient
 import de.cmdjulian.distribution.DockerImageClient
-import de.cmdjulian.distribution.mapper
+import de.cmdjulian.distribution.jsonMapper
 import de.cmdjulian.distribution.model.exception.DistributionError
 import de.cmdjulian.distribution.model.exception.DistributionError.ClientErrorException.AuthenticationError
 import de.cmdjulian.distribution.model.exception.DistributionError.ClientErrorException.AuthorizationError
@@ -111,7 +111,7 @@ internal class DistributionClientImpl(private val api: DistributionApi) : Distri
     internal suspend fun config(repository: Repository, digest: Digest): Result<ImageConfig> {
         return blob(repository, digest)
             .map(Blob::data)
-            .map { bytes -> mapper.readValue(bytes, ImageConfig::class.java) }
+            .map { bytes -> jsonMapper.readValue(bytes, ImageConfig::class.java) }
     }
 
     override suspend fun config(repository: Repository, reference: Reference): Result<ImageConfig> {
