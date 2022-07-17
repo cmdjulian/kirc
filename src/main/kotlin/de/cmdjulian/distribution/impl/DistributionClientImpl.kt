@@ -3,7 +3,6 @@ package de.cmdjulian.distribution.impl
 import com.haroldadmin.cnradapter.NetworkResponse
 import de.cmdjulian.distribution.DistributionClient
 import de.cmdjulian.distribution.DockerImageClient
-import de.cmdjulian.distribution.jsonMapper
 import de.cmdjulian.distribution.model.exception.DistributionError
 import de.cmdjulian.distribution.model.exception.DistributionError.ClientErrorException.AuthenticationError
 import de.cmdjulian.distribution.model.exception.DistributionError.ClientErrorException.AuthorizationError
