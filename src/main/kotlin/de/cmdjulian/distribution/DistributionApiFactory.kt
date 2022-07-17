@@ -1,18 +1,18 @@
 package de.cmdjulian.distribution
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import com.fasterxml.jackson.datatype.jdk8.Jdk8Module
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
-import com.fasterxml.jackson.module.kotlin.jsonMapper
-import com.fasterxml.jackson.module.kotlin.kotlinModule
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.haroldadmin.cnradapter.NetworkResponseAdapterFactory
+import de.cmdjulian.distribution.impl.DOCKER_HUB_URL
 import de.cmdjulian.distribution.impl.DistributionApi
 import de.cmdjulian.distribution.impl.DistributionClientImpl
 import de.cmdjulian.distribution.impl.DockerImageClientImpl
+import de.cmdjulian.distribution.impl.httpClient
+import de.cmdjulian.distribution.impl.jsonMapper
 import de.cmdjulian.distribution.model.config.ProxyConfig
 import de.cmdjulian.distribution.model.config.RegistryCredentials
 import de.cmdjulian.distribution.model.oci.DockerImageSlug
+import de.cmdjulian.distribution.utils.getIgnoreCase
 import im.toss.http.parser.HttpAuthCredentials
 import okhttp3.Credentials
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -25,26 +25,11 @@ import retrofit2.Retrofit
 import retrofit2.converter.jackson.JacksonConverterFactory
 import java.net.URL
 
-private val client = OkHttpClient.Builder()
-    .apply {
-        interceptors().add { chain ->
-            chain.request().newBuilder().header("Accept", "application/json").build().let(chain::proceed)
-        }
-    }
-    .build()
-
-internal val mapper = jsonMapper {
-    addModules(kotlinModule())
-    addModules(JavaTimeModule())
-    addModules(Jdk8Module())
-}
-
 @JsonIgnoreProperties(ignoreUnknown = true)
 private data class TokenResponse(val token: String)
 
+@Suppress("unused", "MemberVisibilityCanBePrivate", "HttpUrlsUsage")
 object DistributionApiFactory {
-
-    private val DOCKER_HUB_URL = URL("https://registry-1.docker.io")
 
     /**
      * Create a DistributionClient for a registry. If no args are supplied the client is constructed for Docker Hub with
@@ -58,8 +43,8 @@ object DistributionApiFactory {
             .apply { interceptors().add(interceptor(credentials)) }
             .build()
         val retrofit = Retrofit.Builder()
-            .baseUrl(url.let { if (it.toString() == "https://docker.io") DOCKER_HUB_URL else it })
-            .addConverterFactory(JacksonConverterFactory.create(mapper))
+            .baseUrl(url.run { if ("$this" == "https://docker.io") DOCKER_HUB_URL else this })
+            .addConverterFactory(JacksonConverterFactory.create(jsonMapper))
             .addCallAdapterFactory(NetworkResponseAdapterFactory())
             .client(httpClient)
             .build()
@@ -84,26 +69,16 @@ object DistributionApiFactory {
 
     private fun interceptor(credentials: RegistryCredentials?) = Interceptor { chain ->
         val request = chain.request()
-        val response = chain.proceed(request)
+        var response = chain.proceed(request)
 
         if (response.code == 401) {
-            val wwwAuthHeader = response.anyHeader("Www-Authenticate", "www-authenticate", "WWW-Authenticate")
+            response.headers.getIgnoreCase("www-authenticate")?.let { header ->
+                val wwwAuth = HttpAuthCredentials.parse(header)
 
-            if (wwwAuthHeader != null) {
-                val wwwAuth = HttpAuthCredentials.parse(wwwAuthHeader)
-
-                return@Interceptor when {
-                    wwwAuth.scheme == "Basic" && credentials != null -> {
-                        response.close()
-                        chain.retryWithBasicAuth(credentials)
-                    }
-
-                    wwwAuth.scheme == "Bearer" -> {
-                        response.close()
-                        chain.retryWithTokenAuth(credentials, wwwAuth)
-                    }
-
-                    else -> response
+                if (wwwAuth.scheme in arrayOf("Basic", "Bearer")) response.close()
+                when {
+                    wwwAuth.scheme == "Basic" && credentials != null -> response = chain.retryWithBasicAuth(credentials)
+                    wwwAuth.scheme == "Bearer" -> response = chain.retryWithTokenAuth(credentials, wwwAuth)
                 }
             }
         }
@@ -118,15 +93,12 @@ object DistributionApiFactory {
             .let(this::proceed)
     }
 
-    private fun Chain.retryWithTokenAuth(
-        credentials: RegistryCredentials?,
-        wwwAuth: HttpAuthCredentials
-    ): Response {
+    private fun Chain.retryWithTokenAuth(credentials: RegistryCredentials?, wwwAuth: HttpAuthCredentials): Response {
         val tokenAuthRequest = tokenAuthRequest(credentials, wwwAuth)
-        val response = client.newCall(tokenAuthRequest).execute()
+        val response = httpClient.newCall(tokenAuthRequest).execute()
 
         if (response.isSuccessful) {
-            val tokenResponse: TokenResponse = mapper.readValue(response.body!!.string())
+            val tokenResponse: TokenResponse = jsonMapper.readValue(response.body!!.string())
             val request = request().newBuilder()
                 .addHeader("Authorization", "Bearer ${tokenResponse.token}")
                 .build()
@@ -160,14 +132,4 @@ object DistributionApiFactory {
             .basicAuth(credentials)
             .build()
     }
-}
-
-@Suppress("SameParameterValue")
-private fun Response.anyHeader(vararg headers: String): String? {
-    for (header in headers) {
-        val candidate = header(header)
-        if (candidate != null) return candidate
-    }
-
-    return null
 }
