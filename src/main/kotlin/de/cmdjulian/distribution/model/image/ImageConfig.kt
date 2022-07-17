@@ -46,6 +46,6 @@ data class ImageConfig(
     val buildkitBuildInfo: String?,
 
     @JsonProperty("moby.buildkit.cache.v0")
-    val buildkitCache: String?,
+    val buildkitCache: String?
 
 )
