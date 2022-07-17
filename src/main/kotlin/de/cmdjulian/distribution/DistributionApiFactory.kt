@@ -52,7 +52,6 @@ object DistributionApiFactory {
      */
     fun create(url: URL = DOCKER_HUB_URL, credentials: RegistryCredentials? = null, config: ProxyConfig? = null):
         DistributionClient {
-
         val httpClient = OkHttpClient.Builder()
             .proxy(config?.proxy)
             .apply { config?.authenticator?.run { proxyAuthenticator(this) } }
