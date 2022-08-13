@@ -63,5 +63,5 @@ interface DistributionClient {
     /**
      * Convert general Client to DockerImageClient.
      */
-    fun toImageClient(repository: Repository, reference: Reference? = null): DockerImageClient
+    fun toImageClient(repository: Repository, reference: Reference? = null): ImageClient
 }

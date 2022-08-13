@@ -2,7 +2,7 @@ package de.cmdjulian.distribution.impl
 
 import com.haroldadmin.cnradapter.NetworkResponse
 import de.cmdjulian.distribution.DistributionClient
-import de.cmdjulian.distribution.DockerImageClient
+import de.cmdjulian.distribution.ImageClient
 import de.cmdjulian.distribution.model.exception.DistributionError
 import de.cmdjulian.distribution.model.exception.DistributionError.ClientErrorException.AuthenticationError
 import de.cmdjulian.distribution.model.exception.DistributionError.ClientErrorException.AuthorizationError
@@ -119,10 +119,10 @@ internal class DistributionClientImpl(private val api: DistributionApi) : Distri
             .foldSuspend { digest -> config(repository, digest) }
     }
 
-    override fun toImageClient(repository: Repository, reference: Reference?): DockerImageClient =
+    override fun toImageClient(repository: Repository, reference: Reference?): ImageClient =
         when (reference) {
-            null -> DockerImageClientImpl(this, DockerImageSlug(repository = repository))
-            is Tag -> DockerImageClientImpl(this, DockerImageSlug(repository = repository, tag = reference))
-            is Digest -> DockerImageClientImpl(this, DockerImageSlug(repository = repository, digest = reference))
+            null -> ImageClientImpl(this, DockerImageSlug(repository = repository))
+            is Tag -> ImageClientImpl(this, DockerImageSlug(repository = repository, tag = reference))
+            is Digest -> ImageClientImpl(this, DockerImageSlug(repository = repository, digest = reference))
         }
 }

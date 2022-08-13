@@ -1,4 +1,4 @@
-package de.cmdjulian.distribution
+package de.cmdjulian.distribution // ktlint-disable filename
 
 import de.cmdjulian.distribution.model.oci.Digest
 import de.cmdjulian.distribution.model.oci.Reference
@@ -38,11 +38,11 @@ fun DistributionClient.toBlockingClient() = object : BlockingDistributionClient 
     override fun toImageClient(
         repository: Repository,
         reference: Reference?
-    ): BlockingDockerImageClient =
+    ): BlockingImageClient =
         this@toBlockingClient.toImageClient(repository, reference).toBlockingClient()
 }
 
-fun DockerImageClient.toBlockingClient() = object : BlockingDockerImageClient {
+fun ImageClient.toBlockingClient() = object : BlockingImageClient {
     override fun exists() = runBlocking { this@toBlockingClient.exists() }
 
     override fun tags(limit: Int?, last: Int?) = runBlocking { this@toBlockingClient.tags(limit, last) }

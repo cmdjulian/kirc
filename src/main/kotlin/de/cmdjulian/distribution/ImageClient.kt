@@ -6,7 +6,7 @@ import de.cmdjulian.distribution.model.oci.Blob
 import de.cmdjulian.distribution.model.oci.DockerImage
 import de.cmdjulian.distribution.model.oci.Tag
 
-interface DockerImageClient {
+interface ImageClient {
 
     /**
      * Check if an image exists
