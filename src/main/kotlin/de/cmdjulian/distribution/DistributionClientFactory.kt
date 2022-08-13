@@ -6,7 +6,7 @@ import com.haroldadmin.cnradapter.NetworkResponseAdapterFactory
 import de.cmdjulian.distribution.impl.DOCKER_HUB_URL
 import de.cmdjulian.distribution.impl.DistributionApi
 import de.cmdjulian.distribution.impl.DistributionClientImpl
-import de.cmdjulian.distribution.impl.DockerImageClientImpl
+import de.cmdjulian.distribution.impl.ImageClientImpl
 import de.cmdjulian.distribution.impl.httpClient
 import de.cmdjulian.distribution.impl.jsonMapper
 import de.cmdjulian.distribution.model.config.ProxyConfig
@@ -29,7 +29,7 @@ import java.net.URL
 private data class TokenResponse(val token: String)
 
 @Suppress("unused", "MemberVisibilityCanBePrivate", "HttpUrlsUsage")
-object DistributionApiFactory {
+object DistributionClientFactory {
 
     /**
      * Create a DistributionClient for a registry. If no args are supplied the client is constructed for Docker Hub with
@@ -58,7 +58,7 @@ object DistributionApiFactory {
         credentials: RegistryCredentials? = null,
         config: ProxyConfig? = null,
         insecure: Boolean = false
-    ): DockerImageClient = DockerImageClientImpl(
+    ): ImageClient = ImageClientImpl(
         create(
             URL((if (insecure) "http://" else "https://") + image.registry.toString()),
             credentials,

@@ -66,5 +66,5 @@ interface BlockingDistributionClient {
     fun toImageClient(
         repository: Repository,
         reference: Reference? = null
-    ): BlockingDockerImageClient
+    ): BlockingImageClient
 }

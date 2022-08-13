@@ -1,6 +1,6 @@
 package de.cmdjulian.distribution.impl
 
-import de.cmdjulian.distribution.DockerImageClient
+import de.cmdjulian.distribution.ImageClient
 import de.cmdjulian.distribution.model.manifest.ManifestV2
 import de.cmdjulian.distribution.model.oci.Blob
 import de.cmdjulian.distribution.model.oci.DockerImage
@@ -11,8 +11,8 @@ import de.cmdjulian.distribution.utils.zip
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
-internal class DockerImageClientImpl(private val client: DistributionClientImpl, private val image: DockerImageSlug) :
-    DockerImageClient {
+internal class ImageClientImpl(private val client: DistributionClientImpl, private val image: DockerImageSlug) :
+    ImageClient {
 
     override suspend fun exists() = client.exists(image.repository, image.reference)
 
