@@ -15,6 +15,7 @@ plugins {
 
     // Apply the java-library plugin for API and implementation separation.
     `java-library`
+    `maven-publish`
 
     // linting
     id("org.jlleitschuh.gradle.ktlint") version "10.3.0"
@@ -54,4 +55,16 @@ dependencies {
 configure<KtlintExtension> {
     version.set("0.45.2")
     enableExperimentalRules.set(true)
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            groupId = "de.cmdjulian"
+            artifactId = "distribution"
+            version = "1.0.0"
+
+            from(components["java"])
+        }
+    }
 }
