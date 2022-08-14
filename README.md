@@ -51,4 +51,60 @@ communication.
 - export image as tar archive
 - upload image from tar
 
-## Development
+## Installation
+
+The client can be pulled into gradle or maven by
+using [jitpack](https://jitpack.io/#com.gitlab.cmdjulian/oci-distribution-client).
+
+<details>
+<summary>Gradle</summary>
+
+```groovy
+repositories {
+    maven { url 'https://jitpack.io' }
+}
+
+
+dependencies {
+    implementation 'com.gitlab.cmdjulian:oci-distribution-client:{VERSION}'
+}
+```
+
+</details>
+
+<details>
+<summary>Gradle Kts</summary>
+
+```kotlin
+repositories {
+    maven(url = "https://jitpack.io")
+}
+
+
+dependencies {
+    implementation("com.gitlab.cmdjulian:oci-distribution-client:{VERSION}")
+}
+```
+
+</details>
+
+<details>
+<summary>Maven</summary>
+
+```xml
+<repositories>
+    <repository>
+        <id>jitpack.io</id>
+        <url>https://jitpack.io</url>
+    </repository>
+</repositories>
+
+
+<dependency>
+<groupId>com.gitlab.cmdjulian</groupId>
+<artifactId>oci-distribution-client</artifactId>
+<version>{VERSION}</version>
+</dependency>
+```
+
+</details>
