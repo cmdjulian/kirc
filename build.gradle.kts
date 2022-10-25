@@ -11,7 +11,7 @@ import org.jlleitschuh.gradle.ktlint.KtlintExtension
 
 plugins {
     // Apply the org.jetbrains.kotlin.jvm Plugin to add support for Kotlin.
-    id("org.jetbrains.kotlin.jvm") version "1.7.10"
+    id("org.jetbrains.kotlin.jvm") version "1.7.20"
 
     // Apply the java-library plugin for API and implementation separation.
     `java-library`
@@ -43,10 +43,11 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
 
     // Jackson
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.13.3")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.13.3")
-    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.13.3")
-    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.13.3")
+    val jackson = "2.13.4"
+    implementation("com.fasterxml.jackson.core:jackson-databind:$jackson")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:$jackson")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jackson")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jdk8:$jackson")
 
     // Auth header parsing
     implementation("im.toss:http-auth-parser:0.1.2")
