@@ -5,7 +5,7 @@ stages:
 
 lint:
   stage: test
-  image: bellsoft/liberica-openjdk-alpine-musl:17@sha256:661410290751bed9256f1e72b7685c036e05529c8684e0f7dd11fd1f52891fe9
+  image: bellsoft/liberica-openjdk-alpine-musl:17@sha256:fe2ca302ae1225af4d482b726c0037a80a616604c4abe43a4bd7c6b44cf2245c
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
       when: never
