@@ -1,3 +1,5 @@
+[![](https://jitpack.io/v/cmdjulian/oci-distribution-client.svg)](https://jitpack.io/#cmdjulian/oci-distribution-client)
+
 # OCI Distribution Client
 
 Kotlin client utilizing CoRoutines and Retrofit to interact with the Docker Registry API V2 via
