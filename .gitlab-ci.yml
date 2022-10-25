@@ -27,7 +27,7 @@ lint:
 
 release:
   stage: release
-  image: registry.gitlab.com/gitlab-org/release-cli@sha256:af74927a13c44668cf3741a8e3ef513cd4353703707c64b51b6f6ea98d3fefaf
+  image: registry.gitlab.com/gitlab-org/release-cli@sha256:29c813139e5599fb1d98cc6fb7aedbf922e9075e793d48c5503039d6c5e8a64f
   rules: [ { if: $CI_COMMIT_TAG } ]
   script: echo "Creating Release $CI_COMMIT_TAG"
   release:
