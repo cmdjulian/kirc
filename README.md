@@ -1,8 +1,4 @@
 [![](https://jitpack.io/v/cmdjulian/oci-distribution-client.svg)](https://jitpack.io/#cmdjulian/oci-distribution-client)
-![Github stars](https://badgen.net/github/stars/cmdjulian/oci-distribution-client?icon=github&label=stars)
-![Github forks](https://badgen.net/github/forks/cmdjulian/oci-distribution-client?icon=github&label=forks)
-![Github issues](https://img.shields.io/github/issues/cmdjulian/oci-distribution-client)
-![Github last-commit](https://img.shields.io/github/last-commit/cmdjulian/oci-distribution-client)
 
 # OCI Distribution Client
 
