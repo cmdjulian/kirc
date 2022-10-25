@@ -54,7 +54,7 @@ communication.
 ## Installation
 
 The client can be pulled into gradle or maven by
-using [jitpack](https://jitpack.io/#com.gitlab.cmdjulian/oci-distribution-client).
+using [jitpack](https://jitpack.io/#cmdjulian/oci-distribution-client).
 
 <details>
 <summary>Gradle</summary>
@@ -66,7 +66,7 @@ repositories {
 
 
 dependencies {
-    implementation 'com.gitlab.cmdjulian:oci-distribution-client:{VERSION}'
+    implementation 'com.github.cmdjulian:oci-distribution-client:{VERSION}'
 }
 ```
 
@@ -82,7 +82,7 @@ repositories {
 
 
 dependencies {
-    implementation("com.gitlab.cmdjulian:oci-distribution-client:{VERSION}")
+    implementation("com.github.cmdjulian:oci-distribution-client:{VERSION}")
 }
 ```
 
@@ -101,7 +101,7 @@ dependencies {
 
 
 <dependency>
-<groupId>com.gitlab.cmdjulian</groupId>
+<groupId>com.github.cmdjulian</groupId>
 <artifactId>oci-distribution-client</artifactId>
 <version>{VERSION}</version>
 </dependency>
