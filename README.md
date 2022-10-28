@@ -53,10 +53,9 @@ communication.
 - export image as tar archive
 - upload image from tar
 
-## Installation
+## Usage
 
-The client can be pulled into gradle or maven by
-using [jitpack](https://jitpack.io/#cmdjulian/oci-distribution-client).
+The client can be pulled into gradle or maven by using [jitpack](https://jitpack.io/#cmdjulian/oci-distribution-client).
 
 <details>
 <summary>Gradle</summary>
@@ -94,19 +93,29 @@ dependencies {
 <summary>Maven</summary>
 
 ```xml
-<repositories>
-    <repository>
-        <id>jitpack.io</id>
-        <url>https://jitpack.io</url>
-    </repository>
-</repositories>
 
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
-<dependency>
-<groupId>com.github.cmdjulian</groupId>
-<artifactId>oci-distribution-client</artifactId>
-<version>{VERSION}</version>
-</dependency>
+    ...
+
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
+
+    ...
+
+    <dependencies>
+        <dependency>
+            <groupId>com.github.cmdjulian</groupId>
+            <artifactId>oci-distribution-client</artifactId>
+            <version>{VERSION}</version>
+        </dependency>
+    </dependencies>
+</project>
 ```
 
 </details>
