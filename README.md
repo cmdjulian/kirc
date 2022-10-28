@@ -1,11 +1,11 @@
-[![](https://jitpack.io/v/cmdjulian/oci-distribution-client.svg)](https://jitpack.io/#cmdjulian/oci-distribution-client)
+[![](https://jitpack.io/v/cmdjulian/docker-registry-client.svg)](https://jitpack.io/#cmdjulian/docker-registry-client)
 
-# OCI Distribution Client
+# Docker Registry Client (OCI Distribution)
 
 Kotlin client utilizing CoRoutines and Retrofit to interact with the Docker Registry API V2 via
 [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pull).
 
-## General
+## Overview
 
 The main interface to interact with the client is `DistributionClient`. It provides the basic functionality described
 in [Functionality](#functionality).  
@@ -55,7 +55,7 @@ communication.
 
 ## Adding the Dependency
 
-The client can be pulled into gradle or maven by using [jitpack](https://jitpack.io/#cmdjulian/oci-distribution-client).
+The client can be pulled into gradle or maven by using [jitpack](https://jitpack.io/#cmdjulian/docker-registry-client).
 
 <details>
 <summary>Gradle</summary>
@@ -67,7 +67,7 @@ repositories {
 
 
 dependencies {
-    implementation 'com.github.cmdjulian:oci-distribution-client:{VERSION}'
+    implementation 'com.github.cmdjulian:docker-registry-client:{VERSION}'
 }
 ```
 
@@ -83,7 +83,7 @@ repositories {
 
 
 dependencies {
-    implementation("com.github.cmdjulian:oci-distribution-client:{VERSION}")
+    implementation("com.github.cmdjulian:docker-registry-client:{VERSION}")
 }
 ```
 
@@ -111,7 +111,7 @@ dependencies {
     <dependencies>
         <dependency>
             <groupId>com.github.cmdjulian</groupId>
-            <artifactId>oci-distribution-client</artifactId>
+            <artifactId>docker-registry-client</artifactId>
             <version>{VERSION}</version>
         </dependency>
     </dependencies>
