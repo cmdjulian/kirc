@@ -53,7 +53,7 @@ communication.
 - export image as tar archive
 - upload image from tar
 
-## Usage
+## Adding the Dependency
 
 The client can be pulled into gradle or maven by using [jitpack](https://jitpack.io/#cmdjulian/oci-distribution-client).
 
