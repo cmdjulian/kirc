@@ -55,6 +55,7 @@ communication.
 
 ## Adding the Dependency
 
+The library requires at least java 11.  
 The client can be pulled into gradle or maven by using [jitpack](https://jitpack.io/#cmdjulian/docker-registry-client).
 
 <details>
