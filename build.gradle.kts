@@ -28,7 +28,7 @@ repositories {
 
 kotlin {
     jvmToolchain {
-        this.languageVersion.set(JavaLanguageVersion.of(17))
+        this.languageVersion.set(JavaLanguageVersion.of(11))
     }
 }
 
@@ -63,7 +63,7 @@ publishing {
         create<MavenPublication>("maven") {
             groupId = "de.cmdjulian"
             artifactId = "distribution"
-            version = "1.0.0"
+            version = "1.0.1"
 
             from(components["java"])
         }

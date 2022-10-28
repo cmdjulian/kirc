@@ -6,6 +6,7 @@ import de.cmdjulian.distribution.model.oci.Repository
 import de.cmdjulian.distribution.model.oci.Tag
 import kotlinx.coroutines.runBlocking
 
+@Suppress("unused")
 fun DistributionClient.toBlockingClient() = object : BlockingDistributionClient {
     override fun testConnection() = runBlocking { this@toBlockingClient.testConnection() }
 

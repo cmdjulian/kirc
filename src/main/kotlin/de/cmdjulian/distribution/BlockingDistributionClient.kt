@@ -63,8 +63,5 @@ interface BlockingDistributionClient {
     /**
      * Convert general Client to DockerImageClient.
      */
-    fun toImageClient(
-        repository: Repository,
-        reference: Reference? = null
-    ): BlockingImageClient
+    fun toImageClient(repository: Repository, reference: Reference? = null): BlockingImageClient
 }
