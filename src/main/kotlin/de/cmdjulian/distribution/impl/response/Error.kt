@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package de.cmdjulian.distribution.impl.response
 
 internal data class Errors(val errors: List<Error>)

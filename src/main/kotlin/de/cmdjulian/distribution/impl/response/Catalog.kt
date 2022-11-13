@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonCreator
 import de.cmdjulian.distribution.model.oci.Repository
 
 internal data class Catalog(val repositories: List<Repository>) {
-
     companion object {
         @JvmStatic
         @JsonCreator

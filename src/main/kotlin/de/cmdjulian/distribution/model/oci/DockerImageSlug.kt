@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package de.cmdjulian.distribution.model.oci
 
 /**

@@ -1,5 +1,6 @@
 package de.cmdjulian.distribution.model.exception
 
+@Suppress("MemberVisibilityCanBePrivate")
 sealed class DistributionError(message: String, throwable: Throwable? = null) : Exception(message, throwable) {
 
     sealed class ClientErrorException(message: String, val error: Error?) : DistributionError(message) {
