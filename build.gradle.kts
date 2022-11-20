@@ -26,7 +26,7 @@ plugins {
     // linting
     id("org.jlleitschuh.gradle.ktlint") version "11.0.0"
     // sast
-    id("io.gitlab.arturbosch.detekt") version "1.21.0"
+    id("io.gitlab.arturbosch.detekt") version "1.22.0"
     // licence scanning
     id("com.jaredsburrows.license") version "0.9.0"
 }
