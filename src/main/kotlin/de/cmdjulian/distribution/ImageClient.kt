@@ -1,7 +1,7 @@
 package de.cmdjulian.distribution
 
-import de.cmdjulian.distribution.model.image.ImageConfig
-import de.cmdjulian.distribution.model.manifest.ManifestV2
+import de.cmdjulian.distribution.model.image.ImageConfigV1
+import de.cmdjulian.distribution.model.manifest.docker.ManifestV2
 import de.cmdjulian.distribution.model.oci.Blob
 import de.cmdjulian.distribution.model.oci.DockerImage
 import de.cmdjulian.distribution.model.oci.Tag
@@ -26,7 +26,7 @@ interface ImageClient {
     /**
      * Get the config of an Image.
      */
-    suspend fun config(): Result<ImageConfig>
+    suspend fun config(): Result<ImageConfigV1>
 
     /**
      * Get the config of an Image.
@@ -41,7 +41,7 @@ interface ImageClient {
     /**
      * Retrieves the images compressed size in bytes.
      */
-    suspend fun size(): Result<Long>
+    suspend fun size(): Result<UInt>
 
     /**
      * Retrieve a Docker Image.

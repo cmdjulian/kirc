@@ -1,7 +1,7 @@
 package de.cmdjulian.distribution
 
-import de.cmdjulian.distribution.model.image.ImageConfig
-import de.cmdjulian.distribution.model.manifest.ManifestV2
+import de.cmdjulian.distribution.model.image.ImageConfigV1
+import de.cmdjulian.distribution.model.manifest.docker.ManifestV2
 import de.cmdjulian.distribution.model.oci.Blob
 import de.cmdjulian.distribution.model.oci.Digest
 import de.cmdjulian.distribution.model.oci.Reference
@@ -39,7 +39,7 @@ fun DistributionClient.toBlockingClient() = object : BlockingDistributionClient 
         return runBlocking { this@toBlockingClient.deleteManifest(repository, reference) }
     }
 
-    override fun config(repository: Repository, reference: Reference): Result<ImageConfig> {
+    override fun config(repository: Repository, reference: Reference): Result<ImageConfigV1> {
         return runBlocking { this@toBlockingClient.config(repository, reference) }
     }
 

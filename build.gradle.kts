@@ -52,6 +52,8 @@ dependencies {
     implementation("com.github.haroldadmin:NetworkResponseAdapter:5.0.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
 
+    //implementation("com.github.kittinunf.fuel:fuel:3.0.0-SNAPSHOT")
+
     // Jackson
     implementation(platform("com.fasterxml.jackson:jackson-bom:2.14.1"))
     implementation("com.fasterxml.jackson.core:jackson-databind")

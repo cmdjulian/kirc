@@ -5,7 +5,6 @@ import java.util.Locale
 
 @JvmInline
 value class Repository(private val value: String) {
-
     init {
         require(!Path.of(value).isAbsolute) { "invalid repository, has to be relative" }
         require(value == value.lowercase(Locale.getDefault())) {

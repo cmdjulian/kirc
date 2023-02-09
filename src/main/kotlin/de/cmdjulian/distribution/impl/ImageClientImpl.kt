@@ -1,7 +1,7 @@
 package de.cmdjulian.distribution.impl
 
 import de.cmdjulian.distribution.ImageClient
-import de.cmdjulian.distribution.model.manifest.ManifestV2
+import de.cmdjulian.distribution.model.manifest.docker.ManifestV2
 import de.cmdjulian.distribution.model.oci.Blob
 import de.cmdjulian.distribution.model.oci.DockerImage
 import de.cmdjulian.distribution.model.oci.DockerImageSlug
@@ -34,8 +34,8 @@ internal class ImageClientImpl(private val client: DistributionClientImpl, priva
         .foldSuspend { manifest -> client.deleteManifest(image.repository, image.reference).map { manifest } }
         .foldSuspend { it.layers.pmap { layer -> client.deleteBlob(image.repository, layer.digest) }.zip() }
 
-    override suspend fun size() = manifest().map { (_, config, layers) ->
-        config.size + layers.sumOf { layer -> layer.size.toLong() }
+    override suspend fun size(): Result<UInt> = manifest().map { (_, _, config, layers) ->
+        config.size + layers.sumOf { layer -> layer.size.toLong() }.toUInt()
     }
 
     override suspend fun toDockerImage(): Result<DockerImage> {

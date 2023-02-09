@@ -1,7 +1,7 @@
 package de.cmdjulian.distribution
 
-import de.cmdjulian.distribution.model.image.ImageConfig
-import de.cmdjulian.distribution.model.manifest.ManifestV2
+import de.cmdjulian.distribution.model.image.ImageConfigV1
+import de.cmdjulian.distribution.model.manifest.docker.ManifestV2
 import de.cmdjulian.distribution.model.oci.Blob
 import de.cmdjulian.distribution.model.oci.Digest
 import de.cmdjulian.distribution.model.oci.Reference
@@ -48,7 +48,7 @@ interface DistributionClient {
     /**
      * Get the config of an Image.
      */
-    suspend fun config(repository: Repository, reference: Reference): Result<ImageConfig>
+    suspend fun config(repository: Repository, reference: Reference): Result<ImageConfigV1>
 
     /**
      * Retrieve a Blob for an image. The Map contains not just the Blobs byte, but also it's content type.
