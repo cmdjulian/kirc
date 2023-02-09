@@ -29,6 +29,7 @@ data class DockerImageSlug(
     val reference: Reference = digest ?: tag ?: Tag("latest")
 
     companion object {
+        @JvmStatic
         fun parse(image: String): DockerImageSlug {
             val slashIndex = image.indexOf('/')
             val isRegistryMissing = slashIndex == -1 ||

@@ -4,8 +4,8 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import de.cmdjulian.distribution.DistributionClient
 import de.cmdjulian.distribution.ImageClient
 import de.cmdjulian.distribution.model.exception.DistributionError.ClientErrorException.NotFoundException
-import de.cmdjulian.distribution.model.image.ImageConfig
-import de.cmdjulian.distribution.model.manifest.ManifestV2
+import de.cmdjulian.distribution.model.image.ImageConfigV1
+import de.cmdjulian.distribution.model.manifest.docker.ManifestV2
 import de.cmdjulian.distribution.model.oci.Blob
 import de.cmdjulian.distribution.model.oci.Digest
 import de.cmdjulian.distribution.model.oci.DockerImageSlug
@@ -68,13 +68,13 @@ internal class DistributionClientImpl(private val api: DistributionApi) : Distri
         return api.deleteBlob(repository, digest).toResult()
     }
 
-    override suspend fun config(repository: Repository, reference: Reference): Result<ImageConfig> {
+    override suspend fun config(repository: Repository, reference: Reference): Result<ImageConfigV1> {
         return manifest(repository, reference)
             .map { manifest -> manifest.config.digest }
             .foldSuspend { digest -> config(repository, digest) }
     }
 
-    internal suspend fun config(repository: Repository, digest: Digest): Result<ImageConfig> {
+    internal suspend fun config(repository: Repository, digest: Digest): Result<ImageConfigV1> {
         return blob(repository, digest)
             .map(Blob::data)
             .map { bytes -> JsonMapper.readValue(bytes) }
