@@ -1,7 +1,7 @@
 package de.cmdjulian.distribution
 
 import de.cmdjulian.distribution.spec.image.docker.ImageV1
-import de.cmdjulian.distribution.spec.manifest.docker.ManifestV2
+import de.cmdjulian.distribution.spec.manifest.DockerManifestV2
 import de.cmdjulian.distribution.model.Blob
 import de.cmdjulian.distribution.model.DockerImage
 import de.cmdjulian.distribution.model.Tag
@@ -21,7 +21,7 @@ interface ImageClient {
     /**
      * Retrieve a manifest.
      */
-    suspend fun manifest(): Result<ManifestV2>
+    suspend fun manifest(): Result<DockerManifestV2>
 
     /**
      * Get the config of an Image.

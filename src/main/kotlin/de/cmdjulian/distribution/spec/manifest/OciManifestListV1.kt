@@ -1,6 +1,4 @@
-package de.cmdjulian.distribution.spec.manifest.oci
-
-import de.cmdjulian.distribution.spec.manifest.ManifestListEntry
+package de.cmdjulian.distribution.spec.manifest
 
 /*
  * {
@@ -33,12 +31,12 @@ import de.cmdjulian.distribution.spec.manifest.ManifestListEntry
  * }
  */
 // https://github.com/opencontainers/image-spec/blob/main/image-index.md
-data class ImageIndexV1(
-    val schemaVersion: UByte,
-    val mediaType: String?,
-    val manifests: List<ManifestListEntry>,
-    val annotations: Map<String, String>
-) {
+data class OciManifestListV1(
+    override val schemaVersion: UByte,
+    override val mediaType: String?,
+    override val manifests: List<ManifestListEntry>,
+    val annotations: Map<String, String>,
+) : ManifestList {
     companion object {
         const val MediaType = "application/vnd.oci.image.index.v1+json"
     }

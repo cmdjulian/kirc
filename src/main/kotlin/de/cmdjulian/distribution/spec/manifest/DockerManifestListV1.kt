@@ -1,6 +1,4 @@
-package de.cmdjulian.distribution.spec.manifest.docker
-
-import de.cmdjulian.distribution.spec.manifest.ManifestListEntry
+package de.cmdjulian.distribution.spec.manifest
 
 /*
  * {
@@ -32,7 +30,11 @@ import de.cmdjulian.distribution.spec.manifest.ManifestListEntry
  * }
  */
 // https://docs.docker.com/registry/spec/manifest-v2-2/#manifest-list-field-descriptions
-data class ManifestListV1(val schemaVersion: UByte, val mediaType: String, val manifests: List<ManifestListEntry>) {
+data class DockerManifestListV1(
+    override val schemaVersion: UByte,
+    override val mediaType: String,
+    override val manifests: List<ManifestListEntry>,
+) : ManifestList {
     companion object {
         const val MediaType = "application/vnd.docker.distribution.manifest.list.v2+json"
     }

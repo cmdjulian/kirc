@@ -13,7 +13,7 @@ data class ManifestListEntry(val mediaType: String, val digest: Digest, val size
             mediaType,
             Digest(digest),
             size,
-            platform
+            platform,
         )
     }
 }

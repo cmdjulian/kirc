@@ -5,7 +5,7 @@ import de.cmdjulian.distribution.DistributionClient
 import de.cmdjulian.distribution.ImageClient
 import de.cmdjulian.distribution.exception.DistributionError.ClientErrorException.NotFoundException
 import de.cmdjulian.distribution.spec.image.docker.ImageV1
-import de.cmdjulian.distribution.spec.manifest.docker.ManifestV2
+import de.cmdjulian.distribution.spec.manifest.DockerManifestV2
 import de.cmdjulian.distribution.model.Blob
 import de.cmdjulian.distribution.model.Digest
 import de.cmdjulian.distribution.model.DockerImageSlug
@@ -41,7 +41,7 @@ internal class DistributionClientImpl(private val api: DistributionApi) : Distri
             .recoverCatching(::recoverNotFound)
     }
 
-    override suspend fun manifest(repository: Repository, reference: Reference): Result<ManifestV2> {
+    override suspend fun manifest(repository: Repository, reference: Reference): Result<DockerManifestV2> {
         return api.manifest(repository, reference).toResult()
     }
 

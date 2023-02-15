@@ -1,7 +1,7 @@
 package de.cmdjulian.distribution
 
 import de.cmdjulian.distribution.spec.image.docker.ImageV1
-import de.cmdjulian.distribution.spec.manifest.docker.ManifestV2
+import de.cmdjulian.distribution.spec.manifest.DockerManifestV2
 import de.cmdjulian.distribution.model.Blob
 import de.cmdjulian.distribution.model.Digest
 import de.cmdjulian.distribution.model.Reference
@@ -27,7 +27,7 @@ fun DistributionClient.toBlockingClient() = object : BlockingDistributionClient 
         return runBlocking { this@toBlockingClient.exists(repository, reference) }
     }
 
-    override fun manifest(repository: Repository, reference: Reference): Result<ManifestV2> {
+    override fun manifest(repository: Repository, reference: Reference): Result<DockerManifestV2> {
         return runBlocking { this@toBlockingClient.manifest(repository, reference) }
     }
 
