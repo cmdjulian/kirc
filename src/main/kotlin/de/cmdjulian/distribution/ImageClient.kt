@@ -1,10 +1,10 @@
 package de.cmdjulian.distribution
 
-import de.cmdjulian.distribution.model.image.ImageConfigV1
-import de.cmdjulian.distribution.model.manifest.docker.ManifestV2
-import de.cmdjulian.distribution.model.oci.Blob
-import de.cmdjulian.distribution.model.oci.DockerImage
-import de.cmdjulian.distribution.model.oci.Tag
+import de.cmdjulian.distribution.spec.image.docker.ImageV1
+import de.cmdjulian.distribution.spec.manifest.docker.ManifestV2
+import de.cmdjulian.distribution.model.Blob
+import de.cmdjulian.distribution.model.DockerImage
+import de.cmdjulian.distribution.model.Tag
 
 interface ImageClient {
 
@@ -26,7 +26,7 @@ interface ImageClient {
     /**
      * Get the config of an Image.
      */
-    suspend fun config(): Result<ImageConfigV1>
+    suspend fun config(): Result<ImageV1>
 
     /**
      * Get the config of an Image.

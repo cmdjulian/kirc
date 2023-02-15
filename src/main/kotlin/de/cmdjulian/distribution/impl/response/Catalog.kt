@@ -1,7 +1,7 @@
 package de.cmdjulian.distribution.impl.response
 
 import com.fasterxml.jackson.annotation.JsonCreator
-import de.cmdjulian.distribution.model.oci.Repository
+import de.cmdjulian.distribution.model.Repository
 
 internal data class Catalog(val repositories: List<Repository>) {
     companion object {

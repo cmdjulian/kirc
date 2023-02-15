@@ -1,4 +1,4 @@
-package de.cmdjulian.distribution.model.config
+package de.cmdjulian.distribution.config
 
 import okhttp3.Authenticator
 import java.net.Proxy

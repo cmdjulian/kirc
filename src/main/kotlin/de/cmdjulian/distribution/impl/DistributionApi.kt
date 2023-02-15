@@ -3,11 +3,11 @@ package de.cmdjulian.distribution.impl
 import com.haroldadmin.cnradapter.NetworkResponse
 import de.cmdjulian.distribution.impl.response.Catalog
 import de.cmdjulian.distribution.impl.response.TagList
-import de.cmdjulian.distribution.model.exception.ErrorResponse
-import de.cmdjulian.distribution.model.manifest.docker.ManifestV2
-import de.cmdjulian.distribution.model.oci.Digest
-import de.cmdjulian.distribution.model.oci.Reference
-import de.cmdjulian.distribution.model.oci.Repository
+import de.cmdjulian.distribution.exception.ErrorResponse
+import de.cmdjulian.distribution.spec.manifest.docker.ManifestV2
+import de.cmdjulian.distribution.model.Digest
+import de.cmdjulian.distribution.model.Reference
+import de.cmdjulian.distribution.model.Repository
 import okhttp3.ResponseBody
 import retrofit2.http.DELETE
 import retrofit2.http.GET

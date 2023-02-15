@@ -3,15 +3,15 @@ package de.cmdjulian.distribution.impl
 import com.fasterxml.jackson.module.kotlin.readValue
 import de.cmdjulian.distribution.DistributionClient
 import de.cmdjulian.distribution.ImageClient
-import de.cmdjulian.distribution.model.exception.DistributionError.ClientErrorException.NotFoundException
-import de.cmdjulian.distribution.model.image.ImageConfigV1
-import de.cmdjulian.distribution.model.manifest.docker.ManifestV2
-import de.cmdjulian.distribution.model.oci.Blob
-import de.cmdjulian.distribution.model.oci.Digest
-import de.cmdjulian.distribution.model.oci.DockerImageSlug
-import de.cmdjulian.distribution.model.oci.Reference
-import de.cmdjulian.distribution.model.oci.Repository
-import de.cmdjulian.distribution.model.oci.Tag
+import de.cmdjulian.distribution.exception.DistributionError.ClientErrorException.NotFoundException
+import de.cmdjulian.distribution.spec.image.docker.ImageV1
+import de.cmdjulian.distribution.spec.manifest.docker.ManifestV2
+import de.cmdjulian.distribution.model.Blob
+import de.cmdjulian.distribution.model.Digest
+import de.cmdjulian.distribution.model.DockerImageSlug
+import de.cmdjulian.distribution.model.Reference
+import de.cmdjulian.distribution.model.Repository
+import de.cmdjulian.distribution.model.Tag
 import de.cmdjulian.distribution.utils.foldSuspend
 import de.cmdjulian.distribution.utils.getIgnoreCase
 
@@ -68,13 +68,13 @@ internal class DistributionClientImpl(private val api: DistributionApi) : Distri
         return api.deleteBlob(repository, digest).toResult()
     }
 
-    override suspend fun config(repository: Repository, reference: Reference): Result<ImageConfigV1> {
+    override suspend fun config(repository: Repository, reference: Reference): Result<ImageV1> {
         return manifest(repository, reference)
             .map { manifest -> manifest.config.digest }
             .foldSuspend { digest -> config(repository, digest) }
     }
 
-    internal suspend fun config(repository: Repository, digest: Digest): Result<ImageConfigV1> {
+    internal suspend fun config(repository: Repository, digest: Digest): Result<ImageV1> {
         return blob(repository, digest)
             .map(Blob::data)
             .map { bytes -> JsonMapper.readValue(bytes) }

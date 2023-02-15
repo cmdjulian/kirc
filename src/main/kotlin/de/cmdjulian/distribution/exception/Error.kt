@@ -1,4 +1,4 @@
-package de.cmdjulian.distribution.model.exception
+package de.cmdjulian.distribution.exception
 
 data class ErrorResponse(val errors: List<Error>)
 

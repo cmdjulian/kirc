@@ -1,12 +1,12 @@
 package de.cmdjulian.distribution
 
-import de.cmdjulian.distribution.model.image.ImageConfigV1
-import de.cmdjulian.distribution.model.manifest.docker.ManifestV2
-import de.cmdjulian.distribution.model.oci.Blob
-import de.cmdjulian.distribution.model.oci.Digest
-import de.cmdjulian.distribution.model.oci.Reference
-import de.cmdjulian.distribution.model.oci.Repository
-import de.cmdjulian.distribution.model.oci.Tag
+import de.cmdjulian.distribution.spec.image.docker.ImageV1
+import de.cmdjulian.distribution.spec.manifest.docker.ManifestV2
+import de.cmdjulian.distribution.model.Blob
+import de.cmdjulian.distribution.model.Digest
+import de.cmdjulian.distribution.model.Reference
+import de.cmdjulian.distribution.model.Repository
+import de.cmdjulian.distribution.model.Tag
 import kotlinx.coroutines.runBlocking
 
 @Suppress("unused")
@@ -39,7 +39,7 @@ fun DistributionClient.toBlockingClient() = object : BlockingDistributionClient 
         return runBlocking { this@toBlockingClient.deleteManifest(repository, reference) }
     }
 
-    override fun config(repository: Repository, reference: Reference): Result<ImageConfigV1> {
+    override fun config(repository: Repository, reference: Reference): Result<ImageV1> {
         return runBlocking { this@toBlockingClient.config(repository, reference) }
     }
 

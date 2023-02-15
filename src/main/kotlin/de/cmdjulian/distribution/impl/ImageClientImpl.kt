@@ -1,10 +1,10 @@
 package de.cmdjulian.distribution.impl
 
 import de.cmdjulian.distribution.ImageClient
-import de.cmdjulian.distribution.model.manifest.docker.ManifestV2
-import de.cmdjulian.distribution.model.oci.Blob
-import de.cmdjulian.distribution.model.oci.DockerImage
-import de.cmdjulian.distribution.model.oci.DockerImageSlug
+import de.cmdjulian.distribution.spec.manifest.docker.ManifestV2
+import de.cmdjulian.distribution.model.Blob
+import de.cmdjulian.distribution.model.DockerImage
+import de.cmdjulian.distribution.model.DockerImageSlug
 import de.cmdjulian.distribution.utils.foldSuspend
 import de.cmdjulian.distribution.utils.pmap
 import de.cmdjulian.distribution.utils.zip

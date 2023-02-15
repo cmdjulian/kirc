@@ -1,9 +1,8 @@
-package de.cmdjulian.distribution.model.manifest.oci
+package de.cmdjulian.distribution.spec.manifest.oci
 
-import com.fasterxml.jackson.annotation.JsonCreator
-import de.cmdjulian.distribution.model.oci.Digest
+import de.cmdjulian.distribution.spec.manifest.ManifestListEntry
 
-/**
+/*
  * {
  *   "schemaVersion": 2,
  *   "mediaType": "application/vnd.oci.image.index.v1+json",
@@ -36,20 +35,11 @@ import de.cmdjulian.distribution.model.oci.Digest
 // https://github.com/opencontainers/image-spec/blob/main/image-index.md
 data class ImageIndexV1(
     val schemaVersion: UByte,
-    val mediaType: String,
-    val manifests: List<ManifestEntry>,
-    val annotations: Map<String, String> = emptyMap()
+    val mediaType: String?,
+    val manifests: List<ManifestListEntry>,
+    val annotations: Map<String, String>
 ) {
-
     companion object {
         const val MediaType = "application/vnd.oci.image.index.v1+json"
-    }
-
-    data class ManifestEntry(val mediaType: String, val digest: Digest, val size: Short, val platform: Platform?) {
-        data class Platform(val architecture: String, val os: String, val features: List<String>)
-
-        @JsonCreator
-        constructor(mediaType: String, digest: String, size: Short, platform: Platform) :
-            this(mediaType, Digest(digest), size, platform)
     }
 }

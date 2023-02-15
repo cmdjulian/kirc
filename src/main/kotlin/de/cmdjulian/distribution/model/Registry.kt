@@ -1,4 +1,4 @@
-package de.cmdjulian.distribution.model.oci
+package de.cmdjulian.distribution.model
 
 @JvmInline
 value class Registry(private val value: String) {

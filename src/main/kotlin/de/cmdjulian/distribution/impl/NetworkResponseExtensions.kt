@@ -1,9 +1,9 @@
 package de.cmdjulian.distribution.impl
 
 import com.haroldadmin.cnradapter.NetworkResponse
-import de.cmdjulian.distribution.model.exception.DistributionError
-import de.cmdjulian.distribution.model.exception.DistributionError.ClientErrorException
-import de.cmdjulian.distribution.model.exception.ErrorResponse
+import de.cmdjulian.distribution.exception.DistributionError
+import de.cmdjulian.distribution.exception.DistributionError.ClientErrorException
+import de.cmdjulian.distribution.exception.ErrorResponse
 import retrofit2.Response
 import java.net.HttpURLConnection.HTTP_FORBIDDEN
 import java.net.HttpURLConnection.HTTP_NOT_FOUND

@@ -1,4 +1,4 @@
-package de.cmdjulian.distribution.model.oci
+package de.cmdjulian.distribution.model
 
 import java.nio.file.Path
 import java.util.Locale

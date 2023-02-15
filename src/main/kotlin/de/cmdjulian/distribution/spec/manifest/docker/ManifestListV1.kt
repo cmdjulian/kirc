@@ -1,9 +1,8 @@
-package de.cmdjulian.distribution.model.manifest.docker
+package de.cmdjulian.distribution.spec.manifest.docker
 
-import com.fasterxml.jackson.annotation.JsonCreator
-import de.cmdjulian.distribution.model.oci.Digest
+import de.cmdjulian.distribution.spec.manifest.ManifestListEntry
 
-/**
+/*
  * {
  *   "schemaVersion": 2,
  *   "mediaType": "application/vnd.docker.distribution.manifest.list.v2+json",
@@ -32,17 +31,9 @@ import de.cmdjulian.distribution.model.oci.Digest
  *   ]
  * }
  */
-data class ManifestListV1(val schemaVersion: UByte, val mediaType: String, val manifests: List<ManifestEntry>) {
-
+// https://docs.docker.com/registry/spec/manifest-v2-2/#manifest-list-field-descriptions
+data class ManifestListV1(val schemaVersion: UByte, val mediaType: String, val manifests: List<ManifestListEntry>) {
     companion object {
-        const val MediaType = "application/vnd.oci.image.manifest.v1+json"
-    }
-
-    data class ManifestEntry(val mediaType: String, val digest: Digest, val size: Short, val platform: Platform) {
-        data class Platform(val architecture: String, val os: String, val features: List<String>)
-
-        @JsonCreator
-        constructor(mediaType: String, digest: String, size: Short, platform: Platform) :
-            this(mediaType, Digest(digest), size, platform)
+        const val MediaType = "application/vnd.docker.distribution.manifest.list.v2+json"
     }
 }
