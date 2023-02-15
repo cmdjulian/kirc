@@ -77,7 +77,7 @@ data class ImageV1(
     val variant: String?,
     val config: ImageConfig?,
     val rootfs: RootFs,
-    val history: History
+    val history: History,
 ) {
     companion object {
         const val MediaType = "application/vnd.oci.image.config.v1+json"

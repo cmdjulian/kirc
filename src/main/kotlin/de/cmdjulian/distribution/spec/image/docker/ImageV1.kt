@@ -23,7 +23,7 @@ data class ImageV1(
     @JsonProperty("Size") val size: UInt,
     val config: ImageConfig?,
     val rootfs: RootFs,
-    val history: List<History>
+    val history: List<History>,
 ) {
     companion object {
         const val MediaType = "application/vnd.docker.container.image.v1+json"

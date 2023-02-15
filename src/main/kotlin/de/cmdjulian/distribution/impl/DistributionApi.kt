@@ -4,7 +4,7 @@ import com.haroldadmin.cnradapter.NetworkResponse
 import de.cmdjulian.distribution.impl.response.Catalog
 import de.cmdjulian.distribution.impl.response.TagList
 import de.cmdjulian.distribution.exception.ErrorResponse
-import de.cmdjulian.distribution.spec.manifest.docker.ManifestV2
+import de.cmdjulian.distribution.spec.manifest.DockerManifestV2
 import de.cmdjulian.distribution.model.Digest
 import de.cmdjulian.distribution.model.Reference
 import de.cmdjulian.distribution.model.Repository
@@ -43,7 +43,7 @@ internal interface DistributionApi {
     suspend fun manifest(
         @Path("name") repository: Repository,
         @Path("reference") reference: Reference
-    ): NetworkResponse<ManifestV2, ErrorResponse>
+    ): NetworkResponse<DockerManifestV2, ErrorResponse>
 
     @DELETE("/v2/{name}/manifests/{reference}")
     @Headers("Accept: application/json")

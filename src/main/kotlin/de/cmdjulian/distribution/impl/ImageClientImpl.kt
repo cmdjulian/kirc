@@ -1,7 +1,7 @@
 package de.cmdjulian.distribution.impl
 
 import de.cmdjulian.distribution.ImageClient
-import de.cmdjulian.distribution.spec.manifest.docker.ManifestV2
+import de.cmdjulian.distribution.spec.manifest.DockerManifestV2
 import de.cmdjulian.distribution.model.Blob
 import de.cmdjulian.distribution.model.DockerImage
 import de.cmdjulian.distribution.model.DockerImageSlug
@@ -24,8 +24,8 @@ internal class ImageClientImpl(private val client: DistributionClientImpl, priva
 
     override suspend fun blobs() = blobs(manifest())
 
-    private suspend fun blobs(manifest: Result<ManifestV2>): Result<List<Blob>> {
-        return manifest.map(ManifestV2::layers).foldSuspend { layers ->
+    private suspend fun blobs(manifest: Result<DockerManifestV2>): Result<List<Blob>> {
+        return manifest.map(DockerManifestV2::layers).foldSuspend { layers ->
             layers.pmap { layer -> client.blob(image.repository, layer.digest) }.zip()
         }
     }

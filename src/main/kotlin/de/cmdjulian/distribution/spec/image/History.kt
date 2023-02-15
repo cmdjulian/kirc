@@ -10,5 +10,5 @@ data class History(
     val author: String?,
     val createdBy: String?,
     val emptyLayer: Boolean,
-    val comment: String?
+    val comment: String?,
 )

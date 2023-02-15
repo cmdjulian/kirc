@@ -1,6 +1,4 @@
-package de.cmdjulian.distribution.spec.manifest.oci
-
-import de.cmdjulian.distribution.spec.manifest.LayerReference
+package de.cmdjulian.distribution.spec.manifest
 
 /*
  * {
@@ -40,14 +38,14 @@ import de.cmdjulian.distribution.spec.manifest.LayerReference
  * }
  */
 // https://github.com/opencontainers/image-spec/blob/main/manifest.md
-data class ManifestV1(
-    val schemaVersion: UInt,
-    val mediaType: String?,
-    val config: LayerReference,
-    val layers: List<LayerReference>,
+data class OciManifestV1(
+    override val schemaVersion: UByte,
+    override val mediaType: String?,
+    override val config: LayerReference,
+    override val layers: List<LayerReference>,
     val subject: LayerReference?,
-    val annotations: Map<String, String>
-) {
+    val annotations: Map<String, String>,
+) : Manifest {
     companion object {
         const val MediaType = "application/vnd.oci.image.manifest.v1+json"
     }

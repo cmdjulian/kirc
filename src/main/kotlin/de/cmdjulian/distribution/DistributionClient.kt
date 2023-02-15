@@ -1,7 +1,7 @@
 package de.cmdjulian.distribution
 
 import de.cmdjulian.distribution.spec.image.docker.ImageV1
-import de.cmdjulian.distribution.spec.manifest.docker.ManifestV2
+import de.cmdjulian.distribution.spec.manifest.DockerManifestV2
 import de.cmdjulian.distribution.model.Blob
 import de.cmdjulian.distribution.model.Digest
 import de.cmdjulian.distribution.model.Reference
@@ -33,7 +33,7 @@ interface DistributionClient {
     /**
      * Retrieve a manifest.
      */
-    suspend fun manifest(repository: Repository, reference: Reference): Result<ManifestV2>
+    suspend fun manifest(repository: Repository, reference: Reference): Result<DockerManifestV2>
 
     /**
      * Get the digest of the manifest for the provided tag.
