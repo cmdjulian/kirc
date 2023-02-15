@@ -1,7 +1,7 @@
 package de.cmdjulian.distribution.impl.response
 
 import com.fasterxml.jackson.annotation.JsonCreator
-import de.cmdjulian.distribution.model.oci.Tag
+import de.cmdjulian.distribution.model.Tag
 
 internal data class TagList(val name: String, val tags: List<Tag>) {
     companion object {

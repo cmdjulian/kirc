@@ -1,15 +1,14 @@
 package de.cmdjulian.distribution
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.haroldadmin.cnradapter.NetworkResponseAdapterFactory
 import de.cmdjulian.distribution.impl.DistributionApi
 import de.cmdjulian.distribution.impl.DistributionClientImpl
 import de.cmdjulian.distribution.impl.ImageClientImpl
 import de.cmdjulian.distribution.impl.JsonMapper
-import de.cmdjulian.distribution.model.config.ProxyConfig
-import de.cmdjulian.distribution.model.config.RegistryCredentials
-import de.cmdjulian.distribution.model.oci.DockerImageSlug
+import de.cmdjulian.distribution.config.ProxyConfig
+import de.cmdjulian.distribution.config.RegistryCredentials
+import de.cmdjulian.distribution.model.DockerImageSlug
 import de.cmdjulian.distribution.utils.getIgnoreCase
 import im.toss.http.parser.HttpAuthCredentials
 import okhttp3.Credentials
@@ -119,7 +118,6 @@ object DistributionClientFactory {
         val response = HttpClient.newCall(tokenAuthRequest).execute()
 
         if (response.isSuccessful) {
-            @JsonIgnoreProperties(ignoreUnknown = true)
             class TokenResponse(val token: String)
 
             val tokenResponse: TokenResponse = JsonMapper.readValue(response.body!!.string())

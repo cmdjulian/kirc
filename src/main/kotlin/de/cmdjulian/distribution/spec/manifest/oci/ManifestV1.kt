@@ -1,8 +1,8 @@
-package de.cmdjulian.distribution.model.manifest.oci
+package de.cmdjulian.distribution.spec.manifest.oci
 
-import de.cmdjulian.distribution.model.manifest.BlobReference
+import de.cmdjulian.distribution.spec.manifest.LayerReference
 
-/**
+/*
  * {
  *   "schemaVersion": 2,
  *   "mediaType": "application/vnd.oci.image.manifest.v1+json",
@@ -42,11 +42,11 @@ import de.cmdjulian.distribution.model.manifest.BlobReference
 // https://github.com/opencontainers/image-spec/blob/main/manifest.md
 data class ManifestV1(
     val schemaVersion: UInt,
-    val mediaType: String,
-    val config: BlobReference,
-    val layers: List<BlobReference> = emptyList(),
-    val subject: BlobReference? = null,
-    val annotations: Map<String, String> = emptyMap()
+    val mediaType: String?,
+    val config: LayerReference,
+    val layers: List<LayerReference>,
+    val subject: LayerReference?,
+    val annotations: Map<String, String>
 ) {
     companion object {
         const val MediaType = "application/vnd.oci.image.manifest.v1+json"

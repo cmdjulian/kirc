@@ -1,4 +1,4 @@
-package de.cmdjulian.distribution.model.oci
+package de.cmdjulian.distribution.model
 
 sealed interface Reference {
     val separator: Char

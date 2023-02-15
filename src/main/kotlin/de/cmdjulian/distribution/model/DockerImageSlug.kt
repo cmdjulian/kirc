@@ -1,6 +1,6 @@
 @file:Suppress("unused")
 
-package de.cmdjulian.distribution.model.oci
+package de.cmdjulian.distribution.model
 
 /**
  * Parses a docker image name from a provided string.

@@ -1,12 +1,12 @@
 package de.cmdjulian.distribution
 
-import de.cmdjulian.distribution.model.image.ImageConfigV1
-import de.cmdjulian.distribution.model.manifest.docker.ManifestV2
-import de.cmdjulian.distribution.model.oci.Blob
-import de.cmdjulian.distribution.model.oci.Digest
-import de.cmdjulian.distribution.model.oci.Reference
-import de.cmdjulian.distribution.model.oci.Repository
-import de.cmdjulian.distribution.model.oci.Tag
+import de.cmdjulian.distribution.spec.image.docker.ImageV1
+import de.cmdjulian.distribution.spec.manifest.docker.ManifestV2
+import de.cmdjulian.distribution.model.Blob
+import de.cmdjulian.distribution.model.Digest
+import de.cmdjulian.distribution.model.Reference
+import de.cmdjulian.distribution.model.Repository
+import de.cmdjulian.distribution.model.Tag
 
 interface DistributionClient {
 
@@ -48,7 +48,7 @@ interface DistributionClient {
     /**
      * Get the config of an Image.
      */
-    suspend fun config(repository: Repository, reference: Reference): Result<ImageConfigV1>
+    suspend fun config(repository: Repository, reference: Reference): Result<ImageV1>
 
     /**
      * Retrieve a Blob for an image. The Map contains not just the Blobs byte, but also it's content type.

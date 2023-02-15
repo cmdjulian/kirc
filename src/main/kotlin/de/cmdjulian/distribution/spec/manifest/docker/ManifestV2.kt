@@ -1,8 +1,8 @@
-package de.cmdjulian.distribution.model.manifest.docker
+package de.cmdjulian.distribution.spec.manifest.docker
 
-import de.cmdjulian.distribution.model.manifest.BlobReference
+import de.cmdjulian.distribution.spec.manifest.LayerReference
 
-/**
+/*
  * {
  *     "schemaVersion": 2,
  *     "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
@@ -30,11 +30,12 @@ import de.cmdjulian.distribution.model.manifest.BlobReference
  *     ]
  * }
  */
+// https://docs.docker.com/registry/spec/manifest-v2-2/#image-manifest
 data class ManifestV2(
     val schemaVersion: UByte,
     val mediaType: String,
-    val config: BlobReference,
-    val layers: List<BlobReference>
+    val config: LayerReference,
+    val layers: List<LayerReference>
 ) {
     companion object {
         const val MediaType = "application/vnd.docker.distribution.manifest.v2+json"

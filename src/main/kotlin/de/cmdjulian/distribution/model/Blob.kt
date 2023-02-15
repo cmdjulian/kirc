@@ -1,4 +1,4 @@
-package de.cmdjulian.distribution.model.oci
+package de.cmdjulian.distribution.model
 
 data class Blob(val digest: Digest, val mediaType: String, val data: ByteArray) {
     override fun equals(other: Any?): Boolean {
