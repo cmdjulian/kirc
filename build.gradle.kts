@@ -22,7 +22,7 @@ plugins {
     // Gradle task "dependencyCheckAnalyze" to check for security CVEs in dependencies
     id("org.owasp.dependencycheck") version "8.1.0"
     // check for dependency updates via task "dependencyUpdates --refresh-dependencies"
-    id("com.github.ben-manes.versions") version "0.45.0"
+    id("com.github.ben-manes.versions") version "0.46.0"
     // linting
     id("org.jlleitschuh.gradle.ktlint") version "11.2.0"
     // sast
