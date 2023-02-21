@@ -1,10 +1,7 @@
-package de.cmdjulian.distribution.spec.image.oci
+package de.cmdjulian.distribution.spec.image
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategies
 import com.fasterxml.jackson.databind.annotation.JsonNaming
-import de.cmdjulian.distribution.spec.image.History
-import de.cmdjulian.distribution.spec.image.ImageConfig
-import de.cmdjulian.distribution.spec.image.RootFs
 import java.time.OffsetDateTime
 
 /*
@@ -67,18 +64,18 @@ import java.time.OffsetDateTime
  */
 // https://github.com/opencontainers/image-spec/blob/main/config.md
 @JsonNaming(PropertyNamingStrategies.LowerDotCaseStrategy::class)
-data class ImageV1(
-    val created: OffsetDateTime?,
-    val author: String?,
-    val architecture: String,
-    val os: String,
+data class OciImageConfigV1(
+    override val created: OffsetDateTime?,
+    override val author: String?,
+    override val architecture: String,
+    override val os: String,
     val osVersion: String?,
     val osFeatures: List<String>,
     val variant: String?,
-    val config: ImageConfig?,
-    val rootfs: RootFs,
-    val history: History,
-) {
+    override val config: ImageConfig.Config?,
+    override val rootfs: RootFs,
+    override val history: List<History>,
+) : ImageConfig {
     companion object {
         const val MediaType = "application/vnd.oci.image.config.v1+json"
     }

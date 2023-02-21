@@ -2,12 +2,12 @@ package de.cmdjulian.distribution
 
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.haroldadmin.cnradapter.NetworkResponseAdapterFactory
-import de.cmdjulian.distribution.impl.DistributionApi
-import de.cmdjulian.distribution.impl.DistributionClientImpl
-import de.cmdjulian.distribution.impl.ImageClientImpl
-import de.cmdjulian.distribution.impl.JsonMapper
 import de.cmdjulian.distribution.config.ProxyConfig
 import de.cmdjulian.distribution.config.RegistryCredentials
+import de.cmdjulian.distribution.impl.ContainerRegistryApi
+import de.cmdjulian.distribution.impl.CoroutineContainerRegistryClientImpl
+import de.cmdjulian.distribution.impl.CoroutineImageClientImpl
+import de.cmdjulian.distribution.impl.JsonMapper
 import de.cmdjulian.distribution.model.DockerImageSlug
 import de.cmdjulian.distribution.utils.getIgnoreCase
 import im.toss.http.parser.HttpAuthCredentials
@@ -26,7 +26,7 @@ import java.net.URL
 const val DOCKER_HUB_URL = "https://registry-1.docker.io"
 
 @Suppress("unused", "MemberVisibilityCanBePrivate", "HttpUrlsUsage")
-object DistributionClientFactory {
+object ContainerRegistryClientFactory {
 
     data class ImageClientConfig(
         val image: DockerImageSlug,
@@ -53,9 +53,12 @@ object DistributionClientFactory {
      * Create a DistributionClient for a registry. If no args are supplied the client is constructed for Docker Hub with
      * no auth.
      */
-    fun create(url: URL = URL(DOCKER_HUB_URL), credentials: RegistryCredentials? = null, config: ProxyConfig? = null):
-        DistributionClient {
-        val baseUrl = when ("$this") {
+    fun create(
+        url: URL = URL(DOCKER_HUB_URL),
+        credentials: RegistryCredentials? = null,
+        config: ProxyConfig? = null
+    ): CoroutineContainerRegistryClient {
+        val baseUrl = when (this.toString()) {
             "https://docker.io" -> URL(DOCKER_HUB_URL)
             else -> url
         }
@@ -70,21 +73,21 @@ object DistributionClientFactory {
             .addCallAdapterFactory(NetworkResponseAdapterFactory())
             .client(httpClient)
             .build()
-        val api = retrofit.create(DistributionApi::class.java)
+        val api = retrofit.create(ContainerRegistryApi::class.java)
 
-        return DistributionClientImpl(api)
+        return CoroutineContainerRegistryClientImpl(api)
     }
 
-    fun create(image: DockerImageSlug): ImageClient = create(ImageClientConfig(image))
+    fun create(image: DockerImageSlug): CoroutineImageClient = create(ImageClientConfig(image))
 
-    fun create(config: ImageClientConfig): ImageClient {
+    fun create(config: ImageClientConfig): CoroutineImageClient {
         val client = create(
             URL((if (config.insecure) "http://" else "https://") + config.image.registry.toString()),
             config.credentials,
             config.config
         )
 
-        return ImageClientImpl(client as DistributionClientImpl, config.image)
+        return CoroutineImageClientImpl(client as CoroutineContainerRegistryClientImpl, config.image)
     }
 
     private fun interceptor(credentials: RegistryCredentials?) = Interceptor { chain ->
@@ -142,10 +145,9 @@ object DistributionClientFactory {
             .addQueryParameter("scope", scope)
             .build()
 
-        fun Request.Builder.basicAuth(credentials: RegistryCredentials?): Request.Builder = when (credentials) {
-            null -> this
-            else -> addHeader("Authorization", Credentials.basic(credentials.username, credentials.password))
-        }
+        fun Request.Builder.basicAuth(credentials: RegistryCredentials?): Request.Builder =
+            if (credentials == null) this
+            else addHeader("Authorization", Credentials.basic(credentials.username, credentials.password))
 
         return Request.Builder()
             .url(url)

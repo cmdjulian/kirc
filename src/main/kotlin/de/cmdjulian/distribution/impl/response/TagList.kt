@@ -7,6 +7,6 @@ internal data class TagList(val name: String, val tags: List<Tag>) {
     companion object {
         @JvmStatic
         @JsonCreator
-        fun create(name: String, tags: List<String>?) = TagList(name, tags?.map(::Tag) ?: emptyList())
+        fun create(name: String, tags: List<String>) = TagList(name, tags.map(::Tag))
     }
 }

@@ -1,4 +1,4 @@
-import org.jlleitschuh.gradle.ktlint.KtlintExtension
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     // Apply the org.jetbrains.kotlin.jvm Plugin to add support for Kotlin.
@@ -25,38 +25,37 @@ repositories {
 
 kotlin {
     jvmToolchain {
-        this.languageVersion.set(JavaLanguageVersion.of(11))
+        languageVersion.set(JavaLanguageVersion.of(11))
     }
 }
 
 dependencies {
     implementation(platform("org.jetbrains.kotlin:kotlin-bom"))
-    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
+    implementation(kotlin("reflect"))
+    implementation(kotlin("stdlib"))
 
-    // Retrofit
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.retrofit2:converter-jackson:2.9.0")
-    implementation("com.github.haroldadmin:NetworkResponseAdapter:5.0.0")
+    // Fuel
+    val fuel = "2.3.1"
+    implementation("com.github.kittinunf.fuel:fuel:$fuel")
+    implementation("com.github.kittinunf.fuel:fuel-jackson:$fuel")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
 
-    implementation("com.github.kittinunf.fuel:fuel:2.3.1")
+    // Auth header parsing
+    implementation("im.toss:http-auth-parser:0.1.2")
 
     // Jackson
-    implementation(platform("com.fasterxml.jackson:jackson-bom:2.14.1"))
+    implementation(platform("com.fasterxml.jackson:jackson-bom:2.14.2"))
     implementation("com.fasterxml.jackson.core:jackson-databind")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jdk8")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
-
-    // Auth header parsing
-    implementation("im.toss:http-auth-parser:0.1.2")
 
     // tests
     testImplementation(platform("org.junit:junit-bom:5.9.2"))
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
-    val kotest = "5.5.4"
+    val kotest = "5.5.5"
     testImplementation("io.kotest:kotest-runner-junit5:$kotest")
     testImplementation("io.kotest:kotest-assertions-core-jvm:$kotest")
     testImplementation("io.kotest:kotest-assertions-json-jvm:$kotest")
@@ -83,7 +82,14 @@ tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 }
 
-configure<KtlintExtension> {
+tasks.withType<KotlinCompile>().configureEach {
+    kotlinOptions {
+        freeCompilerArgs = listOf("-Xjsr305=strict", "-Xemit-jvm-type-annotations")
+        jvmTarget = "${JavaVersion.VERSION_11}"
+    }
+}
+
+ktlint {
     version.set("0.45.2")
     enableExperimentalRules.set(true)
 }

@@ -34,7 +34,7 @@ data class DockerManifestV2(
     override val mediaType: String,
     override val config: LayerReference,
     override val layers: List<LayerReference>,
-) : Manifest {
+) : ManifestSingle {
     companion object {
         const val MediaType = "application/vnd.docker.distribution.manifest.v2+json"
     }
