@@ -9,6 +9,8 @@ import com.fasterxml.jackson.module.kotlin.KotlinFeature.SingletonSupport
 import com.fasterxml.jackson.module.kotlin.KotlinFeature.StrictNullChecks
 import com.fasterxml.jackson.module.kotlin.jsonMapper
 import com.fasterxml.jackson.module.kotlin.kotlinModule
+import de.cmdjulian.distribution.spec.manifest.Manifest
+import de.cmdjulian.distribution.spec.manifest.ManifestSingle
 
 internal val JsonMapper = jsonMapper {
     addModules(kotlinModule())
@@ -23,4 +25,7 @@ internal val JsonMapper = jsonMapper {
         configure(SingletonSupport, true)
         configure(StrictNullChecks, true)
     }
+
+    addMixIn(Manifest::class.java, ManifestMixIn::class.java)
+    addMixIn(ManifestSingle::class.java, ManifestSingleMixIn::class.java)
 }
