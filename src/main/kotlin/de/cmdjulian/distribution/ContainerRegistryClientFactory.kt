@@ -1,6 +1,5 @@
 package de.cmdjulian.distribution
 
-import com.github.kittinunf.fuel.core.Encoding
 import com.github.kittinunf.fuel.core.FoldableResponseInterceptor
 import com.github.kittinunf.fuel.core.FuelManager
 import com.github.kittinunf.fuel.core.Headers
@@ -39,7 +38,7 @@ object ContainerRegistryClientFactory {
      * no auth.
      */
     fun create(
-        url: URL,
+        url: URL = URL(DOCKER_HUB_URL),
         credentials: RegistryCredentials? = null,
         config: ProxyConfig? = null
     ): CoroutineContainerRegistryClient {
@@ -70,20 +69,17 @@ private class AuthenticationInterceptor(
     private val credentials: RegistryCredentials?,
     private val manager: FuelManager
 ) : FoldableResponseInterceptor {
-
     override fun invoke(next: ResponseTransformer): ResponseTransformer {
         return inner@{ req, res ->
             val headers = CaseInsensitiveMap(res.headers)
             if (res.statusCode == 401 && "www-authenticate" in headers) {
-                val token: String? = resolveToken(headers["www-authenticate"]?.first())
-
-                token?.let { t ->
-                    val encoding = Encoding(httpMethod = req.method, urlString = req.url.toString())
-                    val newRequest = manager.request(object : RequestFactory.RequestConvertible {
+                resolveToken(headers["www-authenticate"]?.first())?.let { token ->
+                    val convertible = object : RequestFactory.RequestConvertible {
                         override val request get() = req
-                    }).appendHeader(Headers.AUTHORIZATION, t)
+                    }
+                    val retriedRequest = manager.request(convertible).appendHeader(Headers.AUTHORIZATION, token)
 
-                    return@inner next(req, newRequest.response().second)
+                    return@inner next(req, retriedRequest.response().second)
                 }
             }
 
