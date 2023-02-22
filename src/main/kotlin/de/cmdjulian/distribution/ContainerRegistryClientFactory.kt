@@ -1,27 +1,26 @@
 package de.cmdjulian.distribution
 
-import com.fasterxml.jackson.module.kotlin.readValue
-import com.haroldadmin.cnradapter.NetworkResponseAdapterFactory
+import com.github.kittinunf.fuel.core.Encoding
+import com.github.kittinunf.fuel.core.FoldableResponseInterceptor
+import com.github.kittinunf.fuel.core.FuelManager
+import com.github.kittinunf.fuel.core.Headers
+import com.github.kittinunf.fuel.core.RequestFactory
+import com.github.kittinunf.fuel.core.ResponseTransformer
+import com.github.kittinunf.fuel.core.response
+import com.github.kittinunf.result.getOrNull
+import com.github.kittinunf.result.map
 import de.cmdjulian.distribution.config.ProxyConfig
 import de.cmdjulian.distribution.config.RegistryCredentials
 import de.cmdjulian.distribution.impl.ContainerRegistryApi
+import de.cmdjulian.distribution.impl.ContainerRegistryApiImpl
 import de.cmdjulian.distribution.impl.CoroutineContainerRegistryClientImpl
 import de.cmdjulian.distribution.impl.CoroutineImageClientImpl
-import de.cmdjulian.distribution.impl.JsonMapper
+import de.cmdjulian.distribution.impl.jacksonDeserializer
 import de.cmdjulian.distribution.model.DockerImageSlug
-import de.cmdjulian.distribution.utils.getIgnoreCase
+import de.cmdjulian.distribution.utils.CaseInsensitiveMap
 import im.toss.http.parser.HttpAuthCredentials
-import okhttp3.Credentials
-import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.Interceptor
-import okhttp3.Interceptor.Chain
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.Response
-import retrofit2.Retrofit
-import retrofit2.converter.jackson.JacksonConverterFactory
-import java.net.HttpURLConnection.HTTP_UNAUTHORIZED
 import java.net.URL
+import java.util.Base64
 
 const val DOCKER_HUB_URL = "https://registry-1.docker.io"
 
@@ -35,45 +34,21 @@ object ContainerRegistryClientFactory {
         val insecure: Boolean = false
     )
 
-    private object AcceptApplicationJsonInterceptor : Interceptor {
-        override fun intercept(chain: Chain): Response {
-            return chain.request()
-                .newBuilder()
-                .header("Accept", "application/json")
-                .build()
-                .let(chain::proceed)
-        }
-    }
-
-    internal val HttpClient = OkHttpClient.Builder()
-        .addInterceptor(AcceptApplicationJsonInterceptor)
-        .build()
-
     /**
      * Create a DistributionClient for a registry. If no args are supplied the client is constructed for Docker Hub with
      * no auth.
      */
     fun create(
-        url: URL = URL(DOCKER_HUB_URL),
+        url: URL,
         credentials: RegistryCredentials? = null,
         config: ProxyConfig? = null
     ): CoroutineContainerRegistryClient {
-        val baseUrl = when (this.toString()) {
-            "https://docker.io" -> URL(DOCKER_HUB_URL)
-            else -> url
+        val fuel = FuelManager().apply {
+            basePath = if (this.toString() == "https://docker.io") DOCKER_HUB_URL else url.toString()
+            proxy = config?.proxy
+            addResponseInterceptor(AuthenticationInterceptor(credentials, this))
         }
-        val httpClient = OkHttpClient.Builder()
-            .proxy(config?.proxy)
-            .apply { config?.authenticator?.run { proxyAuthenticator(this) } }
-            .apply { interceptors().add(interceptor(credentials)) }
-            .build()
-        val retrofit = Retrofit.Builder()
-            .baseUrl(baseUrl)
-            .addConverterFactory(JacksonConverterFactory.create(JsonMapper))
-            .addCallAdapterFactory(NetworkResponseAdapterFactory())
-            .client(httpClient)
-            .build()
-        val api = retrofit.create(ContainerRegistryApi::class.java)
+        val api: ContainerRegistryApi = ContainerRegistryApiImpl(fuel)
 
         return CoroutineContainerRegistryClientImpl(api)
     }
@@ -89,70 +64,59 @@ object ContainerRegistryClientFactory {
 
         return CoroutineImageClientImpl(client as CoroutineContainerRegistryClientImpl, config.image)
     }
+}
 
-    private fun interceptor(credentials: RegistryCredentials?) = Interceptor { chain ->
-        val request = chain.request()
-        var response = chain.proceed(request)
+private class AuthenticationInterceptor(
+    private val credentials: RegistryCredentials?,
+    private val manager: FuelManager
+) : FoldableResponseInterceptor {
 
-        if (response.code == HTTP_UNAUTHORIZED) {
-            response.headers.getIgnoreCase("www-authenticate")?.let { header ->
-                val wwwAuth = HttpAuthCredentials.parse(header)
+    override fun invoke(next: ResponseTransformer): ResponseTransformer {
+        return inner@{ req, res ->
+            val headers = CaseInsensitiveMap(res.headers)
+            if (res.statusCode == 401 && "www-authenticate" in headers) {
+                val token: String? = resolveToken(headers["www-authenticate"]?.first())
 
-                if (wwwAuth.scheme in arrayOf("Basic", "Bearer")) response.close()
-                when {
-                    wwwAuth.scheme == "Basic" && credentials != null -> response = chain.retryWithBasicAuth(credentials)
-                    wwwAuth.scheme == "Bearer" -> response = chain.retryWithTokenAuth(credentials, wwwAuth)
+                token?.let { t ->
+                    val encoding = Encoding(httpMethod = req.method, urlString = req.url.toString())
+                    val newRequest = manager.request(object : RequestFactory.RequestConvertible {
+                        override val request get() = req
+                    }).appendHeader(Headers.AUTHORIZATION, t)
+
+                    return@inner next(req, newRequest.response().second)
                 }
             }
+
+            next(req, res)
+        }
+    }
+
+    private fun resolveToken(header: String?): String? {
+        if (header == null) return null
+
+        val wwwAuth = HttpAuthCredentials.parse(header)
+        val basicAuthHeader = credentials?.let {
+            "Basic ${Base64.getEncoder().encodeToString("${it.username}:${it.password}".toByteArray())}"
         }
 
-        return@Interceptor response
-    }
-
-    private fun Chain.retryWithBasicAuth(credentials: RegistryCredentials): Response {
-        return request().newBuilder()
-            .addHeader("Authorization", Credentials.basic(credentials.username, credentials.password))
-            .build()
-            .let(this::proceed)
-    }
-
-    private fun Chain.retryWithTokenAuth(credentials: RegistryCredentials?, wwwAuth: HttpAuthCredentials): Response {
-        val tokenAuthRequest = tokenAuthRequest(credentials, wwwAuth)
-        val response = HttpClient.newCall(tokenAuthRequest).execute()
-
-        if (response.isSuccessful) {
-            class TokenResponse(val token: String)
-
-            val tokenResponse: TokenResponse = JsonMapper.readValue(response.body!!.string())
-            val request = request().newBuilder()
-                .addHeader("Authorization", "Bearer ${tokenResponse.token}")
-                .build()
-
-            return proceed(request)
+        return when {
+            wwwAuth.scheme == "Basic" && basicAuthHeader != null -> basicAuthHeader
+            wwwAuth.scheme == "Bearer" -> resolveTokenAuth(basicAuthHeader, wwwAuth)
+            else -> null
         }
-
-        return response
     }
 
-    private fun tokenAuthRequest(credentials: RegistryCredentials?, wwwAuth: HttpAuthCredentials): Request {
+    private fun resolveTokenAuth(authHeader: String?, wwwAuth: HttpAuthCredentials): String? {
         val realm = wwwAuth.singleValueParams["realm"]!!.replace("\"", "")
         val service = wwwAuth.singleValueParams["service"]!!.replace("\"", "")
         val scope = wwwAuth.singleValueParams["scope"]!!.replace("\"", "")
 
-        val url = realm.toHttpUrl()
-            .newBuilder()
-            .addQueryParameter("service", service)
-            .addQueryParameter("scope", scope)
-            .build()
-
-        fun Request.Builder.basicAuth(credentials: RegistryCredentials?): Request.Builder =
-            if (credentials == null) this
-            else addHeader("Authorization", Credentials.basic(credentials.username, credentials.password))
-
-        return Request.Builder()
-            .url(url)
-            .addHeader("Accept", "application/json")
-            .basicAuth(credentials)
-            .build()
+        class TokenResponse(val token: String)
+        return FuelManager.instance.get(realm, listOf("service" to service, "scope" to scope))
+            .apply { if (authHeader != null) appendHeader(Headers.AUTHORIZATION, authHeader) }
+            .response(jacksonDeserializer<TokenResponse>())
+            .third
+            .map(TokenResponse::token)
+            .getOrNull()
     }
 }

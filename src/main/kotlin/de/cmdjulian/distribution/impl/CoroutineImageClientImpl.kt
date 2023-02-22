@@ -11,11 +11,14 @@ import de.cmdjulian.distribution.spec.manifest.ManifestSingle
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.runBlocking
 
 internal class CoroutineImageClientImpl(
     private val client: CoroutineContainerRegistryClient,
     private val image: DockerImageSlug,
-    private val manifest: ManifestSingle
+    private val manifest: ManifestSingle = runBlocking {
+        client.manifest(image.repository, image.reference) as ManifestSingle
+    }
 ) : CoroutineImageClient {
 
     override suspend fun tags(): List<Tag> = client.tags(image.repository)
