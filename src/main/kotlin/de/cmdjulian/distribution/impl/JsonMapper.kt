@@ -10,6 +10,7 @@ import com.fasterxml.jackson.module.kotlin.KotlinFeature.StrictNullChecks
 import com.fasterxml.jackson.module.kotlin.jsonMapper
 import com.fasterxml.jackson.module.kotlin.kotlinModule
 import de.cmdjulian.distribution.spec.manifest.Manifest
+import de.cmdjulian.distribution.spec.manifest.ManifestList
 import de.cmdjulian.distribution.spec.manifest.ManifestSingle
 
 internal val JsonMapper = jsonMapper {
@@ -28,4 +29,5 @@ internal val JsonMapper = jsonMapper {
 
     addMixIn(Manifest::class.java, ManifestMixIn::class.java)
     addMixIn(ManifestSingle::class.java, ManifestSingleMixIn::class.java)
+    addMixIn(ManifestList::class.java, ManifestListMixIn::class.java)
 }

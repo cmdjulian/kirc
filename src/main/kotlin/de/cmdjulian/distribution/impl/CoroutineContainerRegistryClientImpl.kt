@@ -2,6 +2,7 @@ package de.cmdjulian.distribution.impl
 
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.kittinunf.fuel.core.FuelError
+import com.github.kittinunf.fuel.core.Headers
 import com.github.kittinunf.result.getOrElse
 import com.github.kittinunf.result.map
 import com.github.kittinunf.result.onError
@@ -29,6 +30,7 @@ import de.cmdjulian.distribution.spec.manifest.DockerManifestV2
 import de.cmdjulian.distribution.spec.manifest.Manifest
 import de.cmdjulian.distribution.spec.manifest.ManifestSingle
 import de.cmdjulian.distribution.spec.manifest.OciManifestV1
+import de.cmdjulian.distribution.utils.CaseInsensitiveMap
 
 @Suppress("TooManyFunctions")
 internal class CoroutineContainerRegistryClientImpl(private val api: ContainerRegistryApi) :
@@ -64,7 +66,9 @@ internal class CoroutineContainerRegistryClientImpl(private val api: ContainerRe
     override suspend fun blob(repository: Repository, digest: Digest): Blob {
         val (_, response, result) = api.blob(repository, digest)
 
-        return result.map { content -> Blob(digest, response.headers["Content-Type"].single(), content) }
+        val headers = CaseInsensitiveMap(response.headers)
+        // TODO
+        return result.map { content -> Blob(digest, headers[Headers.CONTENT_TYPE]?.single()!!, content) }
             .getOrElse { throw it.toRegistryClientError() }
     }
 
@@ -90,13 +94,11 @@ internal class CoroutineContainerRegistryClientImpl(private val api: ContainerRe
 
 private fun FuelError.toRegistryClientError(): RegistryClientException = when (response.statusCode) {
     -1 -> NetworkErrorException(this)
-    401 -> AuthenticationException(JsonMapper.readValue(response.body().toByteArray()), this)
-    403 -> AuthorizationException(JsonMapper.readValue(response.body().toByteArray()), this)
-    404 -> NotFoundException(JsonMapper.readValue(response.body().toByteArray()), this)
-    in 405..499 -> {
-        val body = response.body()
-        UnexpectedErrorException(if (body.isEmpty()) null else JsonMapper.readValue(body.toByteArray()), this)
-    }
+    401 -> AuthenticationException(JsonMapper.readValue(response.data), this)
+    403 -> AuthorizationException(JsonMapper.readValue(response.data), this)
+    404 -> NotFoundException(JsonMapper.readValue(response.data), this)
+    in 405..499 ->
+        UnexpectedErrorException(if (response.data.isEmpty()) null else JsonMapper.readValue(response.data), this)
 
     else -> UnknownErrorException(this)
 }
