@@ -30,7 +30,6 @@ kotlin {
 }
 
 dependencies {
-    implementation(platform("org.jetbrains.kotlin:kotlin-bom"))
     implementation(kotlin("reflect"))
     implementation(kotlin("stdlib"))
 
@@ -54,6 +53,8 @@ dependencies {
     testImplementation(platform("org.junit:junit-bom:5.9.2"))
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
+
+    testImplementation("io.hosuaby:inject-resources-junit-jupiter:0.3.2")
 
     val kotest = "5.5.5"
     testImplementation("io.kotest:kotest-runner-junit5:$kotest")
