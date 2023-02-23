@@ -19,7 +19,7 @@ object ContainerRegistryClientFactory {
         val image: DockerImageSlug,
         val credentials: RegistryCredentials? = null,
         val config: ProxyConfig? = null,
-        val insecure: Boolean = false
+        val insecure: Boolean = false,
     )
 
     /**
@@ -29,7 +29,7 @@ object ContainerRegistryClientFactory {
     fun create(
         url: URL = URL(DOCKER_HUB_URL),
         credentials: RegistryCredentials? = null,
-        config: ProxyConfig? = null
+        config: ProxyConfig? = null,
     ): CoroutineContainerRegistryClient {
         val fuel = FuelManager().apply {
             basePath = if (this.toString() == "https://docker.io") DOCKER_HUB_URL else url.toString()
@@ -46,7 +46,7 @@ object ContainerRegistryClientFactory {
         val client = create(
             URL((if (config.insecure) "http://" else "https://") + config.image.registry.toString()),
             config.credentials,
-            config.config
+            config.config,
         )
 
         return CoroutineImageClientImpl(client as CoroutineContainerRegistryClientImpl, config.image)

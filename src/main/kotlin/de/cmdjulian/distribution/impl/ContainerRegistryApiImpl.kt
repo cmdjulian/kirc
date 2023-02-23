@@ -85,7 +85,7 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
                 DockerBlobMediaType,
                 OciBlobMediaTypeTar,
                 OciBlobMediaTypeGzip,
-                OciBlobMediaTypeZstd
+                OciBlobMediaTypeZstd,
             )
             .awaitResponseResult(deserializable)
             .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
@@ -100,7 +100,7 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
                 DockerManifestV2.MediaType,
                 DockerManifestListV1.MediaType,
                 OciManifestV1.MediaType,
-                OciManifestListV1.MediaType
+                OciManifestListV1.MediaType,
             )
             .awaitResponseResult(deserializable)
             .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
@@ -124,7 +124,7 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
                 DockerManifestV2.MediaType,
                 DockerManifestListV1.MediaType,
                 OciManifestV1.MediaType,
-                OciManifestListV1.MediaType
+                OciManifestListV1.MediaType,
             )
             .awaitResponseResult(EmptyDeserializer)
             .let { responseResult ->
@@ -142,12 +142,12 @@ internal inline fun <reified T : Any> jacksonDeserializer() = object : ResponseD
 
 private class ResponseRetryWithAuthentication(
     private val credentials: RegistryCredentials?,
-    private val fuelManager: FuelManager
+    private val fuelManager: FuelManager,
 ) {
 
     suspend fun <T : Any> retryOnUnauthorized(
         responseResult: ResponseResultOf<T>,
-        deserializer: Deserializable<T>
+        deserializer: Deserializable<T>,
     ): ResponseResultOf<T> {
         val (request, response, _) = responseResult
         val headers = CaseInsensitiveMap(response.headers)

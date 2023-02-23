@@ -4,24 +4,24 @@ sealed class RegistryClientException(override val message: String, throwable: Th
     RuntimeException(message, throwable) {
 
     @Suppress("MemberVisibilityCanBePrivate")
-    sealed class ClientException(message: String, val error: Error?, cause: Throwable) :
+    sealed class ClientException(message: String, val error: ErrorResponse?, cause: Throwable) :
         RegistryClientException(message, cause) {
 
-        class AuthenticationException(error: Error?, cause: Throwable) :
+        class AuthenticationException(error: ErrorResponse?, cause: Throwable) :
             ClientException("authentication required", error, cause) {
             override fun toString(): String = "DistributionClientException.AuthenticationError -> $message"
         }
 
-        class AuthorizationException(error: Error?, cause: Throwable) :
+        class AuthorizationException(error: ErrorResponse?, cause: Throwable) :
             ClientException("authorization required", error, cause) {
             override fun toString(): String = "DistributionClientException.AuthorizationError -> $message"
         }
 
-        class NotFoundException(error: Error?, cause: Throwable) : ClientException("not found", error, cause) {
+        class NotFoundException(error: ErrorResponse?, cause: Throwable) : ClientException("not found", error, cause) {
             override fun toString(): String = "DistributionClientException.NotFoundException -> $message"
         }
 
-        class UnexpectedErrorException(error: Error?, cause: Throwable) :
+        class UnexpectedErrorException(error: ErrorResponse?, cause: Throwable) :
             ClientException("unknown error returned by server", error, cause) {
             override fun toString(): String = "DistributionClientException.UnexpectedErrorException -> $message"
         }

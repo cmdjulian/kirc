@@ -18,7 +18,7 @@ internal class CoroutineImageClientImpl(
     private val image: DockerImageSlug,
     private val manifest: ManifestSingle = runBlocking {
         client.manifest(image.repository, image.reference) as ManifestSingle
-    }
+    },
 ) : CoroutineImageClient {
 
     override suspend fun tags(): List<Tag> = client.tags(image.repository)
