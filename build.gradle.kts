@@ -2,7 +2,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     // Apply the org.jetbrains.kotlin.jvm Plugin to add support for Kotlin.
-    id("org.jetbrains.kotlin.jvm") version "1.8.0"
+    id("org.jetbrains.kotlin.jvm") version "1.8.10"
 
     jacoco
     `java-library`
@@ -13,7 +13,7 @@ plugins {
     // check for dependency updates via task "dependencyUpdates --refresh-dependencies"
     id("com.github.ben-manes.versions") version "0.44.0"
     // linting
-    id("org.jlleitschuh.gradle.ktlint") version "11.0.0"
+    id("org.jlleitschuh.gradle.ktlint") version "11.2.0"
     // licence scanning
     id("com.jaredsburrows.license") version "0.9.0"
 }
@@ -48,7 +48,7 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jdk8")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    implementation("com.github.ProjectMapK:jackson-module-kogera:2.14.2-alpha4")
 
     // tests
     testImplementation(platform("org.junit:junit-bom:5.9.2"))
@@ -58,7 +58,6 @@ dependencies {
     val kotest = "5.5.5"
     testImplementation("io.kotest:kotest-runner-junit5:$kotest")
     testImplementation("io.kotest:kotest-assertions-core-jvm:$kotest")
-    testImplementation("io.kotest:kotest-assertions-json-jvm:$kotest")
 }
 
 tasks {
@@ -84,7 +83,7 @@ tasks.withType<Test>().configureEach {
 
 tasks.withType<KotlinCompile>().configureEach {
     kotlinOptions {
-        freeCompilerArgs = listOf("-Xjsr305=strict", "-Xemit-jvm-type-annotations")
+        freeCompilerArgs = listOf("-Xjsr305=strict", "-Xemit-jvm-type-annotations", "-Xcontext-receivers")
         jvmTarget = "${JavaVersion.VERSION_11}"
     }
 }

@@ -14,20 +14,20 @@ import de.cmdjulian.distribution.spec.manifest.OciManifestV1
     JsonSubTypes.Type(value = DockerManifestV2::class, name = DockerManifestV2.MediaType),
     JsonSubTypes.Type(value = DockerManifestListV1::class, name = DockerManifestListV1.MediaType),
     JsonSubTypes.Type(value = OciManifestV1::class, name = OciManifestV1.MediaType),
-    JsonSubTypes.Type(value = OciManifestListV1::class, name = OciManifestListV1.MediaType)
+    JsonSubTypes.Type(value = OciManifestListV1::class, name = OciManifestListV1.MediaType),
 )
 interface ManifestMixIn
 
 @JsonTypeInfo(use = Id.NAME, include = As.EXISTING_PROPERTY, property = "mediaType", visible = true)
 @JsonSubTypes(
     JsonSubTypes.Type(value = DockerManifestV2::class, name = DockerManifestV2.MediaType),
-    JsonSubTypes.Type(value = OciManifestV1::class, name = OciManifestV1.MediaType)
+    JsonSubTypes.Type(value = OciManifestV1::class, name = OciManifestV1.MediaType),
 )
 interface ManifestSingleMixIn
 
 @JsonTypeInfo(use = Id.NAME, include = As.EXISTING_PROPERTY, property = "mediaType", visible = true)
 @JsonSubTypes(
     JsonSubTypes.Type(value = DockerManifestListV1::class, name = DockerManifestListV1.MediaType),
-    JsonSubTypes.Type(value = OciManifestListV1::class, name = OciManifestListV1.MediaType)
+    JsonSubTypes.Type(value = OciManifestListV1::class, name = OciManifestListV1.MediaType),
 )
 interface ManifestListMixIn

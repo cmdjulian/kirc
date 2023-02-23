@@ -23,7 +23,7 @@ data class DockerImageSlug(
     val registry: Registry = Registry("docker.io"),
     val repository: Repository,
     val tag: Tag? = null,
-    val digest: Digest? = null
+    val digest: Digest? = null,
 ) {
 
     val reference: Reference = digest ?: tag ?: Tag("latest")
