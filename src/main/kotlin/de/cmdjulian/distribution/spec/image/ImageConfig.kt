@@ -30,9 +30,9 @@ sealed interface ImageConfig {
         val labels: Map<String, String>?,
         val stopSignal: String?,
         val argsEscaped: Boolean?,
-        val memory: Int?,
-        val memorySwap: Int?,
-        val cpuShares: Int?,
+        val memory: UInt?,
+        val memorySwap: UInt?,
+        val cpuShares: UInt?,
         val healthcheck: HealthCheck?,
     )
 }

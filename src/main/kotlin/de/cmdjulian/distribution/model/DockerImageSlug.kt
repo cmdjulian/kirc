@@ -19,14 +19,15 @@ package de.cmdjulian.distribution.model
  *
  * etc.
  */
-data class DockerImageSlug(
+class DockerImageSlug(
     val registry: Registry = Registry("docker.io"),
     val repository: Repository,
-    val tag: Tag? = null,
+    tag: Tag? = null,
     val digest: Digest? = null,
 ) {
 
-    val reference: Reference = digest ?: tag ?: Tag("latest")
+    val tag = if (tag == null && digest == null) Tag("latest") else tag
+    val reference = digest ?: this.tag!!
 
     companion object {
         @JvmStatic
@@ -86,5 +87,21 @@ data class DockerImageSlug(
         }
 
         return registry.toString() + '/' + repository.toString() + tagComponent() + digestComponent()
+    }
+
+    override fun equals(other: Any?): Boolean = when {
+        this === other -> true
+        other !is DockerImageSlug -> false
+        registry != other.registry -> false
+        repository != other.repository -> false
+        reference != other.reference -> false
+        else -> true
+    }
+
+    override fun hashCode(): Int {
+        var result = registry.hashCode()
+        result = 31 * result + repository.hashCode()
+        result = 31 * result + reference.hashCode()
+        return result
     }
 }
