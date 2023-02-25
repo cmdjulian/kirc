@@ -27,7 +27,7 @@ internal class ManifestDeserializationTest {
                     "application/vnd.docker.distribution.manifest.v2+json",
                     Digest("sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f"),
                     7143u,
-                    ManifestListEntry.Platform(OS.LINUX, Architecture.PPC64LE),
+                    ManifestListEntry.Platform(OS.LINUX, Architecture.PPC64LE, emptyList()),
                 ),
                 ManifestListEntry(
                     "application/vnd.docker.distribution.manifest.v2+json",
@@ -81,13 +81,13 @@ internal class ManifestDeserializationTest {
                     "application/vnd.oci.image.manifest.v1+json",
                     Digest("sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f"),
                     7143u,
-                    ManifestListEntry.Platform(OS.LINUX, Architecture.PPC64LE),
+                    ManifestListEntry.Platform(OS.LINUX, Architecture.PPC64LE, emptyList()),
                 ),
                 ManifestListEntry(
                     "application/vnd.oci.image.manifest.v1+json",
                     Digest("sha256:5b0bcabd1ed22e9fb1310cf6c2dec7cdef19f0ad69efa1f392e94a4333501270"),
                     7682u,
-                    ManifestListEntry.Platform(OS.LINUX, Architecture.AMD64),
+                    ManifestListEntry.Platform(OS.LINUX, Architecture.AMD64, emptyList()),
                 ),
             )
             annotations

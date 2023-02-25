@@ -1,16 +1,19 @@
 package de.cmdjulian.distribution
 
 import com.github.kittinunf.fuel.core.FuelManager
-import de.cmdjulian.distribution.config.ProxyConfig
-import de.cmdjulian.distribution.config.RegistryCredentials
 import de.cmdjulian.distribution.impl.ContainerRegistryApi
 import de.cmdjulian.distribution.impl.ContainerRegistryApiImpl
 import de.cmdjulian.distribution.impl.CoroutineContainerRegistryClientImpl
 import de.cmdjulian.distribution.impl.CoroutineImageClientImpl
 import de.cmdjulian.distribution.model.ContainerImageName
+import java.net.Proxy
 import java.net.URL
 
 const val DOCKER_HUB_URL = "https://registry.hub.docker.com"
+
+class RegistryCredentials(val username: String, val password: String)
+
+class ProxyConfig(val proxy: Proxy)
 
 @Suppress("unused", "MemberVisibilityCanBePrivate", "HttpUrlsUsage")
 object ContainerRegistryClientFactory {

@@ -9,6 +9,6 @@ data class History(
     val created: OffsetDateTime?,
     val author: String?,
     val createdBy: String?,
-    val emptyLayer: Boolean,
+    val emptyLayer: Boolean?,
     val comment: String?,
 )
