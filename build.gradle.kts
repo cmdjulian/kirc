@@ -30,16 +30,17 @@ kotlin {
 }
 
 dependencies {
+    // kotlin
     implementation(kotlin("reflect"))
     implementation(kotlin("stdlib"))
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
 
     // Fuel
     val fuel = "2.3.1"
     implementation("com.github.kittinunf.fuel:fuel:$fuel")
     implementation("com.github.kittinunf.fuel:fuel-jackson:$fuel")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
 
-    // Auth header parsing
+    // auth header parsing
     implementation("im.toss:http-auth-parser:0.1.2")
 
     // Jackson
@@ -49,12 +50,16 @@ dependencies {
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     implementation("com.github.ProjectMapK:jackson-module-kogera:2.14.2-alpha4")
 
+    // insecure connections
+    implementation("io.github.hakky54:sslcontext-kickstart:7.4.9")
+
     // tests
     testImplementation(platform("org.junit:junit-bom:5.9.2"))
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testImplementation("org.junit.jupiter:junit-jupiter-params")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
+    // resource injection
     testImplementation("io.hosuaby:inject-resources-junit-jupiter:0.3.2")
 
     val kotest = "5.5.5"

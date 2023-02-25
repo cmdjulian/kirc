@@ -18,7 +18,7 @@ import com.github.kittinunf.fuel.core.extensions.AuthenticatedRequest
 import com.github.kittinunf.result.Result
 import com.github.kittinunf.result.getOrNull
 import com.github.kittinunf.result.map
-import de.cmdjulian.distribution.config.RegistryCredentials
+import de.cmdjulian.distribution.RegistryCredentials
 import de.cmdjulian.distribution.impl.response.Catalog
 import de.cmdjulian.distribution.impl.response.TagList
 import de.cmdjulian.distribution.model.Digest
@@ -163,7 +163,12 @@ private class ResponseRetryWithAuthentication(
     suspend fun retryRequest(header: String?, request: Request): Request? {
         if (header == null) return null
 
-        val wwwAuth = HttpAuthCredentials.parse(header)
+        val wwwAuth = try {
+            HttpAuthCredentials.parse(header)
+        } catch (e: Exception) {
+            return null
+        }
+
         return when (wwwAuth.scheme) {
             "Basic" -> resolveBasicAuth(request)
             "Bearer" -> resolveTokenAuth(wwwAuth, request)

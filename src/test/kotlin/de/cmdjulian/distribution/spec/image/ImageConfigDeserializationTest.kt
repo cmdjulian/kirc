@@ -101,7 +101,7 @@ internal class ImageConfigDeserializationTest {
             onBuild.shouldBeEmpty()
             author shouldBe null
             checksum shouldBe null
-            size shouldBe  null
+            size shouldBe null
             architecture shouldBe Architecture.AMD64
             assertSoftly(config.shouldNotBeNull()) {
                 hostname shouldBe ""
