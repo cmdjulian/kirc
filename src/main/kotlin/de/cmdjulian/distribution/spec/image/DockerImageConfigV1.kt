@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.PropertyNamingStrategies
 import com.fasterxml.jackson.databind.annotation.JsonNaming
+import de.cmdjulian.distribution.spec.Architecture
+import de.cmdjulian.distribution.spec.OS
 import java.time.OffsetDateTime
 
 // https://github.com/moby/moby/blob/master/image/spec/v1.2.md
@@ -16,8 +18,8 @@ data class DockerImageConfigV1(
     val dockerVersion: String?,
     val onBuild: List<String>?,
     override val author: String?,
-    override val architecture: String,
-    override val os: String,
+    override val architecture: Architecture,
+    override val os: OS,
     val checksum: String?,
     @JsonProperty("Size") val size: UInt,
     override val config: ImageConfig.Config?,

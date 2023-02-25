@@ -2,6 +2,8 @@ package de.cmdjulian.distribution.spec.image
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategies
 import com.fasterxml.jackson.databind.annotation.JsonNaming
+import de.cmdjulian.distribution.spec.Architecture
+import de.cmdjulian.distribution.spec.OS
 import java.time.OffsetDateTime
 
 // https://github.com/opencontainers/image-spec/blob/main/config.md
@@ -9,8 +11,8 @@ import java.time.OffsetDateTime
 data class OciImageConfigV1(
     override val created: OffsetDateTime?,
     override val author: String?,
-    override val architecture: String,
-    override val os: String,
+    override val architecture: Architecture,
+    override val os: OS,
     val osVersion: String?,
     val osFeatures: List<String>?,
     val variant: String?,

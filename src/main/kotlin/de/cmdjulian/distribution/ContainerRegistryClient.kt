@@ -2,7 +2,7 @@ package de.cmdjulian.distribution
 
 import de.cmdjulian.distribution.model.Blob
 import de.cmdjulian.distribution.model.Digest
-import de.cmdjulian.distribution.model.DockerImageSlug
+import de.cmdjulian.distribution.model.ContainerImageName
 import de.cmdjulian.distribution.model.Reference
 import de.cmdjulian.distribution.model.Repository
 import de.cmdjulian.distribution.model.Tag
@@ -66,7 +66,7 @@ interface ContainerRegistryClient {
     /**
      * Convert general Client to DockerImageClient.
      */
-    fun toImageClient(image: DockerImageSlug, manifest: ManifestSingle): ImageClient
+    fun toImageClient(image: ContainerImageName, manifest: ManifestSingle): ImageClient
 }
 
 interface CoroutineContainerRegistryClient {
@@ -124,7 +124,7 @@ interface CoroutineContainerRegistryClient {
     /**
      * Convert general Client to DockerImageClient.
      */
-    fun toImageClient(image: DockerImageSlug, manifest: ManifestSingle): CoroutineImageClient
+    fun toImageClient(image: ContainerImageName, manifest: ManifestSingle): CoroutineImageClient
 }
 
 @Suppress("unused")
@@ -156,6 +156,6 @@ fun CoroutineContainerRegistryClient.toBlockingClient() = object : ContainerRegi
     override fun blob(repository: Repository, digest: Digest): Blob =
         runBlocking { this@toBlockingClient.blob(repository, digest) }
 
-    override fun toImageClient(image: DockerImageSlug, manifest: ManifestSingle): ImageClient =
+    override fun toImageClient(image: ContainerImageName, manifest: ManifestSingle): ImageClient =
         this@toBlockingClient.toImageClient(image, manifest).toBlockingClient()
 }

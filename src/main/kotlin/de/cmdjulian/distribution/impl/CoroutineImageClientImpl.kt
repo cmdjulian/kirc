@@ -4,7 +4,7 @@ import de.cmdjulian.distribution.CoroutineContainerRegistryClient
 import de.cmdjulian.distribution.CoroutineImageClient
 import de.cmdjulian.distribution.model.Blob
 import de.cmdjulian.distribution.model.ContainerImage
-import de.cmdjulian.distribution.model.DockerImageSlug
+import de.cmdjulian.distribution.model.ContainerImageName
 import de.cmdjulian.distribution.model.Tag
 import de.cmdjulian.distribution.spec.image.ImageConfig
 import de.cmdjulian.distribution.spec.manifest.ManifestSingle
@@ -15,7 +15,7 @@ import kotlinx.coroutines.runBlocking
 
 internal class CoroutineImageClientImpl(
     private val client: CoroutineContainerRegistryClient,
-    private val image: DockerImageSlug,
+    private val image: ContainerImageName,
     private val manifest: ManifestSingle = runBlocking {
         client.manifest(image.repository, image.reference) as ManifestSingle
     },

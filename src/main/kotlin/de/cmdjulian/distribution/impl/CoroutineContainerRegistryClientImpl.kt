@@ -19,7 +19,7 @@ import de.cmdjulian.distribution.impl.response.Catalog
 import de.cmdjulian.distribution.impl.response.TagList
 import de.cmdjulian.distribution.model.Blob
 import de.cmdjulian.distribution.model.Digest
-import de.cmdjulian.distribution.model.DockerImageSlug
+import de.cmdjulian.distribution.model.ContainerImageName
 import de.cmdjulian.distribution.model.Reference
 import de.cmdjulian.distribution.model.Repository
 import de.cmdjulian.distribution.model.Tag
@@ -88,7 +88,7 @@ internal class CoroutineContainerRegistryClientImpl(private val api: ContainerRe
             }
             .getOrElse { throw it.toRegistryClientError() }
 
-    override fun toImageClient(image: DockerImageSlug, manifest: ManifestSingle): CoroutineImageClient =
+    override fun toImageClient(image: ContainerImageName, manifest: ManifestSingle): CoroutineImageClient =
         CoroutineImageClientImpl(this, image, manifest)
 }
 
