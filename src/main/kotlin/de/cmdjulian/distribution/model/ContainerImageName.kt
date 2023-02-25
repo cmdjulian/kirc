@@ -19,19 +19,19 @@ package de.cmdjulian.distribution.model
  *
  * etc.
  */
-class DockerImageSlug(
+class ContainerImageName(
     val registry: Registry = Registry("docker.io"),
     val repository: Repository,
     tag: Tag? = null,
     val digest: Digest? = null,
 ) {
 
-    val tag = if (tag == null && digest == null) Tag("latest") else tag
-    val reference = digest ?: this.tag!!
+    val tag = if (tag == null && digest == null) Tag.LATEST else tag
+    val reference get() = digest ?: this.tag!!
 
     companion object {
         @JvmStatic
-        fun parse(image: String): DockerImageSlug {
+        fun parse(image: String): ContainerImageName {
             val slashIndex = image.indexOf('/')
             val isRegistryMissing = slashIndex == -1 ||
                 "." !in image.substring(0, slashIndex) &&
@@ -42,10 +42,8 @@ class DockerImageSlug(
             val registry = if (isRegistryMissing) null else Registry(image.substring(0, slashIndex))
             val (repository, tag, digest) = parseRepositoryAndVersion(remoteName)
 
-            return when (registry) {
-                null -> DockerImageSlug(repository = repository, tag = tag, digest = digest)
-                else -> DockerImageSlug(registry, repository, tag, digest)
-            }
+            return if (registry == null) ContainerImageName(repository = repository, tag = tag, digest = digest)
+            else ContainerImageName(registry, repository, tag, digest)
         }
 
         private fun parseRepositoryAndVersion(remoteName: String) = when {
@@ -75,23 +73,15 @@ class DockerImageSlug(
     }
 
     override fun toString(): String {
-        fun tagComponent() = when {
-            tag != null -> tag.separator + tag.toString()
-            digest == null -> ":latest"
-            else -> ""
-        }
+        val tagComponent = tag?.asImagePart() ?: ""
+        val digestComponent = digest?.asImagePart() ?: ""
 
-        fun digestComponent() = when (digest) {
-            null -> ""
-            else -> digest.separator + digest.toString()
-        }
-
-        return registry.toString() + '/' + repository.toString() + tagComponent() + digestComponent()
+        return "$registry/$repository$tagComponent$digestComponent"
     }
 
     override fun equals(other: Any?): Boolean = when {
         this === other -> true
-        other !is DockerImageSlug -> false
+        other !is ContainerImageName -> false
         registry != other.registry -> false
         repository != other.repository -> false
         reference != other.reference -> false

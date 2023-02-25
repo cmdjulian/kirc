@@ -7,7 +7,7 @@ import de.cmdjulian.distribution.impl.ContainerRegistryApi
 import de.cmdjulian.distribution.impl.ContainerRegistryApiImpl
 import de.cmdjulian.distribution.impl.CoroutineContainerRegistryClientImpl
 import de.cmdjulian.distribution.impl.CoroutineImageClientImpl
-import de.cmdjulian.distribution.model.DockerImageSlug
+import de.cmdjulian.distribution.model.ContainerImageName
 import java.net.URL
 
 const val DOCKER_HUB_URL = "https://registry.hub.docker.com"
@@ -16,7 +16,7 @@ const val DOCKER_HUB_URL = "https://registry.hub.docker.com"
 object ContainerRegistryClientFactory {
 
     data class ImageClientConfig(
-        val image: DockerImageSlug,
+        val image: ContainerImageName,
         val credentials: RegistryCredentials? = null,
         val config: ProxyConfig? = null,
         val insecure: Boolean = false,
@@ -40,7 +40,7 @@ object ContainerRegistryClientFactory {
         return CoroutineContainerRegistryClientImpl(api)
     }
 
-    fun create(image: DockerImageSlug): CoroutineImageClient = create(ImageClientConfig(image))
+    fun create(image: ContainerImageName): CoroutineImageClient = create(ImageClientConfig(image))
 
     fun create(config: ImageClientConfig): CoroutineImageClient {
         val client = create(

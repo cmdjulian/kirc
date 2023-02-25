@@ -2,10 +2,16 @@ package de.cmdjulian.distribution.model
 
 sealed interface Reference {
     val separator: Char
+
+    fun asImagePart() = "$separator${toString()}"
 }
 
 @JvmInline
 value class Tag(private val value: String) : Reference {
+    companion object {
+        val LATEST = Tag("latest")
+    }
+
     init {
         require(value.matches(Regex("\\w[\\w.\\-]{0,127}"))) { "invalid tag" }
     }

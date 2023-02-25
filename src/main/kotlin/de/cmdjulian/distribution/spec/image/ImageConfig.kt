@@ -2,13 +2,15 @@ package de.cmdjulian.distribution.spec.image
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategies
 import com.fasterxml.jackson.databind.annotation.JsonNaming
+import de.cmdjulian.distribution.spec.Architecture
+import de.cmdjulian.distribution.spec.OS
 import java.time.OffsetDateTime
 
 sealed interface ImageConfig {
     val created: OffsetDateTime?
     val author: String?
-    val architecture: String
-    val os: String
+    val architecture: Architecture
+    val os: OS
     val config: Config?
     val rootfs: RootFs
     val history: List<History>?

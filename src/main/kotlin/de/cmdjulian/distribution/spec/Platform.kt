@@ -1,31 +1,52 @@
 package de.cmdjulian.distribution.spec
 
-private val platformRegex = Regex("^([a-zA-Z0-9]+)/([a-zA-Z0-9]+)$")
+import com.fasterxml.jackson.annotation.JsonValue
+import com.fasterxml.jackson.module.kotlin.readValue
+import de.cmdjulian.distribution.impl.JsonMapper
 
-@JvmInline
-value class Platform(private val value: String) {
+private val platformRegex = Regex(
+    "^(${Architecture.values().map(Architecture::string).joinToString(separator = "|")})" +
+        "/" +
+        "(${OS.values().map(OS::string).joinToString(separator = "|")})$",
+)
+
+data class Platform(val os: OS, val arch: Architecture) {
     companion object {
-        fun default() = Platform(PlatformResolver.resolve())
+        fun parse(platform: String): Platform {
+            when {
+                !platform.matches(Regex("^([a-z0-9]+)/([a-z0-9/]+)\$")) ->
+                    throw IllegalArgumentException("invalid platform string")
+
+                !platform.matches(Regex("^(${OS.values().joinToString(separator = "|") { "$it" }})/([a-z0-9/]+)")) ->
+                    throw IllegalArgumentException("invalid os part")
+
+                !platform.matches(Regex("^([a-z0-9]+)/(${Architecture.values().joinToString(separator = "|") { "$it" }})")) ->
+                    throw IllegalArgumentException("invalid architecture part")
+            }
+            val (os, arch) = platform.split(Regex("/"), 2)
+
+            return Platform(JsonMapper.readValue("\"$os\""), JsonMapper.readValue("\"$arch\""))
+        }
     }
 
-    init {
-        require(value.matches(platformRegex)) { "invalid platform string" }
-    }
-
-    override fun toString() = value
+    override fun toString() = "$os/$arch"
 }
 
-/**
- * Resolves current platform.
- */
-private object PlatformResolver {
-    private val os: String by lazy {
-        if (System.getProperty("os.name")?.lowercase()?.contains("win") == true) "windows" else "linux"
-    }
+enum class OS(@get:JsonValue val string: String) {
+    WINDOWS("windows"), LINUX("linux");
 
-    private val arch: String by lazy {
-        System.getProperty("os.arch") ?: "amd64"
-    }
+    override fun toString() = string
+}
 
-    fun resolve() = "$os/$arch"
+enum class Architecture(@get:JsonValue val string: String) {
+    AMD64("amd64"),
+    ARM64("arm64"),
+    RISCV64("riscv64"),
+    PPC64LE("ppc64le"),
+    S390X("s390x"),
+    I386("386"),
+    ARM_V7("arm/v7"),
+    ARM_V6("arm/v6");
+
+    override fun toString() = string
 }
