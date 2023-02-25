@@ -18,8 +18,8 @@ import de.cmdjulian.distribution.exception.RegistryClientException.UnknownErrorE
 import de.cmdjulian.distribution.impl.response.Catalog
 import de.cmdjulian.distribution.impl.response.TagList
 import de.cmdjulian.distribution.model.Blob
-import de.cmdjulian.distribution.model.Digest
 import de.cmdjulian.distribution.model.ContainerImageName
+import de.cmdjulian.distribution.model.Digest
 import de.cmdjulian.distribution.model.Reference
 import de.cmdjulian.distribution.model.Repository
 import de.cmdjulian.distribution.model.Tag
@@ -94,9 +94,9 @@ internal class CoroutineContainerRegistryClientImpl(private val api: ContainerRe
 
 private fun FuelError.toRegistryClientError(): RegistryClientException = when (response.statusCode) {
     -1 -> NetworkErrorException(this)
-    401 -> AuthenticationException(JsonMapper.readValue(response.data), this)
-    403 -> AuthorizationException(JsonMapper.readValue(response.data), this)
-    404 -> NotFoundException(JsonMapper.readValue(response.data), this)
+    401 -> AuthenticationException(if (response.data.isEmpty()) null else JsonMapper.readValue(response.data), this)
+    403 -> AuthorizationException(if (response.data.isEmpty()) null else JsonMapper.readValue(response.data), this)
+    404 -> NotFoundException(if (response.data.isEmpty()) null else JsonMapper.readValue(response.data), this)
     in 405..499 ->
         UnexpectedErrorException(if (response.data.isEmpty()) null else JsonMapper.readValue(response.data), this)
 

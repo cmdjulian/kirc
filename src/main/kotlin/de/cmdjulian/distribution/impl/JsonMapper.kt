@@ -1,6 +1,8 @@
 package de.cmdjulian.distribution.impl
 
+import com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES
 import com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES
+import com.fasterxml.jackson.databind.DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_USING_DEFAULT_VALUE
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.KotlinFeature.NullToEmptyCollection
@@ -13,19 +15,19 @@ import de.cmdjulian.distribution.spec.manifest.Manifest
 import de.cmdjulian.distribution.spec.manifest.ManifestList
 import de.cmdjulian.distribution.spec.manifest.ManifestSingle
 
-internal val JsonMapper = jsonMapper {
-    addModules(kotlinModule())
-    addModules(JavaTimeModule())
-    addModules(Jdk8Module())
+private val KotlinModule = kotlinModule {
+    configure(NullToEmptyCollection, true)
+    configure(NullToEmptyMap, true)
+    configure(SingletonSupport, true)
+    configure(StrictNullChecks, true)
+}
 
-    disable(FAIL_ON_UNKNOWN_PROPERTIES)
-    kotlinModule {
-        withReflectionCacheSize(512)
-        configure(NullToEmptyCollection, true)
-        configure(NullToEmptyMap, true)
-        configure(SingletonSupport, true)
-        configure(StrictNullChecks, true)
-    }
+internal val JsonMapper = jsonMapper {
+    addModules(KotlinModule, JavaTimeModule(), Jdk8Module())
+
+    configure(READ_UNKNOWN_ENUM_VALUES_USING_DEFAULT_VALUE, true)
+    configure(FAIL_ON_NULL_FOR_PRIMITIVES, true)
+    configure(FAIL_ON_UNKNOWN_PROPERTIES, false)
 
     addMixIn(Manifest::class.java, ManifestMixIn::class.java)
     addMixIn(ManifestSingle::class.java, ManifestSingleMixIn::class.java)

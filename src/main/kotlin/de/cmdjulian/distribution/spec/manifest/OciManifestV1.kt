@@ -7,7 +7,7 @@ data class OciManifestV1(
     override val config: LayerReference,
     override val layers: List<LayerReference>,
     val subject: LayerReference?,
-    val annotations: Map<String, String>?,
+    val annotations: Map<String, String>,
 ) : ManifestSingle {
     companion object {
         const val MediaType = "application/vnd.oci.image.manifest.v1+json"

@@ -16,16 +16,17 @@ data class DockerImageConfigV1(
     val parent: String?,
     override val created: OffsetDateTime?,
     val dockerVersion: String?,
-    val onBuild: List<String>?,
+    val onBuild: List<String>,
     override val author: String?,
     override val architecture: Architecture,
     override val os: OS,
     val checksum: String?,
-    @JsonProperty("Size") val size: UInt,
+    @JsonProperty("Size") val size: UInt?,
     override val config: ImageConfig.Config?,
-    val containerConfig: ImageConfig?,
+    val container: String?,
+    val containerConfig: ImageConfig.Config?,
     override val rootfs: RootFs,
-    override val history: List<History>?,
+    override val history: List<History>,
 ) : ImageConfig {
     companion object {
         const val MediaType = "application/vnd.docker.container.image.v1+json"

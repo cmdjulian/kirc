@@ -14,11 +14,11 @@ data class OciImageConfigV1(
     override val architecture: Architecture,
     override val os: OS,
     val osVersion: String?,
-    val osFeatures: List<String>?,
+    val osFeatures: List<String>,
     val variant: String?,
     override val config: ImageConfig.Config?,
     override val rootfs: RootFs,
-    override val history: List<History>?,
+    override val history: List<History>,
 ) : ImageConfig {
     companion object {
         const val MediaType = "application/vnd.oci.image.config.v1+json"
