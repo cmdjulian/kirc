@@ -6,52 +6,55 @@ import de.cmdjulian.distribution.impl.ContainerRegistryApiImpl
 import de.cmdjulian.distribution.impl.CoroutineContainerRegistryClientImpl
 import de.cmdjulian.distribution.impl.CoroutineImageClientImpl
 import de.cmdjulian.distribution.model.ContainerImageName
+import de.cmdjulian.distribution.utils.InsecureSSLSocketFactory
+import de.cmdjulian.distribution.utils.NoopHostnameVerifier
 import java.net.Proxy
 import java.net.URL
+import java.security.KeyStore
 
 const val DOCKER_HUB_URL = "https://registry.hub.docker.com"
 
 class RegistryCredentials(val username: String, val password: String)
 
-class ProxyConfig(val proxy: Proxy)
-
-@Suppress("unused", "MemberVisibilityCanBePrivate", "HttpUrlsUsage")
 object ContainerRegistryClientFactory {
-
-    data class ImageClientConfig(
-        val image: ContainerImageName,
-        val credentials: RegistryCredentials? = null,
-        val config: ProxyConfig? = null,
-        val insecure: Boolean = false,
-    )
-
     /**
-     * Create a DistributionClient for a registry. If no args are supplied the client is constructed for Docker Hub with
-     * no auth.
+     * Create a ContainerRegistryClient for a registry. If no args are supplied the client is constructed for Docker
+     * Hub with no authentication.
      */
     fun create(
         url: URL = URL(DOCKER_HUB_URL),
         credentials: RegistryCredentials? = null,
-        config: ProxyConfig? = null,
+        proxy: Proxy? = null,
+        skipTlsVerify: Boolean = false,
+        keystore: KeyStore? = null,
     ): CoroutineContainerRegistryClient {
+        require(keystore == null || !skipTlsVerify) { "can not skip tls verify if a keystore is set" }
+
         val fuel = FuelManager().apply {
-            basePath = if (this.toString() == "https://docker.io") DOCKER_HUB_URL else url.toString()
-            proxy = config?.proxy
+            this.basePath = url.toString()
+            this.proxy = proxy
+
+            if (skipTlsVerify) {
+                hostnameVerifier = NoopHostnameVerifier
+                socketFactory = InsecureSSLSocketFactory
+            }
         }
         val api: ContainerRegistryApi = ContainerRegistryApiImpl(fuel, credentials)
 
         return CoroutineContainerRegistryClientImpl(api)
     }
 
-    fun create(image: ContainerImageName): CoroutineImageClient = create(ImageClientConfig(image))
+    fun create(
+        image: ContainerImageName,
+        credentials: RegistryCredentials? = null,
+        proxy: Proxy? = null,
+        insecure: Boolean = false,
+        skipTlsVerify: Boolean = false,
+        keystore: KeyStore? = null,
+    ): CoroutineImageClient {
+        val url = "${if (insecure) "http://" else "https://"}${image.registry}"
+        val client = create(URL(url), credentials, proxy, skipTlsVerify, keystore)
 
-    fun create(config: ImageClientConfig): CoroutineImageClient {
-        val client = create(
-            URL((if (config.insecure) "http://" else "https://") + config.image.registry.toString()),
-            config.credentials,
-            config.config,
-        )
-
-        return CoroutineImageClientImpl(client as CoroutineContainerRegistryClientImpl, config.image)
+        return CoroutineImageClientImpl(client, image)
     }
 }
