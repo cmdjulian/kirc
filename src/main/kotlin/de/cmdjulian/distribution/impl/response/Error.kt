@@ -20,5 +20,5 @@ internal enum class Code {
     UNAUTHORIZED,
     DENIED,
     UNSUPPORTED,
-    TOOMANYREQUESTS
+    TOOMANYREQUESTS,
 }

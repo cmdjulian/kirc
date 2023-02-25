@@ -9,13 +9,11 @@ plugins {
     `maven-publish`
 
     // Gradle task "dependencyCheckAnalyze" to check for security CVEs in dependencies
-    id("org.owasp.dependencycheck") version "7.4.4"
+    id("org.owasp.dependencycheck") version "8.1.0"
     // check for dependency updates via task "dependencyUpdates --refresh-dependencies"
     id("com.github.ben-manes.versions") version "0.44.0"
     // linting
     id("org.jlleitschuh.gradle.ktlint") version "11.2.0"
-    // licence scanning
-    id("com.jaredsburrows.license") version "0.9.0"
 }
 
 repositories {
@@ -90,13 +88,14 @@ tasks.withType<Test>().configureEach {
 
 tasks.withType<KotlinCompile>().configureEach {
     kotlinOptions {
+        javaParameters = true
         freeCompilerArgs = listOf("-Xjsr305=strict", "-Xemit-jvm-type-annotations", "-Xcontext-receivers")
         jvmTarget = "${JavaVersion.VERSION_11}"
     }
 }
 
 ktlint {
-    version.set("0.45.2")
+    version.set("0.48.2")
     enableExperimentalRules.set(true)
 }
 

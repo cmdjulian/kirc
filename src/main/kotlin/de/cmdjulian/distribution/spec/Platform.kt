@@ -1,3 +1,5 @@
+@file:Suppress("ktlint:trailing-comma-on-declaration-site")
+
 package de.cmdjulian.distribution.spec
 
 import com.fasterxml.jackson.annotation.JsonEnumDefaultValue

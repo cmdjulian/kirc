@@ -1,6 +1,6 @@
 package de.cmdjulian.distribution.utils
 
-import java.util.Locale
+import java.util.*
 
 internal class CaseInsensitiveMap<V>(map: Map<String, V>) : HashMap<String, V>() {
     init {
