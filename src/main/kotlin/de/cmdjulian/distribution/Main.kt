@@ -5,9 +5,9 @@ import de.cmdjulian.distribution.model.Tag
 import de.cmdjulian.distribution.spec.manifest.ManifestList
 import de.cmdjulian.distribution.spec.manifest.ManifestSingle
 
-fun main() {
+suspend fun main() {
     try {
-        val client = ContainerRegistryClientFactory.create().toBlockingClient()
+        val client = ContainerRegistryClientFactory.create()
 
         val image = ContainerImageName.parse("cmdjulian/kaniko:v1.8.1")
         val digest = client.manifestDigest(image.repository, image.reference as Tag).also(::println)

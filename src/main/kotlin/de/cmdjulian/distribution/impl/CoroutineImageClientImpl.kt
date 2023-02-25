@@ -11,15 +11,22 @@ import de.cmdjulian.distribution.spec.manifest.ManifestSingle
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 internal class CoroutineImageClientImpl(
     private val client: CoroutineContainerRegistryClient,
     private val image: ContainerImageName,
-    private val manifest: ManifestSingle = runBlocking {
-        client.manifest(image.repository, image.reference) as ManifestSingle
-    },
+    private val manifest: ManifestSingle,
 ) : CoroutineImageClient {
+    companion object {
+        suspend operator fun invoke(client: CoroutineContainerRegistryClient, image: ContainerImageName) =
+            CoroutineImageClientImpl(
+                client,
+                image,
+                client.manifest(image.repository, image.reference) as ManifestSingle,
+            )
+    }
 
     override suspend fun tags(): List<Tag> = client.tags(image.repository)
 
@@ -28,8 +35,11 @@ internal class CoroutineImageClientImpl(
     override suspend fun config(): ImageConfig = client.config(image.repository, manifest)
 
     override suspend fun blobs(): List<Blob> = coroutineScope {
+        // limit concurrent pull of layers to three at a time, like Docker does it
+        val semaphore = Semaphore(3)
+
         manifest.layers
-            .map { layer -> async { client.blob(image.repository, layer.digest) } }
+            .map { layer -> async { semaphore.withPermit { client.blob(image.repository, layer.digest) } } }
             .awaitAll()
     }
 

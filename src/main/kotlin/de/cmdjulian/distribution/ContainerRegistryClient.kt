@@ -1,8 +1,8 @@
 package de.cmdjulian.distribution
 
 import de.cmdjulian.distribution.model.Blob
-import de.cmdjulian.distribution.model.Digest
 import de.cmdjulian.distribution.model.ContainerImageName
+import de.cmdjulian.distribution.model.Digest
 import de.cmdjulian.distribution.model.Reference
 import de.cmdjulian.distribution.model.Repository
 import de.cmdjulian.distribution.model.Tag

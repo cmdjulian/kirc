@@ -42,8 +42,11 @@ class ContainerImageName(
             val registry = if (isRegistryMissing) null else Registry(image.substring(0, slashIndex))
             val (repository, tag, digest) = parseRepositoryAndVersion(remoteName)
 
-            return if (registry == null) ContainerImageName(repository = repository, tag = tag, digest = digest)
-            else ContainerImageName(registry, repository, tag, digest)
+            return if (registry == null) {
+                ContainerImageName(repository = repository, tag = tag, digest = digest)
+            } else {
+                ContainerImageName(registry, repository, tag, digest)
+            }
         }
 
         private fun parseRepositoryAndVersion(remoteName: String) = when {
