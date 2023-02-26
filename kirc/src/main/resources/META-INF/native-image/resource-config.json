@@ -3,9 +3,6 @@
     "includes": [
       {
         "pattern": "\\QMETA-INF/services/kotlinx.metadata.internal.extensions.MetadataExtensions\\E"
-      },
-      {
-        "pattern": "\\Qorg/slf4j/impl/StaticLoggerBinder.class\\E"
       }
     ]
   },
