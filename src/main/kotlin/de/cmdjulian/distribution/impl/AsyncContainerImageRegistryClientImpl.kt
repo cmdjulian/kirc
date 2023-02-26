@@ -6,8 +6,8 @@ import com.github.kittinunf.fuel.core.Headers
 import com.github.kittinunf.result.getOrElse
 import com.github.kittinunf.result.map
 import com.github.kittinunf.result.onError
-import de.cmdjulian.distribution.CoroutineContainerRegistryClient
-import de.cmdjulian.distribution.CoroutineImageClient
+import de.cmdjulian.distribution.AsyncContainerImageClient
+import de.cmdjulian.distribution.AsyncContainerImageRegistryClient
 import de.cmdjulian.distribution.exception.RegistryClientException
 import de.cmdjulian.distribution.exception.RegistryClientException.ClientException.AuthenticationException
 import de.cmdjulian.distribution.exception.RegistryClientException.ClientException.AuthorizationException
@@ -33,8 +33,8 @@ import de.cmdjulian.distribution.spec.manifest.OciManifestV1
 import de.cmdjulian.distribution.utils.CaseInsensitiveMap
 
 @Suppress("TooManyFunctions")
-internal class CoroutineContainerRegistryClientImpl(private val api: ContainerRegistryApi) :
-    CoroutineContainerRegistryClient {
+internal class AsyncContainerImageRegistryClientImpl(private val api: ContainerRegistryApi) :
+    AsyncContainerImageRegistryClient {
 
     override suspend fun testConnection() {
         api.ping().onError { throw it.toRegistryClientError() }
@@ -53,22 +53,19 @@ internal class CoroutineContainerRegistryClientImpl(private val api: ContainerRe
     override suspend fun exists(repository: Repository, reference: Reference): Boolean =
         api.manifest(repository, reference)
             .map { true }
-            .getOrElse { if (it.response.statusCode == 404) false else throw it.toRegistryClientError() }
+            .getOrElse { if (it.response.statusCode != 404) false else throw it.toRegistryClientError() }
 
     override suspend fun manifest(repository: Repository, reference: Reference): Manifest =
-        api.manifests(repository, reference)
-            .getOrElse { throw it.toRegistryClientError() }
+        api.manifests(repository, reference).getOrElse { throw it.toRegistryClientError() }
 
     override suspend fun manifestDigest(repository: Repository, tag: Tag): Digest =
-        api.digest(repository, tag)
-            .getOrElse { throw it.toRegistryClientError() }
+        api.digest(repository, tag).getOrElse { throw it.toRegistryClientError() }
 
     override suspend fun blob(repository: Repository, digest: Digest): Blob {
         val (_, response, result) = api.blob(repository, digest)
 
         val headers = CaseInsensitiveMap(response.headers)
-        // TODO
-        return result.map { content -> Blob(digest, headers[Headers.CONTENT_TYPE]?.single()!!, content) }
+        return result.map { content -> Blob(digest, headers[Headers.CONTENT_TYPE]!!.single(), content) }
             .getOrElse { throw it.toRegistryClientError() }
     }
 
@@ -88,8 +85,8 @@ internal class CoroutineContainerRegistryClientImpl(private val api: ContainerRe
             }
             .getOrElse { throw it.toRegistryClientError() }
 
-    override fun toImageClient(image: ContainerImageName, manifest: ManifestSingle): CoroutineImageClient =
-        CoroutineImageClientImpl(this, image, manifest)
+    override fun toImageClient(image: ContainerImageName, manifest: ManifestSingle): AsyncContainerImageClient =
+        AsyncContainerImageClientImpl(this, image, manifest)
 }
 
 private fun FuelError.toRegistryClientError(): RegistryClientException = when (response.statusCode) {

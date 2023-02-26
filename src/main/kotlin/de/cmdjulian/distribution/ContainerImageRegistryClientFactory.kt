@@ -1,10 +1,10 @@
 package de.cmdjulian.distribution
 
 import com.github.kittinunf.fuel.core.FuelManager
+import de.cmdjulian.distribution.impl.AsyncContainerImageClientImpl
+import de.cmdjulian.distribution.impl.AsyncContainerImageRegistryClientImpl
 import de.cmdjulian.distribution.impl.ContainerRegistryApi
 import de.cmdjulian.distribution.impl.ContainerRegistryApiImpl
-import de.cmdjulian.distribution.impl.CoroutineContainerRegistryClientImpl
-import de.cmdjulian.distribution.impl.CoroutineImageClientImpl
 import de.cmdjulian.distribution.model.ContainerImageName
 import de.cmdjulian.distribution.utils.InsecureSSLSocketFactory
 import de.cmdjulian.distribution.utils.NoopHostnameVerifier
@@ -17,7 +17,7 @@ const val DOCKER_HUB_URL = "https://registry.hub.docker.com"
 
 class RegistryCredentials(val username: String, val password: String)
 
-object ContainerRegistryClientFactory {
+object ContainerImageRegistryClientFactory {
     /**
      * Create a ContainerRegistryClient for a registry. If no args are supplied the client is constructed for Docker
      * Hub with no authentication.
@@ -30,7 +30,7 @@ object ContainerRegistryClientFactory {
         proxy: Proxy? = null,
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
-    ): CoroutineContainerRegistryClient {
+    ): AsyncContainerImageRegistryClient {
         require(keystore == null || !skipTlsVerify) { "can not skip tls verify if a keystore is set" }
 
         val fuel = FuelManager().apply {
@@ -44,7 +44,7 @@ object ContainerRegistryClientFactory {
         }
         val api: ContainerRegistryApi = ContainerRegistryApiImpl(fuel, credentials)
 
-        return CoroutineContainerRegistryClientImpl(api)
+        return AsyncContainerImageRegistryClientImpl(api)
     }
 
     @JvmSynthetic
@@ -55,11 +55,11 @@ object ContainerRegistryClientFactory {
         insecure: Boolean = false,
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
-    ): CoroutineImageClient {
+    ): AsyncContainerImageClient {
         val url = "${if (insecure) "http://" else "https://"}${image.registry}"
         val client = create(URL(url), credentials, proxy, skipTlsVerify, keystore)
 
-        return CoroutineImageClientImpl(client, image)
+        return AsyncContainerImageClientImpl(client, image)
     }
 
     @JvmStatic
@@ -71,5 +71,5 @@ object ContainerRegistryClientFactory {
         insecure: Boolean = false,
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
-    ): CoroutineImageClient = runBlocking { createKt(image, credentials, proxy, insecure, skipTlsVerify, keystore) }
+    ) = runBlocking { createKt(image, credentials, proxy, insecure, skipTlsVerify, keystore) }
 }

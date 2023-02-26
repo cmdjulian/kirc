@@ -11,7 +11,7 @@ import de.cmdjulian.distribution.spec.manifest.Manifest
 import de.cmdjulian.distribution.spec.manifest.ManifestSingle
 import kotlinx.coroutines.runBlocking
 
-interface ContainerRegistryClient {
+interface ContainerImageRegistryClient {
     /**
      * Checks if the registry is reachable and configured correctly. If not, a detailed Exception is thrown.
      */
@@ -66,10 +66,10 @@ interface ContainerRegistryClient {
     /**
      * Convert general Client to DockerImageClient.
      */
-    fun toImageClient(image: ContainerImageName, manifest: ManifestSingle): ImageClient
+    fun toImageClient(image: ContainerImageName, manifest: ManifestSingle): ContainerImageClient
 }
 
-interface CoroutineContainerRegistryClient {
+interface AsyncContainerImageRegistryClient {
     /**
      * Checks if the registry is reachable and configured correctly. If not, a detailed Exception is thrown.
      */
@@ -124,11 +124,11 @@ interface CoroutineContainerRegistryClient {
     /**
      * Convert general Client to DockerImageClient.
      */
-    fun toImageClient(image: ContainerImageName, manifest: ManifestSingle): CoroutineImageClient
+    fun toImageClient(image: ContainerImageName, manifest: ManifestSingle): AsyncContainerImageClient
 }
 
 @Suppress("unused")
-fun CoroutineContainerRegistryClient.toBlockingClient() = object : ContainerRegistryClient {
+fun AsyncContainerImageRegistryClient.toBlockingClient() = object : ContainerImageRegistryClient {
     override fun testConnection(): Unit =
         runBlocking { this@toBlockingClient.testConnection() }
 
@@ -156,6 +156,6 @@ fun CoroutineContainerRegistryClient.toBlockingClient() = object : ContainerRegi
     override fun blob(repository: Repository, digest: Digest): Blob =
         runBlocking { this@toBlockingClient.blob(repository, digest) }
 
-    override fun toImageClient(image: ContainerImageName, manifest: ManifestSingle): ImageClient =
+    override fun toImageClient(image: ContainerImageName, manifest: ManifestSingle): ContainerImageClient =
         this@toBlockingClient.toImageClient(image, manifest).toBlockingClient()
 }
