@@ -75,7 +75,7 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
             .third
     }
 
-    override suspend fun blob(repository: Repository, digest: Digest): ResponseResultOf<ByteArray> {
+    override suspend fun blob(repository: Repository, digest: Digest): Result<ByteArray, FuelError> {
         val deserializable = ByteArrayDeserializer()
         return fuelManager.get("/v2/$repository/blobs/$digest")
             .appendHeader(
@@ -89,6 +89,7 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
             )
             .awaitResponseResult(deserializable)
             .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
+            .third
     }
 
     override suspend fun manifests(repository: Repository, reference: Reference): Result<Manifest, FuelError> {

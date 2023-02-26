@@ -2,9 +2,9 @@ package de.cmdjulian.distribution.impl
 
 import de.cmdjulian.distribution.AsyncContainerImageClient
 import de.cmdjulian.distribution.AsyncContainerImageRegistryClient
-import de.cmdjulian.distribution.model.Blob
 import de.cmdjulian.distribution.model.ContainerImage
 import de.cmdjulian.distribution.model.ContainerImageName
+import de.cmdjulian.distribution.model.LayerBlob
 import de.cmdjulian.distribution.model.Tag
 import de.cmdjulian.distribution.spec.image.ImageConfig
 import de.cmdjulian.distribution.spec.manifest.ManifestSingle
@@ -34,12 +34,17 @@ internal class AsyncContainerImageClientImpl(
 
     override suspend fun config(): ImageConfig = client.config(image.repository, manifest)
 
-    override suspend fun blobs(): List<Blob> = coroutineScope {
+    override suspend fun blobs(): List<LayerBlob> = coroutineScope {
         // limit concurrent pull of layers to three at a time, like Docker does it
         val semaphore = Semaphore(3)
 
         manifest.layers
-            .map { layer -> async { semaphore.withPermit { client.blob(image.repository, layer.digest) } } }
+            .map { layer ->
+                async {
+                    val blob = semaphore.withPermit { client.blob(image.repository, layer.digest) }
+                    LayerBlob(layer.digest, layer.mediaType, blob)
+                }
+            }
             .awaitAll()
     }
 
