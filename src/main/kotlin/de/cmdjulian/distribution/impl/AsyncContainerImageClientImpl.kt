@@ -1,7 +1,7 @@
 package de.cmdjulian.distribution.impl
 
-import de.cmdjulian.distribution.CoroutineContainerRegistryClient
-import de.cmdjulian.distribution.CoroutineImageClient
+import de.cmdjulian.distribution.AsyncContainerImageClient
+import de.cmdjulian.distribution.AsyncContainerImageRegistryClient
 import de.cmdjulian.distribution.model.Blob
 import de.cmdjulian.distribution.model.ContainerImage
 import de.cmdjulian.distribution.model.ContainerImageName
@@ -14,14 +14,14 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 
-internal class CoroutineImageClientImpl(
-    private val client: CoroutineContainerRegistryClient,
+internal class AsyncContainerImageClientImpl(
+    private val client: AsyncContainerImageRegistryClient,
     private val image: ContainerImageName,
     private val manifest: ManifestSingle,
-) : CoroutineImageClient {
+) : AsyncContainerImageClient {
     companion object {
-        suspend operator fun invoke(client: CoroutineContainerRegistryClient, image: ContainerImageName) =
-            CoroutineImageClientImpl(
+        suspend operator fun invoke(client: AsyncContainerImageRegistryClient, image: ContainerImageName) =
+            AsyncContainerImageClientImpl(
                 client,
                 image,
                 client.manifest(image.repository, image.reference) as ManifestSingle,

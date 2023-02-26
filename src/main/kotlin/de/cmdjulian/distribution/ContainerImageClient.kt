@@ -7,7 +7,7 @@ import de.cmdjulian.distribution.spec.image.ImageConfig
 import de.cmdjulian.distribution.spec.manifest.ManifestSingle
 import kotlinx.coroutines.runBlocking
 
-interface ImageClient {
+interface ContainerImageClient {
     /**
      * Get a list of tags for a certain repository.
      */
@@ -39,7 +39,7 @@ interface ImageClient {
     fun toImage(): ContainerImage
 }
 
-interface CoroutineImageClient {
+interface AsyncContainerImageClient {
     /**
      * Get a list of tags for a certain repository.
      */
@@ -71,7 +71,7 @@ interface CoroutineImageClient {
     suspend fun toImage(): ContainerImage
 }
 
-fun CoroutineImageClient.toBlockingClient() = object : ImageClient {
+fun AsyncContainerImageClient.toBlockingClient() = object : ContainerImageClient {
     override fun tags(): List<Tag> = runBlocking { this@toBlockingClient.tags() }
     override fun manifest(): ManifestSingle = runBlocking { this@toBlockingClient.manifest() }
     override fun config(): ImageConfig = runBlocking { this@toBlockingClient.config() }
