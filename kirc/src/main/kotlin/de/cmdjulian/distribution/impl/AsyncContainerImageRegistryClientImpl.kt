@@ -7,6 +7,7 @@ import com.github.kittinunf.result.map
 import com.github.kittinunf.result.onError
 import de.cmdjulian.distribution.AsyncContainerImageClient
 import de.cmdjulian.distribution.AsyncContainerImageRegistryClient
+import de.cmdjulian.distribution.exception.ErrorResponse
 import de.cmdjulian.distribution.exception.RegistryClientException
 import de.cmdjulian.distribution.exception.RegistryClientException.ClientException.AuthenticationException
 import de.cmdjulian.distribution.exception.RegistryClientException.ClientException.AuthorizationException
@@ -48,9 +49,9 @@ internal class AsyncContainerImageRegistryClientImpl(private val api: ContainerR
             .getOrElse { throw it.toRegistryClientError() }
 
     override suspend fun exists(repository: Repository, reference: Reference): Boolean =
-        api.manifest(repository, reference)
+        api.digest(repository, reference)
             .map { true }
-            .getOrElse { if (it.response.statusCode != 404) false else throw it.toRegistryClientError() }
+            .getOrElse { if (it.response.statusCode == 404) false else throw it.toRegistryClientError() }
 
     override suspend fun manifest(repository: Repository, reference: Reference): Manifest =
         api.manifests(repository, reference).getOrElse { throw it.toRegistryClientError() }
@@ -76,17 +77,20 @@ internal class AsyncContainerImageRegistryClientImpl(private val api: ContainerR
             }
             .getOrElse { throw it.toRegistryClientError() }
 
+    override suspend fun toImageClient(image: ContainerImageName): AsyncContainerImageClient =
+        AsyncContainerImageClientImpl(this, image)
+
     override fun toImageClient(image: ContainerImageName, manifest: ManifestSingle): AsyncContainerImageClient =
         AsyncContainerImageClientImpl(this, image, manifest)
 }
 
 private fun FuelError.toRegistryClientError(): RegistryClientException = when (response.statusCode) {
     -1 -> NetworkErrorException(this)
-    401 -> AuthenticationException(if (response.data.isEmpty()) null else JsonMapper.readValue(response.data), this)
-    403 -> AuthorizationException(if (response.data.isEmpty()) null else JsonMapper.readValue(response.data), this)
-    404 -> NotFoundException(if (response.data.isEmpty()) null else JsonMapper.readValue(response.data), this)
+    401 -> AuthenticationException(runCatching { JsonMapper.readValue<ErrorResponse>(response.data) }.getOrNull(), this)
+    403 -> AuthorizationException(runCatching { JsonMapper.readValue<ErrorResponse>(response.data) }.getOrNull(), this)
+    404 -> NotFoundException(runCatching { JsonMapper.readValue<ErrorResponse>(response.data) }.getOrNull(), this)
     in 405..499 ->
-        UnexpectedErrorException(if (response.data.isEmpty()) null else JsonMapper.readValue(response.data), this)
+        UnexpectedErrorException(runCatching { JsonMapper.readValue<ErrorResponse>(response.data) }.getOrNull(), this)
 
     else -> UnknownErrorException(this)
 }
