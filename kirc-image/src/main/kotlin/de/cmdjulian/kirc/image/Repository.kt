@@ -12,7 +12,10 @@ value class Repository(private val value: String) {
         }
     }
 
-    operator fun plus(reference: Reference) = value + reference.separator + reference.toString()
+    operator fun plus(reference: Reference): ContainerImageName = when (reference) {
+        is Tag -> ContainerImageName(repository = this, tag = reference)
+        is Digest -> ContainerImageName(repository = this, digest = reference)
+    }
 
     override fun toString(): String = value
 }

@@ -1,7 +1,5 @@
 package de.cmdjulian.kirc.client
 
-import de.cmdjulian.kirc.client.RegistryCredentials
-import de.cmdjulian.kirc.client.SuspendingClientFactory
 import de.cmdjulian.kirc.image.ContainerImageName
 import kotlinx.coroutines.runBlocking
 import java.net.Proxy
@@ -14,6 +12,7 @@ object BlockingClientFactory {
      * Hub with no authentication.
      */
     @JvmStatic
+    @JvmOverloads
     fun create(
         url: URL = URL(ContainerImageName.DOCKER_HUB_REGISTRY),
         credentials: RegistryCredentials? = null,
@@ -24,6 +23,7 @@ object BlockingClientFactory {
         SuspendingClientFactory.create(url, credentials, proxy, skipTlsVerify, keystore).toBlockingClient()
 
     @JvmStatic
+    @JvmOverloads
     fun create(
         image: ContainerImageName,
         credentials: RegistryCredentials? = null,
