@@ -1,18 +1,18 @@
-[![](https://jitpack.io/v/cmdjulian/docker-registry-client.svg)](https://jitpack.io/#cmdjulian/docker-registry-client)
+[![](https://jitpack.io/v/cmdjulian/kirc.svg)](https://jitpack.io/#cmdjulian/kirc)
 
-# Docker Registry Client (OCI Distribution)
+# kirc ((k)container image registry client)
 
-Kotlin client utilizing CoRoutines and Retrofit to interact with the Docker Registry API V2 via
-[OCI Distribution Specification](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pull).
+Kotlin client utilizing CoRoutines and Fuel to interact with the Container Registry API V2.
+It supports all the read operations from the spec and can handle oci as well as docker format.
 
 ## Overview
 
-The main interface to interact with the client is `DistributionClient`. It provides the basic functionality described
-in [Functionality](#functionality).  
-After initializing the standard `DistributionClient` via `DistributionClientFactorys` factory method, we can also pin it
-to a specific OCI Image (repository and reference like Tag or Digest) and make it an `ImageClient` with the
-`.toImageClient()` function. This client is then used to interact with a specific Image and provides some Image specific
-functions like the compressed size.    
+The main interface to interact with the client is `ContainerImageRegistryClient`. It provides the basic functionality 
+described in [Functionality](#functionality).  
+After initializing the standard `ContainerImageRegistryClient` via `ContainerImageRegistryClientFactory` factory method, 
+we can also pin it to a specific container image (repository and reference like Tag or Digest) and make it an 
+`ContainerImageClient` with the `.toImageClient()` function. This client is then used to interact with a specific 
+Image and provides some Image specific functions like the compressed size.    
 The default client uses Kotlins CoRoutines and is therefore async. The library also provides the possibility to use a
 blocking client instead. The blocking client can be obtained by first creating an async client and then use the
 `.toBlockingClient()` extension function.
@@ -39,19 +39,11 @@ communication.
 - list images
 - list tags
 - retrieve blob
-- delete blob
 - exists manifest
 - retrieve manifest
 - delete manifest
 - download image
 - inspect image
-
-### Missing
-
-- upload blob
-- upload manifest
-- export image as tar archive
-- upload image from tar
 
 ## Adding the Dependency
 

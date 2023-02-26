@@ -1,4 +1,0 @@
-complexity:
-  TooManyFunctions:
-    thresholdInClasses: 12
-    thresholdInInterfaces: 12
