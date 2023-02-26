@@ -1,7 +1,7 @@
 package de.cmdjulian.distribution
 
-import de.cmdjulian.distribution.model.Blob
 import de.cmdjulian.distribution.model.ContainerImage
+import de.cmdjulian.distribution.model.LayerBlob
 import de.cmdjulian.distribution.model.Tag
 import de.cmdjulian.distribution.spec.image.ImageConfig
 import de.cmdjulian.distribution.spec.manifest.ManifestSingle
@@ -26,7 +26,7 @@ interface ContainerImageClient {
     /**
      * Get the blobs of an Image.
      */
-    fun blobs(): List<Blob>
+    fun blobs(): List<LayerBlob>
 
     /**
      * Retrieves the images compressed size in bytes.
@@ -58,7 +58,7 @@ interface AsyncContainerImageClient {
     /**
      * Get the blobs of an Image.
      */
-    suspend fun blobs(): List<Blob>
+    suspend fun blobs(): List<LayerBlob>
 
     /**
      * Retrieves the images compressed size in bytes.
@@ -75,7 +75,7 @@ fun AsyncContainerImageClient.toBlockingClient() = object : ContainerImageClient
     override fun tags(): List<Tag> = runBlocking { this@toBlockingClient.tags() }
     override fun manifest(): ManifestSingle = runBlocking { this@toBlockingClient.manifest() }
     override fun config(): ImageConfig = runBlocking { this@toBlockingClient.config() }
-    override fun blobs(): List<Blob> = runBlocking { this@toBlockingClient.blobs() }
+    override fun blobs(): List<LayerBlob> = runBlocking { this@toBlockingClient.blobs() }
     override fun size(): ULong = runBlocking { this@toBlockingClient.size() }
     override fun toImage(): ContainerImage = runBlocking { this@toBlockingClient.toImage() }
 }

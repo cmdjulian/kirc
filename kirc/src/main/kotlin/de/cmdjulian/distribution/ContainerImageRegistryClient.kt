@@ -1,6 +1,5 @@
 package de.cmdjulian.distribution
 
-import de.cmdjulian.distribution.model.Blob
 import de.cmdjulian.distribution.model.ContainerImageName
 import de.cmdjulian.distribution.model.Digest
 import de.cmdjulian.distribution.model.Reference
@@ -61,7 +60,7 @@ interface ContainerImageRegistryClient {
     /**
      * Retrieve a Blob for an image.
      */
-    fun blob(repository: Repository, digest: Digest): Blob
+    fun blob(repository: Repository, digest: Digest): ByteArray
 
     /**
      * Convert general Client to DockerImageClient.
@@ -119,7 +118,7 @@ interface AsyncContainerImageRegistryClient {
     /**
      * Retrieve a Blob for an image.
      */
-    suspend fun blob(repository: Repository, digest: Digest): Blob
+    suspend fun blob(repository: Repository, digest: Digest): ByteArray
 
     /**
      * Convert general Client to DockerImageClient.
@@ -153,7 +152,7 @@ fun AsyncContainerImageRegistryClient.toBlockingClient() = object : ContainerIma
     override fun config(repository: Repository, reference: Reference): ImageConfig =
         runBlocking { this@toBlockingClient.config(repository, reference) }
 
-    override fun blob(repository: Repository, digest: Digest): Blob =
+    override fun blob(repository: Repository, digest: Digest): ByteArray =
         runBlocking { this@toBlockingClient.blob(repository, digest) }
 
     override fun toImageClient(image: ContainerImageName, manifest: ManifestSingle): ContainerImageClient =
