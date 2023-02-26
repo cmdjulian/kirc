@@ -27,7 +27,7 @@ jobs:
       uses: actions/setup-java@v3
       with:
         java-version: '11'
-        distribution: 'openjdk'
+        distribution: 'liberica'
     - name: Build with Gradle
       uses: gradle/gradle-build-action@530c579a03650670b91bbdc16d4e6a785c7443c5
       with:
