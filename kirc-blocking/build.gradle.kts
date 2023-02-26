@@ -23,8 +23,8 @@ tasks {
 publishing {
     publications {
         create<MavenPublication>("kirc-blocking") {
-            groupId = "de.cmdjulian"
-            artifactId = "kirc-blocking"
+            groupId = "de.cmdjulian.kirc"
+            artifactId = "blocking"
             version = project.version.toString()
 
             from(components["java"])
