@@ -1,8 +1,8 @@
 [![](https://jitpack.io/v/cmdjulian/kirc.svg)](https://jitpack.io/#cmdjulian/kirc)
 
-![kirc](logo.png)
-
 # kirc - (k)container image registry client
+
+![kirc](./social-preview.png)
 
 Kotlin client utilizing CoRoutines and Fuel to interact with the Container Registry API V2.
 It supports all the read operations from the spec and can handle oci as well as docker format.
