@@ -24,8 +24,8 @@ tasks {
 publishing {
     publications {
         create<MavenPublication>("kirc-reactive") {
-            groupId = "de.cmdjulian"
-            artifactId = "kirc-reactive"
+            groupId = "de.cmdjulian.kirc"
+            artifactId = "reactive"
             version = project.version.toString()
 
             from(components["java"])

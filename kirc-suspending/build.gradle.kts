@@ -53,8 +53,8 @@ tasks {
 publishing {
     publications {
         create<MavenPublication>("kirc-suspending") {
-            groupId = "de.cmdjulian"
-            artifactId = "kirc-suspending"
+            groupId = "de.cmdjulian.kirc"
+            artifactId = "suspending"
             version = project.version.toString()
 
             from(components["java"])
