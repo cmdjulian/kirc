@@ -1,9 +1,9 @@
 package de.cmdjulian.kirc
 
 import de.cmdjulian.kirc.client.RegistryCredentials
-import de.cmdjulian.kirc.client.suspending.SuspendingClientFactory
-import de.cmdjulian.kirc.client.suspending.SuspendingContainerImageRegistryClient
-import de.cmdjulian.kirc.model.ContainerImageName
+import de.cmdjulian.kirc.client.SuspendingClientFactory
+import de.cmdjulian.kirc.client.SuspendingContainerImageRegistryClient
+import de.cmdjulian.kirc.image.ContainerImageName
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import kotlinx.coroutines.runBlocking

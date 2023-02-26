@@ -1,7 +1,11 @@
 dependencies {
+    api(project(":kirc-core"))
+    api(project(":kirc-image"))
     implementation(project(":kirc-suspending"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor:1.6.4")
+
+    implementation(platform(coroutines.bom))
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
 }
 
 tasks {

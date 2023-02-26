@@ -19,11 +19,11 @@ import com.github.kittinunf.result.Result
 import com.github.kittinunf.result.getOrNull
 import com.github.kittinunf.result.map
 import de.cmdjulian.kirc.client.RegistryCredentials
+import de.cmdjulian.kirc.image.Digest
+import de.cmdjulian.kirc.image.Reference
+import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.impl.response.Catalog
 import de.cmdjulian.kirc.impl.response.TagList
-import de.cmdjulian.kirc.model.Digest
-import de.cmdjulian.kirc.model.Reference
-import de.cmdjulian.kirc.model.Repository
 import de.cmdjulian.kirc.spec.blob.DockerBlobMediaType
 import de.cmdjulian.kirc.spec.blob.OciBlobMediaTypeGzip
 import de.cmdjulian.kirc.spec.blob.OciBlobMediaTypeTar

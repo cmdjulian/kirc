@@ -1,11 +1,11 @@
 package de.cmdjulian.kirc.impl
 
-import de.cmdjulian.kirc.client.suspending.SuspendingContainerImageClient
-import de.cmdjulian.kirc.client.suspending.SuspendingContainerImageRegistryClient
-import de.cmdjulian.kirc.model.ContainerImage
-import de.cmdjulian.kirc.model.ContainerImageName
-import de.cmdjulian.kirc.model.LayerBlob
-import de.cmdjulian.kirc.model.Tag
+import de.cmdjulian.kirc.client.SuspendingContainerImageClient
+import de.cmdjulian.kirc.client.SuspendingContainerImageRegistryClient
+import de.cmdjulian.kirc.image.ContainerImageName
+import de.cmdjulian.kirc.image.Tag
+import de.cmdjulian.kirc.spec.ContainerImage
+import de.cmdjulian.kirc.spec.LayerBlob
 import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import kotlinx.coroutines.async

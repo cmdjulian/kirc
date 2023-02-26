@@ -1,12 +1,3 @@
-dependencies {
-    api(project(":kirc-core"))
-    api(project(":kirc-image"))
-    implementation(project(":kirc-suspending"))
-
-    implementation(platform(coroutines.bom))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
-}
-
 tasks {
     val sourcesJar by registering(Jar::class) {
         dependsOn(JavaPlugin.CLASSES_TASK_NAME)
@@ -20,15 +11,15 @@ tasks {
     }
 
     jar {
-        archiveBaseName.set("kirc-blocking-${project.version}")
+        archiveBaseName.set("kirc-image-${project.version}")
     }
 }
 
 publishing {
     publications {
-        create<MavenPublication>("kirc-blocking") {
+        create<MavenPublication>("kirc-models") {
             groupId = "de.cmdjulian.kirc"
-            artifactId = "blocking"
+            artifactId = "image"
             version = project.version.toString()
 
             from(components["java"])
@@ -36,8 +27,8 @@ publishing {
 
             pom {
                 packaging = "jar"
-                name.set("kirc-blocking")
-                description.set("GraalVM compatible based container image registry client written in kotlin")
+                name.set("kirc-suspending")
+                description.set("kirc module for parsing container image name and components")
                 url.set("https://github.com/cmdjulian/kirc")
                 scm {
                     url.set("https://github.com/cmdjulian/kirc")

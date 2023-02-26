@@ -29,6 +29,7 @@ subprojects {
         plugin("org.jlleitschuh.gradle.ktlint")
         plugin("org.owasp.dependencycheck")
         plugin("com.github.ben-manes.versions")
+        plugin("org.gradle.java-library")
     }
 
     configure<KotlinJvmProjectExtension> {

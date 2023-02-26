@@ -2,11 +2,11 @@ package de.cmdjulian.kirc.impl
 
 import com.github.kittinunf.fuel.core.FuelError
 import com.github.kittinunf.result.Result
+import de.cmdjulian.kirc.image.Digest
+import de.cmdjulian.kirc.image.Reference
+import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.impl.response.Catalog
 import de.cmdjulian.kirc.impl.response.TagList
-import de.cmdjulian.kirc.model.Digest
-import de.cmdjulian.kirc.model.Reference
-import de.cmdjulian.kirc.model.Repository
 import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 
