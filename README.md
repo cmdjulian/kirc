@@ -1,17 +1,19 @@
 [![](https://jitpack.io/v/cmdjulian/kirc.svg)](https://jitpack.io/#cmdjulian/kirc)
 
-# kirc ((k)container image registry client)
+![kirc](logo.png)
+
+# kirc - (k)container image registry client
 
 Kotlin client utilizing CoRoutines and Fuel to interact with the Container Registry API V2.
 It supports all the read operations from the spec and can handle oci as well as docker format.
 
 ## Overview
 
-The main interface to interact with the client is `ContainerImageRegistryClient`. It provides the basic functionality 
+The main interface to interact with the client is `ContainerImageRegistryClient`. It provides the basic functionality
 described in [Functionality](#functionality).  
-After initializing the standard `ContainerImageRegistryClient` via `ContainerImageRegistryClientFactory` factory method, 
-we can also pin it to a specific container image (repository and reference like Tag or Digest) and make it an 
-`ContainerImageClient` with the `.toImageClient()` function. This client is then used to interact with a specific 
+After initializing the standard `ContainerImageRegistryClient` via `ContainerImageRegistryClientFactory` factory method,
+we can also pin it to a specific container image (repository and reference like Tag or Digest) and make it an
+`ContainerImageClient` with the `.toImageClient()` function. This client is then used to interact with a specific
 Image and provides some Image specific functions like the compressed size.    
 The default client uses Kotlins CoRoutines and is therefore async. The library also provides the possibility to use a
 blocking client instead. The blocking client can be obtained by first creating an async client and then use the
