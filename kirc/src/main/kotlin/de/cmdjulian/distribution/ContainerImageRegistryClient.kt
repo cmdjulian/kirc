@@ -128,8 +128,7 @@ interface AsyncContainerImageRegistryClient {
 
 @Suppress("unused")
 fun AsyncContainerImageRegistryClient.toBlockingClient() = object : ContainerImageRegistryClient {
-    override fun testConnection(): Unit =
-        runBlocking { this@toBlockingClient.testConnection() }
+    override fun testConnection(): Unit = runBlocking { this@toBlockingClient.testConnection() }
 
     override fun repositories(limit: Int?, last: Int?): List<Repository> =
         runBlocking { this@toBlockingClient.repositories(limit, last) }
