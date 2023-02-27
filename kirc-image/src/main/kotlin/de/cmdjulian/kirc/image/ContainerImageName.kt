@@ -24,7 +24,7 @@ class ContainerImageName(
     @get:JvmName("getDigest") val digest: Digest? = null,
 ) {
 
-    @get:JvmName("getTags")
+    @get:JvmName("getTag")
     val tag = if (tag == null && digest == null) Tag.LATEST else tag
     val reference get() = digest ?: this.tag!!
 

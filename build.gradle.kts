@@ -9,11 +9,11 @@ import java.util.*
 
 plugins {
     kotlin("jvm") version "1.8.10" apply false
+    kotlin("libs.publisher") version "0.0.61-dev-34"
     id("org.jlleitschuh.gradle.ktlint") version "11.2.0" apply false
     id("org.owasp.dependencycheck") version "8.1.1" apply false // "dependencyCheckAnalyze"
     id("com.github.ben-manes.versions") version "0.46.0" apply false // "dependencyUpdates --refresh-dependencies"
     id("me.qoomon.git-versioning") version "6.4.2"
-    kotlin("libs.publisher") version "0.0.61-dev-34"
 }
 
 kotlinPublications {
@@ -55,7 +55,6 @@ allprojects {
 subprojects {
     apply {
         plugin("org.jetbrains.kotlin.jvm")
-        plugin("org.gradle.maven-publish")
         plugin("org.jlleitschuh.gradle.ktlint")
         plugin("org.owasp.dependencycheck")
         plugin("com.github.ben-manes.versions")
