@@ -20,7 +20,8 @@ tasks.jar {
 
 kotlinPublications {
     publication {
-        publicationName.set("blocking")
+        publicationName.set("core")
+        artifactId.set("core")
         description.set("kirc core components")
     }
 }

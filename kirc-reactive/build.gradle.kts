@@ -16,7 +16,8 @@ tasks.jar {
 
 kotlinPublications {
     publication {
-        publicationName.set("blocking")
+        publicationName.set("reactive")
+        artifactId.set("reactive")
         description.set("GraalVM compatible project reactor based container image registry client written in kotlin")
     }
 }

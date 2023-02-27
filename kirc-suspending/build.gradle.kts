@@ -40,7 +40,8 @@ tasks.jar {
 
 kotlinPublications {
     publication {
-        publicationName.set("blocking")
+        publicationName.set("suspending")
+        artifactId.set("suspending")
         description.set("GraalVM compatible coroutine based container image registry client written in kotlin")
     }
 }

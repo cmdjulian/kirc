@@ -6,7 +6,8 @@ tasks.jar {
 
 kotlinPublications {
     publication {
-        publicationName.set("blocking")
+        publicationName.set("image")
+        artifactId.set("image")
         description.set("kirc module for parsing container image name and components")
     }
 }
