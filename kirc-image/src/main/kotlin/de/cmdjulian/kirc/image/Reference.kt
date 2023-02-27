@@ -17,8 +17,9 @@ value class Tag(private val value: String) : Reference {
     override fun toString(): String = value
 
     companion object {
-        const val separator: Char = ':'
+        @get:JvmName("latest")
         val LATEST = Tag("latest")
+        const val separator: Char = ':'
     }
 }
 

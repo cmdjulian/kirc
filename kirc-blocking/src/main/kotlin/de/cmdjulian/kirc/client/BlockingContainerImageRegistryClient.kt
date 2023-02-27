@@ -40,7 +40,6 @@ interface BlockingContainerImageRegistryClient {
     /**
      * Check if the image with the reference exists.
      */
-    @JvmName("exists")
     fun exists(repository: Repository, reference: Reference): Boolean
 
     /**
@@ -51,7 +50,6 @@ interface BlockingContainerImageRegistryClient {
     /**
      * Retrieve a manifest.
      */
-    @JvmName("manifest")
     fun manifest(repository: Repository, reference: Reference): Manifest
 
     /**
@@ -64,13 +62,11 @@ interface BlockingContainerImageRegistryClient {
     /**
      * Get the digest of the manifest for the provided tag.
      */
-    @JvmName("manifestDigest")
     fun manifestDigest(repository: Repository, tag: Tag): Digest
 
     /**
      * Get the config of an Image by its Manifest.
      */
-    @JvmName("config")
     fun config(repository: Repository, manifest: ManifestSingle): ImageConfig
 
     /**
@@ -93,7 +89,6 @@ interface BlockingContainerImageRegistryClient {
      *
      * To be safe, it's better to use [config] instead.
      */
-    @JvmName("config")
     fun config(repository: Repository, reference: Reference): ImageConfig
 
     /**

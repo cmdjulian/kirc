@@ -2,7 +2,7 @@ package de.cmdjulian.kirc.spec
 
 import de.cmdjulian.kirc.image.Digest
 
-class LayerBlob(val digest: Digest, val mediaType: String, val data: ByteArray) {
+class LayerBlob(@get:JvmName("getDigest") val digest: Digest, val mediaType: String, val data: ByteArray) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is LayerBlob) return false

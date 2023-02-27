@@ -25,12 +25,14 @@ interface ReactiveContainerImageRegistryClient {
     /**
      * Get a list of repositories the registry holds.
      */
+    @JvmOverloads
     @JvmName("repositories")
     fun repositories(limit: Int? = null, last: Int? = null): Flux<Repository>
 
     /**
      * Get a list of tags for a certain repository.
      */
+    @JvmOverloads
     @JvmName("tags")
     fun tags(repository: Repository, limit: Int? = null, last: Int? = null): Flux<Tag>
 
@@ -42,7 +44,6 @@ interface ReactiveContainerImageRegistryClient {
     /**
      * Check if the image with the reference exists.
      */
-    @JvmName("exists")
     fun exists(repository: Repository, reference: Reference): Mono<Boolean>
 
     /**
@@ -53,7 +54,6 @@ interface ReactiveContainerImageRegistryClient {
     /**
      * Retrieve a manifest.
      */
-    @JvmName("manifest")
     fun manifest(repository: Repository, reference: Reference): Mono<Manifest>
 
     /**
@@ -66,13 +66,11 @@ interface ReactiveContainerImageRegistryClient {
     /**
      * Get the digest of the manifest for the provided tag.
      */
-    @JvmName("manifestDigest")
     fun manifestDigest(repository: Repository, tag: Tag): Mono<Digest>
 
     /**
      * Get the config of an Image by its Manifest.
      */
-    @JvmName("config")
     fun config(repository: Repository, manifest: ManifestSingle): Mono<ImageConfig>
 
     /**
@@ -95,7 +93,6 @@ interface ReactiveContainerImageRegistryClient {
      *
      * To be safe, it's better to use [config] instead.
      */
-    @JvmName("config")
     fun config(repository: Repository, reference: Reference): Mono<ImageConfig>
 
     /**
