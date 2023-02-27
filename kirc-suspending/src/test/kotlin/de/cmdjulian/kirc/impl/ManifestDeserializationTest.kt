@@ -33,13 +33,13 @@ internal class ManifestDeserializationTest {
                 ManifestListEntry(
                     "application/vnd.docker.distribution.manifest.v2+json",
                     Digest("sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f"),
-                    7143u,
+                    7143,
                     ManifestListEntry.Platform(OS.LINUX, Architecture.PPC64LE, emptyList()),
                 ),
                 ManifestListEntry(
                     "application/vnd.docker.distribution.manifest.v2+json",
                     Digest("sha256:5b0bcabd1ed22e9fb1310cf6c2dec7cdef19f0ad69efa1f392e94a4333501270"),
-                    7682u,
+                    7682,
                     ManifestListEntry.Platform(OS.LINUX, Architecture.AMD64, listOf("sse4")),
                 ),
             )
@@ -60,17 +60,17 @@ internal class ManifestDeserializationTest {
             layers shouldContainExactly listOf(
                 LayerReference(
                     "application/vnd.docker.image.rootfs.diff.tar.gzip",
-                    32654u,
+                    32654,
                     Digest("sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f"),
                 ),
                 LayerReference(
                     "application/vnd.docker.image.rootfs.diff.tar.gzip",
-                    16724u,
+                    16724,
                     Digest("sha256:3c3a4604a545cdc127456d94e421cd355bca5b528f4a9c1905b15da2eb4a4c6b"),
                 ),
                 LayerReference(
                     "application/vnd.docker.image.rootfs.diff.tar.gzip",
-                    73109u,
+                    73109,
                     Digest("sha256:ec4b8955958665577945c89419d1af06b5f7636b4ac3da7f12184802ad867736"),
                 ),
             )
@@ -87,13 +87,13 @@ internal class ManifestDeserializationTest {
                 ManifestListEntry(
                     "application/vnd.oci.image.manifest.v1+json",
                     Digest("sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f"),
-                    7143u,
+                    7143,
                     ManifestListEntry.Platform(OS.LINUX, Architecture.PPC64LE, emptyList()),
                 ),
                 ManifestListEntry(
                     "application/vnd.oci.image.manifest.v1+json",
                     Digest("sha256:5b0bcabd1ed22e9fb1310cf6c2dec7cdef19f0ad69efa1f392e94a4333501270"),
-                    7682u,
+                    7682,
                     ManifestListEntry.Platform(OS.LINUX, Architecture.AMD64, emptyList()),
                 ),
             )
@@ -117,17 +117,17 @@ internal class ManifestDeserializationTest {
             layers shouldContainExactly listOf(
                 LayerReference(
                     "application/vnd.oci.image.layer.v1.tar+gzip",
-                    32654u,
+                    32654,
                     Digest("sha256:9834876dcfb05cb167a5c24953eba58c4ac89b1adf57f28f2f9d09af107ee8f0"),
                 ),
                 LayerReference(
                     "application/vnd.oci.image.layer.v1.tar+gzip",
-                    16724u,
+                    16724,
                     Digest("sha256:3c3a4604a545cdc127456d94e421cd355bca5b528f4a9c1905b15da2eb4a4c6b"),
                 ),
                 LayerReference(
                     "application/vnd.oci.image.layer.v1.tar+gzip",
-                    73109u,
+                    73109,
                     Digest("sha256:ec4b8955958665577945c89419d1af06b5f7636b4ac3da7f12184802ad867736"),
                 ),
             )

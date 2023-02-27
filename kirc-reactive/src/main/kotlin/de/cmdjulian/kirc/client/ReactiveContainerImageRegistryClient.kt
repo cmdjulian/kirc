@@ -42,7 +42,7 @@ interface ReactiveContainerImageRegistryClient {
     /**
      * Check if the image with the reference exists.
      */
-    @JvmName("tags")
+    @JvmName("exists")
     fun exists(repository: Repository, reference: Reference): Mono<Boolean>
 
     /**
@@ -53,26 +53,26 @@ interface ReactiveContainerImageRegistryClient {
     /**
      * Retrieve a manifest.
      */
-    @JvmName("tags")
+    @JvmName("manifest")
     fun manifest(repository: Repository, reference: Reference): Mono<Manifest>
 
     /**
      * Get the digest of the manifest for the provided tag.
      */
-    @JvmName("tags")
+    @JvmName("manifestDigest")
     fun manifestDigest(image: ContainerImageName): Mono<Digest> =
         image.digest?.let { Mono.just(it) } ?: manifestDigest(image.repository, image.tag!!)
 
     /**
      * Get the digest of the manifest for the provided tag.
      */
-    @JvmName("tags")
+    @JvmName("manifestDigest")
     fun manifestDigest(repository: Repository, tag: Tag): Mono<Digest>
 
     /**
      * Get the config of an Image by its Manifest.
      */
-    @JvmName("tags")
+    @JvmName("config")
     fun config(repository: Repository, manifest: ManifestSingle): Mono<ImageConfig>
 
     /**
@@ -95,13 +95,13 @@ interface ReactiveContainerImageRegistryClient {
      *
      * To be safe, it's better to use [config] instead.
      */
-    @JvmName("tags")
+    @JvmName("config")
     fun config(repository: Repository, reference: Reference): Mono<ImageConfig>
 
     /**
      * Retrieve a Blob for an image.
      */
-    @JvmName("tags")
+    @JvmName("blob")
     fun blob(repository: Repository, digest: Digest): Mono<ByteArray>
 
     /**
