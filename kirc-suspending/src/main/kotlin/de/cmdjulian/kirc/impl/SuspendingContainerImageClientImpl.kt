@@ -7,6 +7,7 @@ import de.cmdjulian.kirc.image.Tag
 import de.cmdjulian.kirc.spec.ContainerImage
 import de.cmdjulian.kirc.spec.LayerBlob
 import de.cmdjulian.kirc.spec.image.ImageConfig
+import de.cmdjulian.kirc.spec.manifest.LayerReference
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -48,9 +49,7 @@ internal class SuspendingContainerImageClientImpl(
             .awaitAll()
     }
 
-    override suspend fun size(): ULong = with(manifest) {
-        config.size + layers.sumOf { layer -> layer.size.toLong() }.toULong()
-    }
+    override suspend fun size(): Long = manifest.config.size + manifest.layers.sumOf(LayerReference::size)
 
     override suspend fun toImage(): ContainerImage = coroutineScope {
         val config = async { config() }

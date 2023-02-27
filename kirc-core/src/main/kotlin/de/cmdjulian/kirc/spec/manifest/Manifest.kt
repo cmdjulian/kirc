@@ -1,7 +1,7 @@
 package de.cmdjulian.kirc.spec.manifest
 
 sealed interface Manifest {
-    val schemaVersion: UByte
+    val schemaVersion: Byte
     val mediaType: String?
 }
 

@@ -1,7 +1,6 @@
 package de.cmdjulian.kirc.client
 
 import com.github.kittinunf.fuel.core.FuelManager
-import de.cmdjulian.kirc.client.RegistryCredentials
 import de.cmdjulian.kirc.image.ContainerImageName
 import de.cmdjulian.kirc.impl.ContainerRegistryApi
 import de.cmdjulian.kirc.impl.ContainerRegistryApiImpl

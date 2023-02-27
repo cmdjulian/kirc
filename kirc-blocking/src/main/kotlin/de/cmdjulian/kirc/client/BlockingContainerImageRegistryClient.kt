@@ -1,6 +1,5 @@
 package de.cmdjulian.kirc.client
 
-import de.cmdjulian.kirc.client.SuspendingContainerImageRegistryClient
 import de.cmdjulian.kirc.image.ContainerImageName
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
@@ -12,7 +11,7 @@ import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import kotlinx.coroutines.runBlocking
 
 @JvmDefaultWithCompatibility
-@Suppress("OVERLOADS_INTERFACE")
+@Suppress("OVERLOADS_INTERFACE", "INAPPLICABLE_JVM_NAME")
 interface BlockingContainerImageRegistryClient {
     /**
      * Checks if the registry is reachable and configured correctly. If not, a detailed Exception is thrown.
@@ -23,12 +22,14 @@ interface BlockingContainerImageRegistryClient {
      * Get a list of repositories the registry holds.
      */
     @JvmOverloads
+    @JvmName("repositories")
     fun repositories(limit: Int? = null, last: Int? = null): List<Repository>
 
     /**
      * Get a list of tags for a certain repository.
      */
     @JvmOverloads
+    @JvmName("tags")
     fun tags(repository: Repository, limit: Int? = null, last: Int? = null): List<Tag>
 
     /**
@@ -39,6 +40,7 @@ interface BlockingContainerImageRegistryClient {
     /**
      * Check if the image with the reference exists.
      */
+    @JvmName("exists")
     fun exists(repository: Repository, reference: Reference): Boolean
 
     /**
@@ -49,22 +51,26 @@ interface BlockingContainerImageRegistryClient {
     /**
      * Retrieve a manifest.
      */
+    @JvmName("manifest")
     fun manifest(repository: Repository, reference: Reference): Manifest
 
     /**
      * Get the digest of the manifest for the provided tag.
      */
+    @JvmName("manifestDigest")
     fun manifestDigest(image: ContainerImageName): Digest =
         image.digest ?: manifestDigest(image.repository, image.tag!!)
 
     /**
      * Get the digest of the manifest for the provided tag.
      */
+    @JvmName("manifestDigest")
     fun manifestDigest(repository: Repository, tag: Tag): Digest
 
     /**
      * Get the config of an Image by its Manifest.
      */
+    @JvmName("config")
     fun config(repository: Repository, manifest: ManifestSingle): ImageConfig
 
     /**
@@ -87,11 +93,13 @@ interface BlockingContainerImageRegistryClient {
      *
      * To be safe, it's better to use [config] instead.
      */
+    @JvmName("config")
     fun config(repository: Repository, reference: Reference): ImageConfig
 
     /**
      * Retrieve a Blob for an image.
      */
+    @JvmName("blob")
     fun blob(repository: Repository, digest: Digest): ByteArray
 
     /**

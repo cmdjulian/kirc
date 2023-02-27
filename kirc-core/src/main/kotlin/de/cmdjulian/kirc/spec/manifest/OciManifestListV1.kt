@@ -2,7 +2,7 @@ package de.cmdjulian.kirc.spec.manifest
 
 // https://github.com/opencontainers/image-spec/blob/main/image-index.md
 data class OciManifestListV1(
-    override val schemaVersion: UByte,
+    override val schemaVersion: Byte,
     override val mediaType: String?,
     override val manifests: List<ManifestListEntry>,
     val annotations: Map<String, String>,

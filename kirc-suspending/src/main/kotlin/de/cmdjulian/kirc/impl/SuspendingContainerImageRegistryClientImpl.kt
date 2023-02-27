@@ -7,7 +7,6 @@ import com.github.kittinunf.result.map
 import com.github.kittinunf.result.onError
 import de.cmdjulian.kirc.client.SuspendingContainerImageClient
 import de.cmdjulian.kirc.client.SuspendingContainerImageRegistryClient
-import de.cmdjulian.kirc.exception.ErrorResponse
 import de.cmdjulian.kirc.exception.RegistryClientException
 import de.cmdjulian.kirc.exception.RegistryClientException.ClientException.AuthenticationException
 import de.cmdjulian.kirc.exception.RegistryClientException.ClientException.AuthorizationException
@@ -30,7 +29,6 @@ import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestV1
 
-@Suppress("TooManyFunctions")
 internal class SuspendingContainerImageRegistryClientImpl(private val api: ContainerRegistryApi) :
     SuspendingContainerImageRegistryClient {
 
@@ -86,11 +84,12 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
 
 private fun FuelError.toRegistryClientError(): RegistryClientException = when (response.statusCode) {
     -1 -> NetworkErrorException(this)
-    401 -> AuthenticationException(runCatching { JsonMapper.readValue<ErrorResponse>(response.data) }.getOrNull(), this)
-    403 -> AuthorizationException(runCatching { JsonMapper.readValue<ErrorResponse>(response.data) }.getOrNull(), this)
-    404 -> NotFoundException(runCatching { JsonMapper.readValue<ErrorResponse>(response.data) }.getOrNull(), this)
-    in 405..499 ->
-        UnexpectedErrorException(runCatching { JsonMapper.readValue<ErrorResponse>(response.data) }.getOrNull(), this)
+    401 -> AuthenticationException(tryOrNull { JsonMapper.readValue(response.data) }, this)
+    403 -> AuthorizationException(tryOrNull { JsonMapper.readValue(response.data) }, this)
+    404 -> NotFoundException(tryOrNull { JsonMapper.readValue(response.data) }, this)
+    in 405..499 -> UnexpectedErrorException(tryOrNull { JsonMapper.readValue(response.data) }, this)
 
     else -> UnknownErrorException(this)
 }
+
+private inline fun <T> tryOrNull(block: () -> T): T? = runCatching(block).getOrNull()

@@ -1,5 +1,3 @@
-@file:Suppress("unused")
-
 package de.cmdjulian.kirc.impl.response
 
 internal data class Errors(val errors: List<Error>)

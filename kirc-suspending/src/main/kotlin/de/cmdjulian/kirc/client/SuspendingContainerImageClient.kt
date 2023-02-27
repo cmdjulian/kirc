@@ -30,7 +30,7 @@ interface SuspendingContainerImageClient {
     /**
      * Retrieves the images compressed size in bytes.
      */
-    suspend fun size(): ULong
+    suspend fun size(): Long
 
     /**
      * Retrieve a completed Container Image.

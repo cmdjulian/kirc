@@ -2,7 +2,7 @@ package de.cmdjulian.kirc.spec.manifest
 
 // https://docs.docker.com/registry/spec/manifest-v2-2/#image-manifest
 data class DockerManifestV2(
-    override val schemaVersion: UByte,
+    override val schemaVersion: Byte,
     override val mediaType: String,
     override val config: LayerReference,
     override val layers: List<LayerReference>,

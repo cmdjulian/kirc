@@ -1,6 +1,5 @@
 package de.cmdjulian.kirc.client
 
-import de.cmdjulian.kirc.client.SuspendingContainerImageRegistryClient
 import de.cmdjulian.kirc.image.ContainerImageName
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
@@ -16,7 +15,7 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 @JvmDefaultWithCompatibility
-@Suppress("OVERLOADS_INTERFACE")
+@Suppress("OVERLOADS_INTERFACE", "INAPPLICABLE_JVM_NAME")
 interface ReactiveContainerImageRegistryClient {
     /**
      * Checks if the registry is reachable and configured correctly. If not, a detailed Exception is thrown.
@@ -26,13 +25,13 @@ interface ReactiveContainerImageRegistryClient {
     /**
      * Get a list of repositories the registry holds.
      */
-    @JvmOverloads
+    @JvmName("repositories")
     fun repositories(limit: Int? = null, last: Int? = null): Flux<Repository>
 
     /**
      * Get a list of tags for a certain repository.
      */
-    @JvmOverloads
+    @JvmName("tags")
     fun tags(repository: Repository, limit: Int? = null, last: Int? = null): Flux<Tag>
 
     /**
@@ -43,6 +42,7 @@ interface ReactiveContainerImageRegistryClient {
     /**
      * Check if the image with the reference exists.
      */
+    @JvmName("tags")
     fun exists(repository: Repository, reference: Reference): Mono<Boolean>
 
     /**
@@ -53,22 +53,26 @@ interface ReactiveContainerImageRegistryClient {
     /**
      * Retrieve a manifest.
      */
+    @JvmName("tags")
     fun manifest(repository: Repository, reference: Reference): Mono<Manifest>
 
     /**
      * Get the digest of the manifest for the provided tag.
      */
+    @JvmName("tags")
     fun manifestDigest(image: ContainerImageName): Mono<Digest> =
         image.digest?.let { Mono.just(it) } ?: manifestDigest(image.repository, image.tag!!)
 
     /**
      * Get the digest of the manifest for the provided tag.
      */
+    @JvmName("tags")
     fun manifestDigest(repository: Repository, tag: Tag): Mono<Digest>
 
     /**
      * Get the config of an Image by its Manifest.
      */
+    @JvmName("tags")
     fun config(repository: Repository, manifest: ManifestSingle): Mono<ImageConfig>
 
     /**
@@ -91,11 +95,13 @@ interface ReactiveContainerImageRegistryClient {
      *
      * To be safe, it's better to use [config] instead.
      */
+    @JvmName("tags")
     fun config(repository: Repository, reference: Reference): Mono<ImageConfig>
 
     /**
      * Retrieve a Blob for an image.
      */
+    @JvmName("tags")
     fun blob(repository: Repository, digest: Digest): Mono<ByteArray>
 
     /**

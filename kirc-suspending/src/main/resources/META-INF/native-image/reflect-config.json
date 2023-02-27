@@ -341,7 +341,7 @@
           "de.cmdjulian.distribution.spec.Architecture",
           "de.cmdjulian.distribution.spec.OS",
           "java.lang.String",
-          "kotlin.UInt",
+          "kotlin.Long",
           "de.cmdjulian.distribution.spec.image.ImageConfig$Config",
           "java.lang.String",
           "de.cmdjulian.distribution.spec.image.ImageConfig$Config",
@@ -361,7 +361,7 @@
           "de.cmdjulian.distribution.spec.Architecture",
           "de.cmdjulian.distribution.spec.OS",
           "java.lang.String",
-          "kotlin.UInt",
+          "kotlin.Long",
           "de.cmdjulian.distribution.spec.image.ImageConfig$Config",
           "java.lang.String",
           "de.cmdjulian.distribution.spec.image.ImageConfig$Config",
@@ -435,9 +435,9 @@
           "java.util.Map",
           "java.lang.String",
           "java.lang.Boolean",
-          "kotlin.UInt",
-          "kotlin.UInt",
-          "kotlin.UInt",
+          "kotlin.Long",
+          "kotlin.Long",
+          "kotlin.Long",
           "de.cmdjulian.distribution.spec.image.HealthCheck"
         ]
       },
@@ -463,9 +463,9 @@
           "java.util.Map",
           "java.lang.String",
           "java.lang.Boolean",
-          "kotlin.UInt",
-          "kotlin.UInt",
-          "kotlin.UInt",
+          "kotlin.Long",
+          "kotlin.Long",
+          "kotlin.Long",
           "de.cmdjulian.distribution.spec.image.HealthCheck",
           "kotlin.jvm.internal.DefaultConstructorMarker"
         ]
@@ -791,7 +791,7 @@
     "name": "kotlin.String"
   },
   {
-    "name": "kotlin.UByte",
+    "name": "kotlin.Byte",
     "queryAllDeclaredMethods": true,
     "queryAllDeclaredConstructors": true,
     "methods": [
@@ -802,7 +802,7 @@
     ]
   },
   {
-    "name": "kotlin.UInt",
+    "name": "kotlin.Long",
     "queryAllDeclaredMethods": true,
     "queryAllDeclaredConstructors": true,
     "methods": [

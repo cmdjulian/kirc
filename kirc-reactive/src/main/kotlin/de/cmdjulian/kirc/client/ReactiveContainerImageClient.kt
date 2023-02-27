@@ -1,6 +1,5 @@
 package de.cmdjulian.kirc.client
 
-import de.cmdjulian.kirc.client.SuspendingContainerImageClient
 import de.cmdjulian.kirc.image.Tag
 import de.cmdjulian.kirc.spec.ContainerImage
 import de.cmdjulian.kirc.spec.LayerBlob
@@ -11,10 +10,12 @@ import kotlinx.coroutines.reactor.mono
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
+@Suppress("INAPPLICABLE_JVM_NAME")
 interface ReactiveContainerImageClient {
     /**
      * Get a list of tags for a certain repository.
      */
+    @JvmName("tags")
     suspend fun tags(): Flux<Tag>
 
     /**
@@ -35,7 +36,7 @@ interface ReactiveContainerImageClient {
     /**
      * Retrieves the images compressed size in bytes.
      */
-    suspend fun size(): Mono<ULong>
+    suspend fun size(): Mono<Long>
 
     /**
      * Retrieve a completed Container Image.
@@ -48,6 +49,6 @@ fun SuspendingContainerImageClient.toReactiveClient() = object : ReactiveContain
     override suspend fun manifest(): Mono<ManifestSingle> = mono { this@toReactiveClient.manifest() }
     override suspend fun config(): Mono<ImageConfig> = mono { this@toReactiveClient.config() }
     override suspend fun blobs(): Flux<LayerBlob> = flux { this@toReactiveClient.blobs().forEach { send(it) } }
-    override suspend fun size(): Mono<ULong> = mono { this@toReactiveClient.size() }
+    override suspend fun size(): Mono<Long> = mono { this@toReactiveClient.size() }
     override suspend fun toImage(): Mono<ContainerImage> = mono { this@toReactiveClient.toImage() }
 }

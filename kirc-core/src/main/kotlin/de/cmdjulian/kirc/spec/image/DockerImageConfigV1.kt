@@ -21,7 +21,7 @@ data class DockerImageConfigV1(
     override val architecture: Architecture,
     override val os: OS,
     val checksum: String?,
-    @JsonProperty("Size") val size: UInt?,
+    @JsonProperty("Size") val size: Long?,
     override val config: ImageConfig.Config?,
     val container: String?,
     val containerConfig: ImageConfig.Config?,
