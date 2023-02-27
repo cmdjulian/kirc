@@ -3,15 +3,41 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jlleitschuh.gradle.ktlint.KtlintExtension
 import java.util.*
+import org.jetbrains.kotlinx.publisher.apache2
+import org.jetbrains.kotlinx.publisher.developer
+import org.jetbrains.kotlinx.publisher.githubRepo
 
 plugins {
-    // Apply the Kotlin JVM plugin to add support for Kotlin on the JVM.
     kotlin("jvm") version "1.8.10" apply false
     id("org.jlleitschuh.gradle.ktlint") version "11.2.0" apply false
-    // Gradle task "dependencyCheckAnalyze" to check for security CVEs in dependencies
-    id("org.owasp.dependencycheck") version "8.1.1" apply false
-    // check for dependency updates via task "dependencyUpdates --refresh-dependencies"
-    id("com.github.ben-manes.versions") version "0.46.0" apply false
+    id("org.owasp.dependencycheck") version "8.1.1" apply false // "dependencyCheckAnalyze"
+    id("com.github.ben-manes.versions") version "0.46.0" apply false // "dependencyUpdates --refresh-dependencies"
+    id("me.qoomon.git-versioning") version "6.4.2"
+    kotlin("libs.publisher") version "0.0.61-dev-34"
+}
+
+kotlinPublications {
+    defaultGroup.set("de.cmdjulian.kirc")
+    fairDokkaJars.set(false)
+
+    pom {
+        inceptionYear.set("2022")
+        licenses {
+            apache2()
+        }
+        githubRepo("cmdjulian", "kirc")
+        developers {
+            developer("cmdjulian", "Julian Goede", "julian.goede@pm.me")
+        }
+    }
+}
+
+version = "0.0.0-SNAPSHOT"
+gitVersioning.apply {
+    refs {
+        branch(".+") { version = "\${ref}-SNAPSHOT" }
+        tag("v(?<version>.*)") { version = "\${ref.version}" }
+    }
 }
 
 allprojects {
@@ -30,6 +56,7 @@ subprojects {
         plugin("org.owasp.dependencycheck")
         plugin("com.github.ben-manes.versions")
         plugin("org.gradle.java-library")
+        plugin("org.jetbrains.kotlin.libs.publisher")
     }
 
     configure<KotlinJvmProjectExtension> {

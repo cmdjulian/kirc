@@ -27,7 +27,7 @@ internal class ManifestDeserializationTest {
     fun dockerManifestListV1(@GivenTextResource("DockerManifestListV1.json") json: String) {
         assertSoftly(json.unmarshal<Manifest>()) {
             shouldBeInstanceOf<DockerManifestListV1>()
-            schemaVersion shouldBe 2u
+            schemaVersion shouldBe 2
             mediaType shouldBe "application/vnd.docker.distribution.manifest.list.v2+json"
             manifests shouldContainExactly listOf(
                 ManifestListEntry(
@@ -50,11 +50,11 @@ internal class ManifestDeserializationTest {
     fun dockerManifestV2(@GivenTextResource("DockerManifestV2.json") json: String) {
         assertSoftly(json.unmarshal<Manifest>()) {
             shouldBeInstanceOf<DockerManifestV2>()
-            schemaVersion shouldBe 2u
+            schemaVersion shouldBe 2
             mediaType shouldBe "application/vnd.docker.distribution.manifest.v2+json"
             assertSoftly(config) {
                 mediaType shouldBe "application/vnd.docker.container.image.v1+json"
-                size shouldBe 7023u
+                size shouldBe 7023
                 digest shouldBe Digest("sha256:b5b2b2c507a0944348e0303114d8d93aaaa081732b86451d9bce1f432a537bc7")
             }
             layers shouldContainExactly listOf(
@@ -81,7 +81,7 @@ internal class ManifestDeserializationTest {
     fun ociManifestListV1(@GivenTextResource("OciManifestListV1.json") json: String) {
         assertSoftly(json.unmarshal<Manifest>()) {
             shouldBeInstanceOf<OciManifestListV1>()
-            schemaVersion shouldBe 2u
+            schemaVersion shouldBe 2
             mediaType shouldBe "application/vnd.oci.image.index.v1+json"
             manifests shouldContainExactly listOf(
                 ManifestListEntry(
@@ -107,11 +107,11 @@ internal class ManifestDeserializationTest {
     fun ociManifestV1(@GivenTextResource("OciManifestV1.json") json: String) {
         assertSoftly(json.unmarshal<Manifest>()) {
             shouldBeInstanceOf<OciManifestV1>()
-            schemaVersion shouldBe 2u
+            schemaVersion shouldBe 2
             mediaType shouldBe "application/vnd.oci.image.manifest.v1+json"
             assertSoftly(config) {
                 mediaType shouldBe "application/vnd.oci.image.config.v1+json"
-                size shouldBe 7023u
+                size shouldBe 7023
                 digest shouldBe Digest("sha256:b5b2b2c507a0944348e0303114d8d93aaaa081732b86451d9bce1f432a537bc7")
             }
             layers shouldContainExactly listOf(
@@ -133,7 +133,7 @@ internal class ManifestDeserializationTest {
             )
             assertSoftly(subject.shouldNotBeNull()) {
                 mediaType shouldBe "application/vnd.oci.image.manifest.v1+json"
-                size shouldBe 7682u
+                size shouldBe 7682
                 digest shouldBe Digest("sha256:5b0bcabd1ed22e9fb1310cf6c2dec7cdef19f0ad69efa1f392e94a4333501270")
             }
             annotations
