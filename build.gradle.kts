@@ -101,4 +101,17 @@ subprojects {
             jvmTarget = "${JavaVersion.VERSION_11}"
         }
     }
+
+    configure<PublishingExtension> {
+        repositories {
+            maven {
+                name = "GitHubPackages"
+                url = uri("https://maven.pkg.github.com/cmdjulian/kirc")
+                credentials {
+                    username = project.findProperty("gpr.user") as? String? ?: System.getenv("USERNAME")
+                    password = project.findProperty("gpr.key") as? String? ?: System.getenv("TOKEN")
+                }
+            }
+        }
+    }
 }
