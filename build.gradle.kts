@@ -9,7 +9,7 @@ plugins {
     kotlin("jvm") version "1.8.10" apply false
     id("org.jlleitschuh.gradle.ktlint") version "11.2.0" apply false
     // Gradle task "dependencyCheckAnalyze" to check for security CVEs in dependencies
-    id("org.owasp.dependencycheck") version "8.1.0" apply false
+    id("org.owasp.dependencycheck") version "8.1.1" apply false
     // check for dependency updates via task "dependencyUpdates --refresh-dependencies"
     id("com.github.ben-manes.versions") version "0.46.0" apply false
 }
