@@ -1,5 +1,6 @@
 package de.cmdjulian.kirc.image
 
+@JvmDefaultWithCompatibility
 sealed interface Reference {
     val separator: Char
 
