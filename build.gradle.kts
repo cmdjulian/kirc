@@ -35,7 +35,7 @@ kotlinPublications {
 version = "0.0.0-SNAPSHOT"
 gitVersioning.apply {
     refs {
-        branch(".+") { version = "\${ref}-SNAPSHOT" }
+        branch(".+") { version = "\${ref}-SNAPSHOT-\${commit.short}" }
         tag("v(?<version>.*)") { version = "\${ref.version}" }
     }
 }
