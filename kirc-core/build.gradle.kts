@@ -21,7 +21,6 @@ tasks.jar {
 kotlinPublications {
     publication {
         publicationName.set("core")
-        artifactId.set("core")
         description.set("kirc core components")
     }
 }
