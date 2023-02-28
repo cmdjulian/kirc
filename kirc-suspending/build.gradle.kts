@@ -21,7 +21,7 @@ dependencies {
     implementation("com.github.ProjectMapK:jackson-module-kogera:2.14.2-alpha4")
 
     // insecure connections
-    implementation("io.github.hakky54:sslcontext-kickstart:7.4.9")
+    implementation("io.github.hakky54:sslcontext-kickstart:7.4.11")
 
     // tests
     testImplementation(platform(tests.junit.bom))
