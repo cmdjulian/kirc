@@ -4,6 +4,7 @@ include("kirc-core")
 include("kirc-image")
 include("kirc-reactive")
 include("kirc-suspending")
+include("aot-smoke-test")
 
 pluginManagement {
     repositories {
@@ -26,7 +27,6 @@ dependencyResolutionManagement {
             library("junit-params", "org.junit.jupiter", "junit-jupiter-params").withoutVersion()
             library("junit-engine", "org.junit.jupiter", "junit-jupiter-engine").withoutVersion()
             bundle("junit", listOf("junit-api", "junit-params", "junit-engine"))
-
 
             version("kotest", "5.5.5")
             library("kotest-runner", "io.kotest", "kotest-runner-junit5").versionRef("kotest")

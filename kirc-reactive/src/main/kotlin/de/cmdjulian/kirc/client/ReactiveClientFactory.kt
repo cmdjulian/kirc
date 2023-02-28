@@ -14,7 +14,7 @@ object ReactiveClientFactory {
     @JvmStatic
     @JvmOverloads
     fun create(
-        url: URL = URL(ContainerImageName.DOCKER_HUB_REGISTRY),
+        url: URL = URL(DOCKER_HUB_REGISTRY_URL),
         credentials: RegistryCredentials? = null,
         proxy: Proxy? = null,
         skipTlsVerify: Boolean = false,

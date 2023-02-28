@@ -1,3 +1,8 @@
+plugins {
+    `java-library`
+    kotlin("libs.publisher")
+}
+
 dependencies {
     implementation(project(":kirc-image"))
 

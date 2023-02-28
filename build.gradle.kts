@@ -31,6 +31,19 @@ kotlinPublications {
         }
     }
 
+    configure<PublishingExtension> {
+        repositories {
+            maven {
+                name = "GitHubPackages"
+                url = uri("https://maven.pkg.github.com/cmdjulian/kirc")
+                credentials {
+                    username = project.findProperty("gpr.user") as? String? ?: System.getenv("USERNAME")
+                    password = project.findProperty("gpr.key") as? String? ?: System.getenv("TOKEN")
+                }
+            }
+        }
+    }
+
     localRepositories {
         defaultLocalMavenRepository()
     }
@@ -58,8 +71,6 @@ subprojects {
         plugin("org.jlleitschuh.gradle.ktlint")
         plugin("org.owasp.dependencycheck")
         plugin("com.github.ben-manes.versions")
-        plugin("org.gradle.java-library")
-        plugin("org.jetbrains.kotlin.libs.publisher")
     }
 
     configure<KotlinJvmProjectExtension> {
@@ -99,19 +110,6 @@ subprojects {
             javaParameters = true
             freeCompilerArgs = listOf("-Xjsr305=strict", "-Xemit-jvm-type-annotations", "-Xcontext-receivers", "-Xjvm-default=all")
             jvmTarget = "${JavaVersion.VERSION_11}"
-        }
-    }
-
-    configure<PublishingExtension> {
-        repositories {
-            maven {
-                name = "GitHubPackages"
-                url = uri("https://maven.pkg.github.com/cmdjulian/kirc")
-                credentials {
-                    username = project.findProperty("gpr.user") as? String? ?: System.getenv("USERNAME")
-                    password = project.findProperty("gpr.key") as? String? ?: System.getenv("TOKEN")
-                }
-            }
         }
     }
 }

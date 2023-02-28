@@ -21,7 +21,7 @@ object SuspendingClientFactory {
      */
     @JvmStatic
     fun create(
-        url: URL = URL(ContainerImageName.DOCKER_HUB_REGISTRY),
+        url: URL = URL(DOCKER_HUB_REGISTRY_URL),
         credentials: RegistryCredentials? = null,
         proxy: Proxy? = null,
         skipTlsVerify: Boolean = false,
@@ -30,7 +30,7 @@ object SuspendingClientFactory {
         require(keystore == null || !skipTlsVerify) { "can not skip tls verify if a keystore is set" }
 
         val fuel = FuelManager().apply {
-            this.basePath = if ("$url" == ContainerImageName.DOCKER_HUB_REGISTRY) DOCKER_HUB_REGISTRY_URL else "$url"
+            this.basePath = url.toString()
             this.proxy = proxy
 
             if (skipTlsVerify) {

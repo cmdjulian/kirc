@@ -1,3 +1,8 @@
+plugins {
+    `java-library`
+    kotlin("libs.publisher")
+}
+
 dependencies {
     api(project(":kirc-core"))
     api(project(":kirc-image"))

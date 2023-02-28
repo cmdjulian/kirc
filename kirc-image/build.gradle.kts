@@ -1,3 +1,8 @@
+plugins {
+    `java-library`
+    kotlin("libs.publisher")
+}
+
 tasks.jar {
     manifest {
         attributes(mapOf("Implementation-Title" to project.name, "Implementation-Version" to project.version))

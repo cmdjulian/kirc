@@ -24,9 +24,6 @@
     "name": "[Lsun.security.pkcs.SignerInfo;"
   },
   {
-    "name": "android.os.Build$VERSION"
-  },
-  {
     "name": "com.fasterxml.jackson.databind.PropertyNamingStrategies$LowerDotCaseStrategy",
     "methods": [
       {
@@ -174,19 +171,88 @@
     ]
   },
   {
-    "name": "de.cmdjulian.distribution.impl.ManifestListMixIn",
+    "name": "de.cmdjulian.kirc.image.Digest",
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "box-impl",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      },
+      {
+        "name": "constructor-impl",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      },
+      {
+        "name": "unbox-impl",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.image.Repository",
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "box-impl",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      },
+      {
+        "name": "constructor-impl",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      },
+      {
+        "name": "unbox-impl",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.image.Tag",
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "box-impl",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      },
+      {
+        "name": "constructor-impl",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      },
+      {
+        "name": "unbox-impl",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.impl.ManifestListMixIn",
     "queryAllDeclaredMethods": true
   },
   {
-    "name": "de.cmdjulian.distribution.impl.ManifestMixIn",
+    "name": "de.cmdjulian.kirc.impl.ManifestMixIn",
     "queryAllDeclaredMethods": true
   },
   {
-    "name": "de.cmdjulian.distribution.impl.ManifestSingleMixIn",
+    "name": "de.cmdjulian.kirc.impl.ManifestSingleMixIn",
     "queryAllDeclaredMethods": true
   },
   {
-    "name": "de.cmdjulian.distribution.impl.ResponseRetryWithAuthentication$resolveTokenAuth$TokenResponse",
+    "name": "de.cmdjulian.kirc.impl.ResponseRetryWithAuthentication$resolveTokenAuth$TokenResponse",
     "allDeclaredFields": true,
     "queryAllDeclaredMethods": true,
     "queryAllDeclaredConstructors": true,
@@ -201,7 +267,7 @@
     ]
   },
   {
-    "name": "de.cmdjulian.distribution.impl.response.Catalog",
+    "name": "de.cmdjulian.kirc.impl.response.Catalog",
     "allDeclaredFields": true,
     "queryAllDeclaredMethods": true,
     "queryAllDeclaredConstructors": true,
@@ -216,7 +282,7 @@
     ]
   },
   {
-    "name": "de.cmdjulian.distribution.impl.response.TagList",
+    "name": "de.cmdjulian.kirc.impl.response.TagList",
     "allDeclaredFields": true,
     "queryAllDeclaredMethods": true,
     "queryAllDeclaredConstructors": true,
@@ -232,76 +298,7 @@
     ]
   },
   {
-    "name": "de.cmdjulian.distribution.model.Digest",
-    "queryAllDeclaredMethods": true,
-    "queryAllDeclaredConstructors": true,
-    "methods": [
-      {
-        "name": "box-impl",
-        "parameterTypes": [
-          "java.lang.String"
-        ]
-      },
-      {
-        "name": "constructor-impl",
-        "parameterTypes": [
-          "java.lang.String"
-        ]
-      },
-      {
-        "name": "unbox-impl",
-        "parameterTypes": []
-      }
-    ]
-  },
-  {
-    "name": "de.cmdjulian.distribution.model.Repository",
-    "queryAllDeclaredMethods": true,
-    "queryAllDeclaredConstructors": true,
-    "methods": [
-      {
-        "name": "box-impl",
-        "parameterTypes": [
-          "java.lang.String"
-        ]
-      },
-      {
-        "name": "constructor-impl",
-        "parameterTypes": [
-          "java.lang.String"
-        ]
-      },
-      {
-        "name": "unbox-impl",
-        "parameterTypes": []
-      }
-    ]
-  },
-  {
-    "name": "de.cmdjulian.distribution.model.Tag",
-    "queryAllDeclaredMethods": true,
-    "queryAllDeclaredConstructors": true,
-    "methods": [
-      {
-        "name": "box-impl",
-        "parameterTypes": [
-          "java.lang.String"
-        ]
-      },
-      {
-        "name": "constructor-impl",
-        "parameterTypes": [
-          "java.lang.String"
-        ]
-      },
-      {
-        "name": "unbox-impl",
-        "parameterTypes": []
-      }
-    ]
-  },
-  {
-    "name": "de.cmdjulian.distribution.spec.Architecture",
+    "name": "de.cmdjulian.kirc.spec.Architecture",
     "allDeclaredFields": true,
     "queryAllDeclaredMethods": true,
     "methods": [
@@ -312,7 +309,7 @@
     ]
   },
   {
-    "name": "de.cmdjulian.distribution.spec.OS",
+    "name": "de.cmdjulian.kirc.spec.OS",
     "allDeclaredFields": true,
     "queryAllDeclaredMethods": true,
     "methods": [
@@ -323,7 +320,7 @@
     ]
   },
   {
-    "name": "de.cmdjulian.distribution.spec.image.DockerImageConfigV1",
+    "name": "de.cmdjulian.kirc.spec.image.DockerImageConfigV1",
     "allDeclaredFields": true,
     "queryAllDeclaredMethods": true,
     "queryAllDeclaredConstructors": true,
@@ -338,53 +335,32 @@
           "java.lang.String",
           "java.util.List",
           "java.lang.String",
-          "de.cmdjulian.distribution.spec.Architecture",
-          "de.cmdjulian.distribution.spec.OS",
+          "de.cmdjulian.kirc.spec.Architecture",
+          "de.cmdjulian.kirc.spec.OS",
           "java.lang.String",
-          "kotlin.Long",
-          "de.cmdjulian.distribution.spec.image.ImageConfig$Config",
+          "java.lang.Long",
+          "de.cmdjulian.kirc.spec.image.ImageConfig$Config",
           "java.lang.String",
-          "de.cmdjulian.distribution.spec.image.ImageConfig$Config",
-          "de.cmdjulian.distribution.spec.image.RootFs",
+          "de.cmdjulian.kirc.spec.image.ImageConfig$Config",
+          "de.cmdjulian.kirc.spec.image.RootFs",
           "java.util.List"
-        ]
-      },
-      {
-        "name": "<init>",
-        "parameterTypes": [
-          "java.lang.String",
-          "java.lang.String",
-          "java.time.OffsetDateTime",
-          "java.lang.String",
-          "java.util.List",
-          "java.lang.String",
-          "de.cmdjulian.distribution.spec.Architecture",
-          "de.cmdjulian.distribution.spec.OS",
-          "java.lang.String",
-          "kotlin.Long",
-          "de.cmdjulian.distribution.spec.image.ImageConfig$Config",
-          "java.lang.String",
-          "de.cmdjulian.distribution.spec.image.ImageConfig$Config",
-          "de.cmdjulian.distribution.spec.image.RootFs",
-          "java.util.List",
-          "kotlin.jvm.internal.DefaultConstructorMarker"
         ]
       }
     ]
   },
   {
-    "name": "de.cmdjulian.distribution.spec.image.DockerImageConfigV1$Companion",
+    "name": "de.cmdjulian.kirc.spec.image.DockerImageConfigV1$Companion",
     "queryAllDeclaredMethods": true
   },
   {
-    "name": "de.cmdjulian.distribution.spec.image.HealthCheck",
+    "name": "de.cmdjulian.kirc.spec.image.HealthCheck",
     "allDeclaredFields": true,
     "queryAllDeclaredMethods": true,
     "queryAllDeclaredConstructors": true,
     "queryAllPublicConstructors": true
   },
   {
-    "name": "de.cmdjulian.distribution.spec.image.History",
+    "name": "de.cmdjulian.kirc.spec.image.History",
     "allDeclaredFields": true,
     "queryAllDeclaredMethods": true,
     "queryAllDeclaredConstructors": true,
@@ -403,11 +379,11 @@
     ]
   },
   {
-    "name": "de.cmdjulian.distribution.spec.image.ImageConfig",
+    "name": "de.cmdjulian.kirc.spec.image.ImageConfig",
     "queryAllDeclaredMethods": true
   },
   {
-    "name": "de.cmdjulian.distribution.spec.image.ImageConfig$Config",
+    "name": "de.cmdjulian.kirc.spec.image.ImageConfig$Config",
     "allDeclaredFields": true,
     "queryAllDeclaredMethods": true,
     "queryAllDeclaredConstructors": true,
@@ -435,45 +411,16 @@
           "java.util.Map",
           "java.lang.String",
           "java.lang.Boolean",
-          "kotlin.Long",
-          "kotlin.Long",
-          "kotlin.Long",
-          "de.cmdjulian.distribution.spec.image.HealthCheck"
-        ]
-      },
-      {
-        "name": "<init>",
-        "parameterTypes": [
-          "java.lang.String",
-          "java.lang.String",
-          "java.lang.String",
-          "java.util.Map",
-          "java.lang.Boolean",
-          "java.lang.Boolean",
-          "java.lang.Boolean",
-          "java.lang.Boolean",
-          "java.lang.Boolean",
-          "java.lang.Boolean",
-          "java.util.List",
-          "java.util.List",
-          "java.util.List",
-          "java.lang.String",
-          "java.util.Map",
-          "java.lang.String",
-          "java.util.Map",
-          "java.lang.String",
-          "java.lang.Boolean",
-          "kotlin.Long",
-          "kotlin.Long",
-          "kotlin.Long",
-          "de.cmdjulian.distribution.spec.image.HealthCheck",
-          "kotlin.jvm.internal.DefaultConstructorMarker"
+          "java.lang.Long",
+          "java.lang.Long",
+          "java.lang.Long",
+          "de.cmdjulian.kirc.spec.image.HealthCheck"
         ]
       }
     ]
   },
   {
-    "name": "de.cmdjulian.distribution.spec.image.OciImageConfigV1",
+    "name": "de.cmdjulian.kirc.spec.image.OciImageConfigV1",
     "allDeclaredFields": true,
     "queryAllDeclaredMethods": true,
     "queryAllDeclaredConstructors": true,
@@ -484,24 +431,24 @@
         "parameterTypes": [
           "java.time.OffsetDateTime",
           "java.lang.String",
-          "de.cmdjulian.distribution.spec.Architecture",
-          "de.cmdjulian.distribution.spec.OS",
+          "de.cmdjulian.kirc.spec.Architecture",
+          "de.cmdjulian.kirc.spec.OS",
           "java.lang.String",
           "java.util.List",
           "java.lang.String",
-          "de.cmdjulian.distribution.spec.image.ImageConfig$Config",
-          "de.cmdjulian.distribution.spec.image.RootFs",
+          "de.cmdjulian.kirc.spec.image.ImageConfig$Config",
+          "de.cmdjulian.kirc.spec.image.RootFs",
           "java.util.List"
         ]
       }
     ]
   },
   {
-    "name": "de.cmdjulian.distribution.spec.image.OciImageConfigV1$Companion",
+    "name": "de.cmdjulian.kirc.spec.image.OciImageConfigV1$Companion",
     "queryAllDeclaredMethods": true
   },
   {
-    "name": "de.cmdjulian.distribution.spec.image.RootFs",
+    "name": "de.cmdjulian.kirc.spec.image.RootFs",
     "allDeclaredFields": true,
     "queryAllDeclaredMethods": true,
     "queryAllDeclaredConstructors": true,
@@ -517,7 +464,7 @@
     ]
   },
   {
-    "name": "de.cmdjulian.distribution.spec.manifest.DockerManifestListV1",
+    "name": "de.cmdjulian.kirc.spec.manifest.DockerManifestListV1",
     "allDeclaredFields": true,
     "queryAllDeclaredMethods": true,
     "queryAllDeclaredConstructors": true,
@@ -530,24 +477,15 @@
           "java.lang.String",
           "java.util.List"
         ]
-      },
-      {
-        "name": "<init>",
-        "parameterTypes": [
-          "byte",
-          "java.lang.String",
-          "java.util.List",
-          "kotlin.jvm.internal.DefaultConstructorMarker"
-        ]
       }
     ]
   },
   {
-    "name": "de.cmdjulian.distribution.spec.manifest.DockerManifestListV1$Companion",
+    "name": "de.cmdjulian.kirc.spec.manifest.DockerManifestListV1$Companion",
     "queryAllDeclaredMethods": true
   },
   {
-    "name": "de.cmdjulian.distribution.spec.manifest.DockerManifestV2",
+    "name": "de.cmdjulian.kirc.spec.manifest.DockerManifestV2",
     "allDeclaredFields": true,
     "queryAllDeclaredMethods": true,
     "queryAllDeclaredConstructors": true,
@@ -558,28 +496,18 @@
         "parameterTypes": [
           "byte",
           "java.lang.String",
-          "de.cmdjulian.distribution.spec.manifest.LayerReference",
+          "de.cmdjulian.kirc.spec.manifest.LayerReference",
           "java.util.List"
-        ]
-      },
-      {
-        "name": "<init>",
-        "parameterTypes": [
-          "byte",
-          "java.lang.String",
-          "de.cmdjulian.distribution.spec.manifest.LayerReference",
-          "java.util.List",
-          "kotlin.jvm.internal.DefaultConstructorMarker"
         ]
       }
     ]
   },
   {
-    "name": "de.cmdjulian.distribution.spec.manifest.DockerManifestV2$Companion",
+    "name": "de.cmdjulian.kirc.spec.manifest.DockerManifestV2$Companion",
     "queryAllDeclaredMethods": true
   },
   {
-    "name": "de.cmdjulian.distribution.spec.manifest.LayerReference",
+    "name": "de.cmdjulian.kirc.spec.manifest.LayerReference",
     "allDeclaredFields": true,
     "queryAllDeclaredMethods": true,
     "queryAllDeclaredConstructors": true,
@@ -589,7 +517,7 @@
         "name": "<init>",
         "parameterTypes": [
           "java.lang.String",
-          "int",
+          "long",
           "java.lang.String"
         ]
       },
@@ -597,7 +525,7 @@
         "name": "<init>",
         "parameterTypes": [
           "java.lang.String",
-          "int",
+          "long",
           "java.lang.String",
           "kotlin.jvm.internal.DefaultConstructorMarker"
         ]
@@ -605,15 +533,15 @@
     ]
   },
   {
-    "name": "de.cmdjulian.distribution.spec.manifest.Manifest",
+    "name": "de.cmdjulian.kirc.spec.manifest.Manifest",
     "queryAllDeclaredMethods": true
   },
   {
-    "name": "de.cmdjulian.distribution.spec.manifest.ManifestList",
+    "name": "de.cmdjulian.kirc.spec.manifest.ManifestList",
     "queryAllDeclaredMethods": true
   },
   {
-    "name": "de.cmdjulian.distribution.spec.manifest.ManifestListEntry",
+    "name": "de.cmdjulian.kirc.spec.manifest.ManifestListEntry",
     "allDeclaredFields": true,
     "queryAllDeclaredMethods": true,
     "queryAllDeclaredConstructors": true,
@@ -624,8 +552,8 @@
         "parameterTypes": [
           "java.lang.String",
           "java.lang.String",
-          "int",
-          "de.cmdjulian.distribution.spec.manifest.ManifestListEntry$Platform"
+          "long",
+          "de.cmdjulian.kirc.spec.manifest.ManifestListEntry$Platform"
         ]
       },
       {
@@ -633,15 +561,15 @@
         "parameterTypes": [
           "java.lang.String",
           "java.lang.String",
-          "int",
-          "de.cmdjulian.distribution.spec.manifest.ManifestListEntry$Platform",
+          "long",
+          "de.cmdjulian.kirc.spec.manifest.ManifestListEntry$Platform",
           "kotlin.jvm.internal.DefaultConstructorMarker"
         ]
       }
     ]
   },
   {
-    "name": "de.cmdjulian.distribution.spec.manifest.ManifestListEntry$Platform",
+    "name": "de.cmdjulian.kirc.spec.manifest.ManifestListEntry$Platform",
     "allDeclaredFields": true,
     "queryAllDeclaredMethods": true,
     "queryAllDeclaredConstructors": true,
@@ -650,19 +578,19 @@
       {
         "name": "<init>",
         "parameterTypes": [
-          "de.cmdjulian.distribution.spec.OS",
-          "de.cmdjulian.distribution.spec.Architecture",
+          "de.cmdjulian.kirc.spec.OS",
+          "de.cmdjulian.kirc.spec.Architecture",
           "java.util.List"
         ]
       }
     ]
   },
   {
-    "name": "de.cmdjulian.distribution.spec.manifest.ManifestSingle",
+    "name": "de.cmdjulian.kirc.spec.manifest.ManifestSingle",
     "queryAllDeclaredMethods": true
   },
   {
-    "name": "de.cmdjulian.distribution.spec.manifest.OciManifestListV1",
+    "name": "de.cmdjulian.kirc.spec.manifest.OciManifestListV1",
     "allDeclaredFields": true,
     "queryAllDeclaredMethods": true,
     "queryAllDeclaredConstructors": true,
@@ -676,25 +604,15 @@
           "java.util.List",
           "java.util.Map"
         ]
-      },
-      {
-        "name": "<init>",
-        "parameterTypes": [
-          "byte",
-          "java.lang.String",
-          "java.util.List",
-          "java.util.Map",
-          "kotlin.jvm.internal.DefaultConstructorMarker"
-        ]
       }
     ]
   },
   {
-    "name": "de.cmdjulian.distribution.spec.manifest.OciManifestListV1$Companion",
+    "name": "de.cmdjulian.kirc.spec.manifest.OciManifestListV1$Companion",
     "queryAllDeclaredMethods": true
   },
   {
-    "name": "de.cmdjulian.distribution.spec.manifest.OciManifestV1",
+    "name": "de.cmdjulian.kirc.spec.manifest.OciManifestV1",
     "allDeclaredFields": true,
     "queryAllDeclaredMethods": true,
     "queryAllDeclaredConstructors": true,
@@ -705,32 +623,17 @@
         "parameterTypes": [
           "byte",
           "java.lang.String",
-          "de.cmdjulian.distribution.spec.manifest.LayerReference",
+          "de.cmdjulian.kirc.spec.manifest.LayerReference",
           "java.util.List",
-          "de.cmdjulian.distribution.spec.manifest.LayerReference",
+          "de.cmdjulian.kirc.spec.manifest.LayerReference",
           "java.util.Map"
-        ]
-      },
-      {
-        "name": "<init>",
-        "parameterTypes": [
-          "byte",
-          "java.lang.String",
-          "de.cmdjulian.distribution.spec.manifest.LayerReference",
-          "java.util.List",
-          "de.cmdjulian.distribution.spec.manifest.LayerReference",
-          "java.util.Map",
-          "kotlin.jvm.internal.DefaultConstructorMarker"
         ]
       }
     ]
   },
   {
-    "name": "de.cmdjulian.distribution.spec.manifest.OciManifestV1$Companion",
+    "name": "de.cmdjulian.kirc.spec.manifest.OciManifestV1$Companion",
     "queryAllDeclaredMethods": true
-  },
-  {
-    "name": "java.lang.ClassValue"
   },
   {
     "name": "java.lang.String"
@@ -782,6 +685,9 @@
     "name": "kotlin.Boolean"
   },
   {
+    "name": "kotlin.Byte"
+  },
+  {
     "name": "kotlin.Int"
   },
   {
@@ -791,53 +697,16 @@
     "name": "kotlin.String"
   },
   {
-    "name": "kotlin.Byte",
-    "queryAllDeclaredMethods": true,
-    "queryAllDeclaredConstructors": true,
-    "methods": [
-      {
-        "name": "unbox-impl",
-        "parameterTypes": []
-      }
-    ]
-  },
-  {
-    "name": "kotlin.Long",
-    "queryAllDeclaredMethods": true,
-    "queryAllDeclaredConstructors": true,
-    "methods": [
-      {
-        "name": "unbox-impl",
-        "parameterTypes": []
-      }
-    ]
-  },
-  {
     "name": "kotlin.collections.List"
   },
   {
     "name": "kotlin.collections.Map"
   },
   {
-    "name": "kotlin.internal.jdk8.JDK8PlatformImplementations",
-    "methods": [
-      {
-        "name": "<init>",
-        "parameterTypes": []
-      }
-    ]
-  },
-  {
     "name": "kotlin.jvm.internal.DefaultConstructorMarker"
   },
   {
-    "name": "kotlin.reflect.jvm.internal.ReflectionFactoryImpl",
-    "methods": [
-      {
-        "name": "<init>",
-        "parameterTypes": []
-      }
-    ]
+    "name": "kotlin.reflect.jvm.internal.ReflectionFactoryImpl"
   },
   {
     "name": "sun.security.pkcs12.PKCS12KeyStore",
