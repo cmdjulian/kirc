@@ -16,13 +16,15 @@ plugins {
     id("me.qoomon.git-versioning") version "6.4.2"
 }
 
-project.publishing.repositories {
-    maven {
-        name = "GitHubPackages"
-        url = uri("https://maven.pkg.github.com/cmdjulian/kirc")
-        credentials {
-            username = project.findProperty("gpr.user") as? String? ?: System.getenv("USERNAME")
-            password = project.findProperty("gpr.key") as? String? ?: System.getenv("TOKEN")
+publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/cmdjulian/kirc")
+            credentials {
+                username = project.findProperty("gpr.user") as? String? ?: System.getenv("USERNAME")
+                password = project.findProperty("gpr.key") as? String? ?: System.getenv("TOKEN")
+            }
         }
     }
 }
