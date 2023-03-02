@@ -16,6 +16,17 @@ plugins {
     id("me.qoomon.git-versioning") version "6.4.2"
 }
 
+project.publishing.repositories {
+    maven {
+        name = "GitHubPackages"
+        url = uri("https://maven.pkg.github.com/cmdjulian/kirc")
+        credentials {
+            username = project.findProperty("gpr.user") as? String? ?: System.getenv("USERNAME")
+            password = project.findProperty("gpr.key") as? String? ?: System.getenv("TOKEN")
+        }
+    }
+}
+
 kotlinPublications {
     defaultGroup.set("com.github.cmdjulian.kirc")
     fairDokkaJars.set(false)
@@ -28,19 +39,6 @@ kotlinPublications {
         githubRepo("cmdjulian", "kirc")
         developers {
             developer("cmdjulian", "Julian Goede", "julian.goede@pm.me")
-        }
-    }
-
-    configure<PublishingExtension> {
-        repositories {
-            maven {
-                name = "GitHubPackages"
-                url = uri("https://maven.pkg.github.com/cmdjulian/kirc")
-                credentials {
-                    username = project.findProperty("gpr.user") as? String? ?: System.getenv("USERNAME")
-                    password = project.findProperty("gpr.key") as? String? ?: System.getenv("TOKEN")
-                }
-            }
         }
     }
 
