@@ -5,29 +5,24 @@
 ![kirc](./social-preview.png)
 
 Kotlin client utilizing CoRoutines and Fuel to interact with the Container Registry API V2.
-It supports all the read operations from the spec and can handle oci as well as docker format.
+It supports all the read operations from the spec and can not only handle docker format but also oci.
 
 ## Overview
 
-The main interface to interact with the client is `ContainerImageRegistryClient`. It provides the basic functionality
-described in [Functionality](#functionality).  
-After initializing the standard `ContainerImageRegistryClient` via `ContainerImageRegistryClientFactory` factory method,
-we can also pin it to a specific container image (repository and reference like Tag or Digest) and make it an
-`ContainerImageClient` with the `.toImageClient()` function. This client is then used to interact with a specific
-Image and provides some Image specific functions like the compressed size.    
-The default client uses Kotlins CoRoutines and is therefore async. The library also provides the possibility to use a
-blocking client instead. The blocking client can be obtained by first creating an async client and then use the
-`.toBlockingClient()` extension function.
+A client can be obtained by the factory pattern from `{MODULE}ClientFactory`.
+After initializing the client, we can also pin it to a specific container image (repository and reference like Tag or
+Digest) and make it an `ContainerImageClient` with the `.toImageClient()` function. This client is then used to interact
+with a specific Image and provides some Image specific functions like the compressed size.
 
-The library uses Kotlins Result type to report back the status of the call. It wraps a specific instance of
-`DistributionError` for all errors. These errors are than divided into
+The library throws a dedicated error type to report back on exceptions for the different calls. It wraps a specific
+instance of `RegistryClientException` for all errors. These errors are than divided into
 
 1. a more general `ClientErrorException` like if a manifest was tried to be retrieved but didn't exist
    (`ClientErrorException.NotFoundException`)
 2. network related errors (`NetworkError`) like HostNotFound or SSL related errors
 3. unexpected errors (`UnknownError`)
 
-As authentication methods JWT auth and BasicAuth are supported. Currently, there are no plans to implement certificate
+As authentication schema JWT auth and BasicAuth are supported. Currently, there are no plans to implement certificate
 based authentication.
 
 The Registry communication can be done using either `HTTP` or `HTTPS`. The library is also able to use a proxy for the
@@ -47,10 +42,14 @@ communication.
 - download image
 - inspect image
 
-## Adding the Dependency
+## Modules
 
-The library requires at least java 11.  
-The client can be pulled into gradle or maven by using [jitpack](https://jitpack.io/#cmdjulian/docker-registry-client).
+The lib is published in three different flavors. All of them are based up on kotlins coroutines. All modules
+transitively include the [suspending module](#suspending).
+
+### Blocking
+
+This module provides as the main entry point as `BlockingClientFactory`. All requests are blocking the current Thread.
 
 <details>
 <summary>Gradle</summary>
@@ -62,7 +61,7 @@ repositories {
 
 
 dependencies {
-    implementation 'com.github.cmdjulian:docker-registry-client:{VERSION}'
+    implementation 'com.github.cmdjulian.kirc:blocking:{VERSION}'
 }
 ```
 
@@ -78,7 +77,7 @@ repositories {
 
 
 dependencies {
-    implementation("com.github.cmdjulian:docker-registry-client:{VERSION}")
+    implementation("com.github.cmdjulian.kirc:blocking:{VERSION}")
 }
 ```
 
@@ -105,8 +104,144 @@ dependencies {
 
     <dependencies>
         <dependency>
-            <groupId>com.github.cmdjulian</groupId>
-            <artifactId>docker-registry-client</artifactId>
+            <groupId>com.github.cmdjulian.kirc</groupId>
+            <artifactId>blocking</artifactId>
+            <version>{VERSION}</version>
+        </dependency>
+    </dependencies>
+</project>
+```
+
+</details>
+
+### Reactive
+
+This module provides as the main entry point as `ReactiveClientFactory`. It uses the kotlin extension functions to
+return project reactor types.
+
+<details>
+<summary>Gradle</summary>
+
+```groovy
+repositories {
+    maven { url 'https://jitpack.io' }
+}
+
+
+dependencies {
+    implementation 'com.github.cmdjulian.kirc:reactive:{VERSION}'
+}
+```
+
+</details>
+
+<details>
+<summary>Gradle Kts</summary>
+
+```kotlin
+repositories {
+    maven(url = "https://jitpack.io")
+}
+
+
+dependencies {
+    implementation("com.github.cmdjulian.kirc:reactive:{VERSION}")
+}
+```
+
+</details>
+
+<details>
+<summary>Maven</summary>
+
+```xml
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    ...
+
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
+
+    ...
+
+    <dependencies>
+        <dependency>
+            <groupId>com.github.cmdjulian.kirc</groupId>
+            <artifactId>reactive</artifactId>
+            <version>{VERSION}</version>
+        </dependency>
+    </dependencies>
+</project>
+```
+
+</details>
+
+### Suspending
+
+This module provides as the main entry point as `SuspendingClientFactory`. It uses the kotlin coroutines to do the
+requests.
+
+<details>
+<summary>Gradle</summary>
+
+```groovy
+repositories {
+    maven { url 'https://jitpack.io' }
+}
+
+
+dependencies {
+    implementation 'com.github.cmdjulian.kirc:suspending:{VERSION}'
+}
+```
+
+</details>
+
+<details>
+<summary>Gradle Kts</summary>
+
+```kotlin
+repositories {
+    maven(url = "https://jitpack.io")
+}
+
+
+dependencies {
+    implementation("com.github.cmdjulian.kirc:suspending:{VERSION}")
+}
+```
+
+</details>
+
+<details>
+<summary>Maven</summary>
+
+```xml
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    ...
+
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
+
+    ...
+
+    <dependencies>
+        <dependency>
+            <groupId>com.github.cmdjulian.kirc</groupId>
+            <artifactId>suspending</artifactId>
             <version>{VERSION}</version>
         </dependency>
     </dependencies>
