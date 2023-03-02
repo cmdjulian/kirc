@@ -21,6 +21,6 @@ jobs:
       - name: Publish package
         uses: gradle/gradle-build-action@c0e9e4809f4d83d87cbb73a25bd4b47adca33c9f
         with:
-          arguments: publish
+          arguments: publishAllPublicationsToGitHubPackagesRepository
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

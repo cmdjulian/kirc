@@ -16,19 +16,6 @@ plugins {
     id("me.qoomon.git-versioning") version "6.4.2"
 }
 
-publishing {
-    repositories {
-        maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/cmdjulian/kirc")
-            credentials {
-                username = project.findProperty("gpr.user") as? String? ?: System.getenv("USERNAME")
-                password = project.findProperty("gpr.key") as? String? ?: System.getenv("TOKEN")
-            }
-        }
-    }
-}
-
 kotlinPublications {
     defaultGroup.set("com.github.cmdjulian.kirc")
     fairDokkaJars.set(false)
@@ -71,6 +58,22 @@ subprojects {
         plugin("org.jlleitschuh.gradle.ktlint")
         plugin("org.owasp.dependencycheck")
         plugin("com.github.ben-manes.versions")
+    }
+
+    // only configured if subProject applies the publishing plugin
+    plugins.withId("org.jetbrains.kotlin.libs.publisher") {
+        publishing {
+            repositories {
+                maven {
+                    name = "GitHubPackages"
+                    url = uri("https://maven.pkg.github.com/cmdjulian/kirc")
+                    credentials {
+                        username = project.findProperty("gpr.user") as? String? ?: System.getenv("USERNAME")
+                        password = project.findProperty("gpr.key") as? String? ?: System.getenv("TOKEN")
+                    }
+                }
+            }
+        }
     }
 
     configure<KotlinJvmProjectExtension> {
