@@ -6,6 +6,7 @@
 
 Kotlin client utilizing CoRoutines and Fuel to interact with the Container Registry API V2.
 It supports all the read operations from the spec and can not only handle docker format but also oci.
+The library is compatible with GraalVM and does already include the required reflection configs.
 
 ## Overview
 
@@ -242,6 +243,74 @@ dependencies {
         <dependency>
             <groupId>com.github.cmdjulian.kirc</groupId>
             <artifactId>suspending</artifactId>
+            <version>{VERSION}</version>
+        </dependency>
+    </dependencies>
+</project>
+```
+
+</details>
+
+### Image
+
+This module is transitively included from all the above modules. It's main purpose is to provide the components to parse
+container image names. It's mainly packaged in its own module to be included without any of the aforementioned modules. 
+
+<details>
+<summary>Gradle</summary>
+
+```groovy
+repositories {
+    maven { url 'https://jitpack.io' }
+}
+
+
+dependencies {
+    implementation 'com.github.cmdjulian.kirc:image:{VERSION}'
+}
+```
+
+</details>
+
+<details>
+<summary>Gradle Kts</summary>
+
+```kotlin
+repositories {
+    maven(url = "https://jitpack.io")
+}
+
+
+dependencies {
+    implementation("com.github.cmdjulian.kirc:image:{VERSION}")
+}
+```
+
+</details>
+
+<details>
+<summary>Maven</summary>
+
+```xml
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    ...
+
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
+
+    ...
+
+    <dependencies>
+        <dependency>
+            <groupId>com.github.cmdjulian.kirc</groupId>
+            <artifactId>image</artifactId>
             <version>{VERSION}</version>
         </dependency>
     </dependencies>
