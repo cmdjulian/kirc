@@ -23,7 +23,7 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jdk8")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
-    implementation("com.github.ProjectMapK:jackson-module-kogera:2.14.2-alpha5")
+    implementation("com.github.ProjectMapK:jackson-module-kogera:2.14.2-alpha6")
 
     // insecure connections
     implementation("io.github.hakky54:sslcontext-kickstart:7.4.11")
