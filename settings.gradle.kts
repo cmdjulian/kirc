@@ -19,7 +19,7 @@ dependencyResolutionManagement {
             library("bom", "org.jetbrains.kotlinx:kotlinx-coroutines-bom:1.6.4")
         }
         create("jackson") {
-            library("bom", "com.fasterxml.jackson:jackson-bom:2.14.2")
+            library("bom", "com.fasterxml.jackson:jackson-bom:2.15.0")
         }
         create("tests") {
             library("junit-bom", "org.junit:junit-bom:5.9.2")
