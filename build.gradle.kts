@@ -10,7 +10,7 @@ import java.util.*
 plugins {
     kotlin("jvm") version "1.8.20" apply false
     kotlin("libs.publisher") version "0.0.61-dev-34"
-    id("org.jlleitschuh.gradle.ktlint") version "11.3.1" apply false
+    id("org.jlleitschuh.gradle.ktlint") version "11.3.2" apply false
     id("org.owasp.dependencycheck") version "8.2.1" apply false // "dependencyCheckAnalyze"
     id("com.github.ben-manes.versions") version "0.46.0" apply false // "dependencyUpdates --refresh-dependencies"
     id("me.qoomon.git-versioning") version "6.4.2"
