@@ -34,7 +34,7 @@ dependencies {
     testImplementation(tests.bundles.kotest)
 
     // resource injection
-    testImplementation("io.hosuaby:inject-resources-junit-jupiter:0.3.2")
+    testImplementation("io.hosuaby:inject-resources-junit-jupiter:0.3.3")
 }
 
 tasks.jar {
