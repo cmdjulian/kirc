@@ -1,0 +1,71 @@
+[
+  {
+    "name": "de.cmdjulian.kirc.image.Digest",
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "box-impl",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      },
+      {
+        "name": "constructor-impl",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      },
+      {
+        "name": "unbox-impl",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.image.Repository",
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "box-impl",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      },
+      {
+        "name": "constructor-impl",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      },
+      {
+        "name": "unbox-impl",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.image.Tag",
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "box-impl",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      },
+      {
+        "name": "constructor-impl",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      },
+      {
+        "name": "unbox-impl",
+        "parameterTypes": []
+      }
+    ]
+  }
+]
