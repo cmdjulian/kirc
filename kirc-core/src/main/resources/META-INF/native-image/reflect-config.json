@@ -1,0 +1,460 @@
+[
+  {
+    "name": "com.fasterxml.jackson.databind.PropertyNamingStrategies$LowerDotCaseStrategy",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.fasterxml.jackson.databind.PropertyNamingStrategies$SnakeCaseStrategy",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.fasterxml.jackson.databind.PropertyNamingStrategies$UpperCamelCaseStrategy",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.image.Digest",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      },
+      {
+        "name": "getSeparator",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.image.Digest$Companion"
+  },
+  {
+    "name": "de.cmdjulian.kirc.image.Reference",
+    "queryAllDeclaredMethods": true
+  },
+  {
+    "name": "de.cmdjulian.kirc.image.Repository",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.image.Tag",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      },
+      {
+        "name": "getSeparator",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.image.Tag$Companion"
+  },
+  {
+    "name": "de.cmdjulian.kirc.impl.ManifestListMixIn",
+    "queryAllDeclaredMethods": true
+  },
+  {
+    "name": "de.cmdjulian.kirc.impl.ManifestMixIn",
+    "queryAllDeclaredMethods": true
+  },
+  {
+    "name": "de.cmdjulian.kirc.impl.ManifestSingleMixIn",
+    "queryAllDeclaredMethods": true
+  },
+  {
+    "name": "de.cmdjulian.kirc.impl.ResponseRetryWithAuthentication",
+    "methods": [
+      {
+        "name": "resolveTokenAuth",
+        "parameterTypes": [
+          "im.toss.http.parser.HttpAuthCredentials",
+          "com.github.kittinunf.fuel.core.Request",
+          "kotlin.coroutines.Continuation"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.impl.ResponseRetryWithAuthentication$resolveTokenAuth$TokenResponse",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.impl.response.Catalog",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "java.util.List"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.impl.response.TagList",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "java.lang.String",
+          "java.util.List"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.spec.Architecture",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true,
+    "methods": [
+      {
+        "name": "getString",
+        "parameterTypes": []
+      },
+      {
+        "name": "toString",
+        "parameterTypes": []
+      },
+      {
+        "name": "valueOf",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.spec.OS",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true,
+    "methods": [
+      {
+        "name": "getString",
+        "parameterTypes": []
+      },
+      {
+        "name": "toString",
+        "parameterTypes": []
+      },
+      {
+        "name": "valueOf",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.spec.image.DockerImageConfigV1",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "java.lang.String",
+          "java.lang.String",
+          "java.time.OffsetDateTime",
+          "java.lang.String",
+          "java.util.List",
+          "java.lang.String",
+          "de.cmdjulian.kirc.spec.Architecture",
+          "de.cmdjulian.kirc.spec.OS",
+          "java.lang.String",
+          "java.lang.Long",
+          "de.cmdjulian.kirc.spec.image.ImageConfig$Config",
+          "java.lang.String",
+          "de.cmdjulian.kirc.spec.image.ImageConfig$Config",
+          "de.cmdjulian.kirc.spec.image.RootFs",
+          "java.util.List"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.spec.image.DockerImageConfigV1$Companion"
+  },
+  {
+    "name": "de.cmdjulian.kirc.spec.image.HealthCheck",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "java.util.List",
+          "java.lang.Long",
+          "java.lang.Long",
+          "java.lang.Long",
+          "java.lang.Integer"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.spec.image.History",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "java.time.OffsetDateTime",
+          "java.lang.String",
+          "java.lang.String",
+          "java.lang.Boolean",
+          "java.lang.String"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.spec.image.ImageConfig",
+    "queryAllDeclaredMethods": true
+  },
+  {
+    "name": "de.cmdjulian.kirc.spec.image.ImageConfig$Config",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "java.lang.String",
+          "java.lang.String",
+          "java.lang.String",
+          "java.util.Map",
+          "java.lang.Boolean",
+          "java.lang.Boolean",
+          "java.lang.Boolean",
+          "java.lang.Boolean",
+          "java.lang.Boolean",
+          "java.lang.Boolean",
+          "java.util.List",
+          "java.util.List",
+          "java.util.List",
+          "java.lang.String",
+          "java.util.Map",
+          "java.lang.String",
+          "java.util.Map",
+          "java.lang.String",
+          "java.lang.Boolean",
+          "java.lang.Long",
+          "java.lang.Long",
+          "java.lang.Long",
+          "de.cmdjulian.kirc.spec.image.HealthCheck"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.spec.image.RootFs",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "java.lang.String",
+          "java.util.List"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.spec.manifest.DockerManifestListV1",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "byte",
+          "java.lang.String",
+          "java.util.List"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.spec.manifest.DockerManifestListV1$Companion"
+  },
+  {
+    "name": "de.cmdjulian.kirc.spec.manifest.DockerManifestV2",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "byte",
+          "java.lang.String",
+          "de.cmdjulian.kirc.spec.manifest.LayerReference",
+          "java.util.List"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.spec.manifest.DockerManifestV2$Companion"
+  },
+  {
+    "name": "de.cmdjulian.kirc.spec.manifest.LayerReference",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "java.lang.String",
+          "long",
+          "de.cmdjulian.kirc.image.Digest"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.spec.manifest.Manifest",
+    "queryAllDeclaredMethods": true,
+    "methods": [
+      {
+        "name": "getMediaType",
+        "parameterTypes": []
+      },
+      {
+        "name": "getSchemaVersion",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.spec.manifest.ManifestList",
+    "queryAllDeclaredMethods": true
+  },
+  {
+    "name": "de.cmdjulian.kirc.spec.manifest.ManifestListEntry",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "java.lang.String",
+          "de.cmdjulian.kirc.image.Digest",
+          "long",
+          "de.cmdjulian.kirc.spec.manifest.ManifestListEntry$Platform"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.spec.manifest.ManifestListEntry$Platform",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "de.cmdjulian.kirc.spec.OS",
+          "de.cmdjulian.kirc.spec.Architecture",
+          "java.util.List"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.spec.manifest.ManifestSingle",
+    "queryAllDeclaredMethods": true,
+    "methods": [
+      {
+        "name": "getConfig",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.spec.manifest.OciManifestListV1",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "byte",
+          "java.lang.String",
+          "java.util.List",
+          "java.util.Map"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.spec.manifest.OciManifestListV1$Companion"
+  },
+  {
+    "name": "de.cmdjulian.kirc.spec.manifest.OciManifestV1"
+  }
+]

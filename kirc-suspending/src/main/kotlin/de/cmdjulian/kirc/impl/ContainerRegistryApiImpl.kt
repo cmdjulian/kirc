@@ -9,6 +9,7 @@ import com.github.kittinunf.fuel.core.awaitResult
 import com.github.kittinunf.fuel.core.deserializers.ByteArrayDeserializer
 import com.github.kittinunf.fuel.core.deserializers.EmptyDeserializer
 import com.github.kittinunf.result.Result
+import com.github.kittinunf.result.flatMap
 import com.github.kittinunf.result.map
 import de.cmdjulian.kirc.client.RegistryCredentials
 import de.cmdjulian.kirc.image.Digest
@@ -109,21 +110,21 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
     }
 
     override suspend fun deleteManifest(repository: Repository, reference: Reference): Result<Digest, FuelError> {
-        val digest = digest(repository, reference)
-
-        fuelManager.delete("/v2/$repository/manifests/$digest")
-            .appendHeader(
-                Headers.ACCEPT,
-                APPLICATION_JSON,
-                DockerManifestV2.MediaType,
-                DockerManifestListV1.MediaType,
-                OciManifestV1.MediaType,
-                OciManifestListV1.MediaType,
-            )
-            .awaitResponseResult(EmptyDeserializer)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-
-        return digest
+        return digest(repository, reference).flatMap { digest ->
+            fuelManager.delete("/v2/$repository/manifests/$digest")
+                .appendHeader(
+                    Headers.ACCEPT,
+                    APPLICATION_JSON,
+                    DockerManifestV2.MediaType,
+                    DockerManifestListV1.MediaType,
+                    OciManifestV1.MediaType,
+                    OciManifestListV1.MediaType,
+                )
+                .awaitResponseResult(EmptyDeserializer)
+                .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
+                .third
+                .map { digest }
+        }
     }
 
     override suspend fun digest(repository: Repository, reference: Reference) = when (reference) {

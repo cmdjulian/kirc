@@ -10,6 +10,7 @@ import de.cmdjulian.kirc.client.SuspendingContainerImageRegistryClient
 import de.cmdjulian.kirc.exception.RegistryClientException
 import de.cmdjulian.kirc.exception.RegistryClientException.ClientException.AuthenticationException
 import de.cmdjulian.kirc.exception.RegistryClientException.ClientException.AuthorizationException
+import de.cmdjulian.kirc.exception.RegistryClientException.ClientException.MethodNotAllowed
 import de.cmdjulian.kirc.exception.RegistryClientException.ClientException.NotFoundException
 import de.cmdjulian.kirc.exception.RegistryClientException.ClientException.UnexpectedErrorException
 import de.cmdjulian.kirc.exception.RegistryClientException.NetworkErrorException
@@ -115,7 +116,8 @@ private fun FuelError.toRegistryClientError(): RegistryClientException = when (r
     401 -> AuthenticationException(tryOrNull { JsonMapper.readValue(response.data) }, this)
     403 -> AuthorizationException(tryOrNull { JsonMapper.readValue(response.data) }, this)
     404 -> NotFoundException(tryOrNull { JsonMapper.readValue(response.data) }, this)
-    in 405..499 -> UnexpectedErrorException(tryOrNull { JsonMapper.readValue(response.data) }, this)
+    405 -> MethodNotAllowed(tryOrNull { JsonMapper.readValue(response.data) }, this)
+    in 406..499 -> UnexpectedErrorException(tryOrNull { JsonMapper.readValue(response.data) }, this)
 
     else -> UnknownErrorException(this)
 }

@@ -12,7 +12,7 @@ object NativeImageSmokeTest {
     @JvmStatic
     fun main(args: Array<String>) {
         val kanikoClient = BlockingContainerImageClientFactory.create(
-            credentials = RegistryCredentials("changeMe", "changeMe"),
+            credentials = RegistryCredentials("cmdjulian", "R!rb8pm53%ws9dg&24NTMFasH*AMadmX"),
         )
         val kaniko = ContainerImageName.parse("cmdjulian/kaniko:v1.8.1")
         extracted(kanikoClient, kaniko)
@@ -22,7 +22,7 @@ object NativeImageSmokeTest {
             credentials = RegistryCredentials("changeMe", "changeMe"),
         )
         val mopy = ContainerImageName.parse(
-            "localhost:5000/cmdjulian/mopy@sha256:21e5a3a316aae3eb8d46dfd9bd61d065f0e92914d304e3bb4c1bf282cc6bc1c3",
+            "localhost:5000/cmdjulian/mopy@sha256:5922f18a229685e881fcb13103e1704c8d932c247e5f3847bae56f14bb2af9a3",
         )
         extracted(mopyClient, mopy)
         mopyClient.repositories(1, 1).also(::println)
@@ -35,6 +35,8 @@ object NativeImageSmokeTest {
         client.manifest(busybox.repository, busybox.reference).also(::println)
         val kanikoLatest = ContainerImageName.parse("cmdjulian/mopy:latest")
         client.manifest(kanikoLatest.repository, kanikoLatest.reference).also(::println)
+
+        mopyClient.manifestDelete(mopy.repository, mopy.reference)
     }
 
     private fun extracted(client: BlockingContainerImageRegistryClient, image: ContainerImageName) {
@@ -76,8 +78,6 @@ object NativeImageSmokeTest {
             imageClient.blobs().also(::println)
             imageClient.size().also(::println)
             imageClient.toImage().also(::println)
-
-            client.manifestDelete(image.repository, image.reference)
         } catch (e: Exception) {
             throw e
         }
