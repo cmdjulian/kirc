@@ -1,5 +1,8 @@
 package de.cmdjulian.kirc.image
 
+import com.fasterxml.jackson.annotation.JsonCreator
+import com.fasterxml.jackson.annotation.JsonValue
+
 @JvmDefaultWithCompatibility
 sealed interface Reference {
     val separator: Char
@@ -7,26 +10,29 @@ sealed interface Reference {
     fun asImagePart() = "$separator${toString()}"
 }
 
-@JvmInline
-value class Tag(private val value: String) : Reference {
+class Tag(@JsonValue private val value: String) : Reference {
     init {
         require(value.matches(Regex("\\w[\\w.\\-]{0,127}"))) { "invalid tag" }
     }
 
     override val separator: Char get() = Companion.separator
 
+    override fun equals(other: Any?): Boolean = other is Tag && other.value == value
+    override fun hashCode(): Int = value.hashCode()
     override fun toString(): String = value
 
     companion object {
-        @get:JvmStatic
-        @get:JvmName("latest")
         val LATEST = Tag("latest")
         const val separator: Char = ':'
+
+        // deserializer
+        @JvmStatic
+        @JsonCreator
+        fun of(value: String) = Tag(value)
     }
 }
 
-@JvmInline
-value class Digest(private val value: String) : Reference, Comparable<Digest> {
+class Digest(@JsonValue private val value: String) : Reference, Comparable<Digest> {
     init {
         require(value.matches(Regex("sha256:[\\da-fA-F]{32,}"))) { "invalid digest" }
     }
@@ -35,9 +41,16 @@ value class Digest(private val value: String) : Reference, Comparable<Digest> {
 
     override fun compareTo(other: Digest): Int = value.compareTo(other.value)
 
+    override fun equals(other: Any?): Boolean = other is Digest && other.value == value
+    override fun hashCode(): Int = value.hashCode()
     override fun toString(): String = value
 
     companion object {
         const val separator: Char = '@'
+
+        // deserializer
+        @JvmStatic
+        @JsonCreator
+        fun of(value: String) = Digest(value)
     }
 }

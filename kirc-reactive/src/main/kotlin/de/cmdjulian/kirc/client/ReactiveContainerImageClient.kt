@@ -10,12 +10,10 @@ import kotlinx.coroutines.reactor.mono
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-@Suppress("INAPPLICABLE_JVM_NAME")
 interface ReactiveContainerImageClient {
     /**
      * Get a list of tags for a certain repository.
      */
-    @JvmName("tags")
     suspend fun tags(): Flux<Tag>
 
     /**

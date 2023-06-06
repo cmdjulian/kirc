@@ -7,12 +7,10 @@ import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import kotlinx.coroutines.runBlocking
 
-@Suppress("INAPPLICABLE_JVM_NAME")
 interface BlockingContainerImageClient {
     /**
      * Get a list of tags for a certain repository.
      */
-    @JvmName("tags")
     fun tags(): List<Tag>
 
     /**

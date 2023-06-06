@@ -1,10 +1,11 @@
 package de.cmdjulian.kirc.image
 
+import com.fasterxml.jackson.annotation.JsonCreator
+import com.fasterxml.jackson.annotation.JsonValue
 import java.nio.file.Path
-import java.util.*
+import java.util.Locale
 
-@JvmInline
-value class Repository(private val value: String) {
+class Repository(@JsonValue private val value: String) {
     init {
         require(!Path.of(value).isAbsolute) { "invalid repository, has to be relative" }
         require(value == value.lowercase(Locale.getDefault())) {
@@ -17,5 +18,14 @@ value class Repository(private val value: String) {
         is Digest -> ContainerImageName(repository = this, digest = reference)
     }
 
+    override fun equals(other: Any?): Boolean = other is Repository && other.value == value
+    override fun hashCode(): Int = value.hashCode()
     override fun toString(): String = value
+
+    // deserializer
+    companion object {
+        @JvmStatic
+        @JsonCreator
+        fun of(value: String) = Repository(value)
+    }
 }

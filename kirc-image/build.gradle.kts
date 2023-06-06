@@ -9,6 +9,12 @@ tasks.jar {
     }
 }
 
+dependencies {
+    // jackson
+    implementation(platform(jackson.bom))
+    implementation("com.fasterxml.jackson.core:jackson-databind")
+}
+
 kotlinPublications {
     publication {
         publicationName.set("image")

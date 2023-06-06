@@ -21,10 +21,9 @@ class ContainerImageName(
     val registry: Registry = Registry(DOCKER_HUB_REGISTRY),
     val repository: Repository,
     tag: Tag? = null,
-    @get:JvmName("getDigest") val digest: Digest? = null,
+    val digest: Digest? = null,
 ) {
 
-    @get:JvmName("getTag")
     val tag = if (tag == null && digest == null) Tag.LATEST else tag
     val reference get() = digest ?: this.tag!!
 
