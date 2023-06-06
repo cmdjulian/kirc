@@ -1,24 +1,24 @@
 package de.cmdjulian.kirc
 
-import de.cmdjulian.kirc.client.BlockingClientFactory
+import de.cmdjulian.kirc.client.BlockingContainerImageClientFactory
 import de.cmdjulian.kirc.client.BlockingContainerImageRegistryClient
 import de.cmdjulian.kirc.client.RegistryCredentials
 import de.cmdjulian.kirc.image.ContainerImageName
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
-import java.net.URL
+import java.net.URI
 
 object NativeImageSmokeTest {
     @JvmStatic
     fun main(args: Array<String>) {
-        val kanikoClient = BlockingClientFactory.create(
+        val kanikoClient = BlockingContainerImageClientFactory.create(
             credentials = RegistryCredentials("changeMe", "changeMe"),
         )
         val kaniko = ContainerImageName.parse("cmdjulian/kaniko:v1.8.1")
         extracted(kanikoClient, kaniko)
 
-        val mopyClient = BlockingClientFactory.create(
-            url = URL("http://localhost:5000"),
+        val mopyClient = BlockingContainerImageClientFactory.create(
+            url = URI("http://localhost:5000"),
             credentials = RegistryCredentials("changeMe", "changeMe"),
         )
         val mopy = ContainerImageName.parse(
@@ -30,7 +30,7 @@ object NativeImageSmokeTest {
         mopyClient.repositories(limit = 1).also(::println)
         mopyClient.repositories(last = 1).also(::println)
 
-        val client = BlockingClientFactory.create()
+        val client = BlockingContainerImageClientFactory.create()
         client.manifest(ContainerImageName.parse("library/busybox:latest")).also(::println)
         client.manifest(ContainerImageName.parse("cmdjulian/mopy:latest")).also(::println)
     }

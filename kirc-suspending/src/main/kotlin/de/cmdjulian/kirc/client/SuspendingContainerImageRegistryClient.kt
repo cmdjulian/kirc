@@ -57,6 +57,11 @@ interface SuspendingContainerImageRegistryClient {
     suspend fun manifestDigest(repository: Repository, tag: Tag): Digest
 
     /**
+     * Delete a manifest.
+     */
+    suspend fun manifestDelete(repository: Repository, reference: Reference): Digest
+
+    /**
      * Get the config of an Image by its Manifest.
      */
     suspend fun config(repository: Repository, manifest: ManifestSingle): ImageConfig

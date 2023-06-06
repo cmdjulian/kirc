@@ -3,10 +3,14 @@ package de.cmdjulian.kirc.client
 import de.cmdjulian.kirc.image.ContainerImageName
 import kotlinx.coroutines.runBlocking
 import java.net.Proxy
-import java.net.URL
+import java.net.URI
 import java.security.KeyStore
 
-object BlockingClientFactory {
+object BlockingContainerImageClientFactory {
+
+    @Suppress("MemberVisibilityCanBePrivate")
+    const val DOCKER_HUB_REGISTRY_URL = SuspendingContainerImageClientFactory.DOCKER_HUB_REGISTRY_URL
+
     /**
      * Create a ContainerRegistryClient for a registry. If no args are supplied the client is constructed for Docker
      * Hub with no authentication.
@@ -14,13 +18,14 @@ object BlockingClientFactory {
     @JvmStatic
     @JvmOverloads
     fun create(
-        url: URL = URL(DOCKER_HUB_REGISTRY_URL),
+        url: URI = URI(DOCKER_HUB_REGISTRY_URL),
         credentials: RegistryCredentials? = null,
         proxy: Proxy? = null,
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
     ): BlockingContainerImageRegistryClient =
-        SuspendingClientFactory.create(url, credentials, proxy, skipTlsVerify, keystore).toBlockingClient()
+        SuspendingContainerImageClientFactory.create(url, credentials, proxy, skipTlsVerify, keystore)
+            .toBlockingClient()
 
     @JvmStatic
     @JvmOverloads
@@ -32,6 +37,7 @@ object BlockingClientFactory {
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
     ): BlockingContainerImageClient = runBlocking {
-        SuspendingClientFactory.create(image, credentials, proxy, insecure, skipTlsVerify, keystore).toBlockingClient()
+        SuspendingContainerImageClientFactory.create(image, credentials, proxy, insecure, skipTlsVerify, keystore)
+            .toBlockingClient()
     }
 }

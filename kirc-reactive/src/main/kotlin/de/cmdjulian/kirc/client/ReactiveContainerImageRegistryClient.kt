@@ -69,6 +69,11 @@ interface ReactiveContainerImageRegistryClient {
     fun manifestDigest(repository: Repository, tag: Tag): Mono<Digest>
 
     /**
+     * Delete manifest.
+     */
+    fun manifestDelete(repository: Repository, reference: Reference): Mono<Digest>
+
+    /**
      * Get the config of an Image by its Manifest.
      */
     fun config(repository: Repository, manifest: ManifestSingle): Mono<ImageConfig>
@@ -129,6 +134,9 @@ fun SuspendingContainerImageRegistryClient.toReactiveClient() = object : Reactiv
 
     override fun manifestDigest(repository: Repository, tag: Tag): Mono<Digest> =
         mono { this@toReactiveClient.manifestDigest(repository, tag) }
+
+    override fun manifestDelete(repository: Repository, reference: Reference): Mono<Digest> =
+        mono { this@toReactiveClient.manifestDelete(repository, reference) }
 
     override fun config(repository: Repository, manifest: ManifestSingle): Mono<ImageConfig> =
         mono { this@toReactiveClient.config(repository, manifest) }

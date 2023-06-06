@@ -54,6 +54,9 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
     override suspend fun manifest(repository: Repository, reference: Reference): Manifest =
         api.manifests(repository, reference).getOrElse { throw it.toRegistryClientError() }
 
+    override suspend fun manifestDelete(repository: Repository, reference: Reference): Digest =
+        api.deleteManifest(repository, reference).getOrElse { throw it.toRegistryClientError() }
+
     override suspend fun manifestDigest(repository: Repository, tag: Tag): Digest =
         api.digest(repository, tag).getOrElse { throw it.toRegistryClientError() }
 

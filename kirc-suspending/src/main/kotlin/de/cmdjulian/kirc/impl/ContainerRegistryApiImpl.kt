@@ -1,27 +1,20 @@
 package de.cmdjulian.kirc.impl
 
-import com.fasterxml.jackson.module.kotlin.readValue
-import com.github.kittinunf.fuel.core.Deserializable
-import com.github.kittinunf.fuel.core.Encoding
 import com.github.kittinunf.fuel.core.FuelError
 import com.github.kittinunf.fuel.core.FuelManager
 import com.github.kittinunf.fuel.core.Headers
 import com.github.kittinunf.fuel.core.Parameters
-import com.github.kittinunf.fuel.core.Request
-import com.github.kittinunf.fuel.core.ResponseDeserializable
-import com.github.kittinunf.fuel.core.ResponseResultOf
 import com.github.kittinunf.fuel.core.awaitResponseResult
 import com.github.kittinunf.fuel.core.awaitResult
 import com.github.kittinunf.fuel.core.deserializers.ByteArrayDeserializer
 import com.github.kittinunf.fuel.core.deserializers.EmptyDeserializer
-import com.github.kittinunf.fuel.core.extensions.AuthenticatedRequest
 import com.github.kittinunf.result.Result
-import com.github.kittinunf.result.getOrNull
 import com.github.kittinunf.result.map
 import de.cmdjulian.kirc.client.RegistryCredentials
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
+import de.cmdjulian.kirc.image.Tag
 import de.cmdjulian.kirc.impl.response.Catalog
 import de.cmdjulian.kirc.impl.response.TagList
 import de.cmdjulian.kirc.spec.blob.DockerBlobMediaType
@@ -34,8 +27,6 @@ import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestListV1
 import de.cmdjulian.kirc.spec.manifest.OciManifestV1
-import de.cmdjulian.kirc.utils.CaseInsensitiveMap
-import im.toss.http.parser.HttpAuthCredentials
 
 private const val APPLICATION_JSON = "application/json"
 private const val APPLICATION_OCTET_STREAM = "application/octet-stream"
@@ -117,8 +108,10 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
             .third
     }
 
-    override suspend fun digest(repository: Repository, reference: Reference): Result<Digest, FuelError> {
-        val response = fuelManager.head("/v2/$repository/manifests/$reference")
+    override suspend fun deleteManifest(repository: Repository, reference: Reference): Result<Digest, FuelError> {
+        val digest = digest(repository, reference)
+
+        fuelManager.delete("/v2/$repository/manifests/$digest")
             .appendHeader(
                 Headers.ACCEPT,
                 APPLICATION_JSON,
@@ -128,84 +121,30 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
                 OciManifestListV1.MediaType,
             )
             .awaitResponseResult(EmptyDeserializer)
-            .let { responseResult ->
-                val resultTriple = handler.retryOnUnauthorized(responseResult, EmptyDeserializer)
-                resultTriple
-            }
+            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
 
-        return response.third.map { response.second["Docker-content-digest"].single().let(::Digest) }
-    }
-}
-
-internal inline fun <reified T : Any> jacksonDeserializer() = object : ResponseDeserializable<T> {
-    override fun deserialize(content: String): T = JsonMapper.readValue(content)
-}
-
-private class ResponseRetryWithAuthentication(
-    private val credentials: RegistryCredentials?,
-    private val fuelManager: FuelManager,
-) {
-
-    suspend fun <T : Any> retryOnUnauthorized(
-        responseResult: ResponseResultOf<T>,
-        deserializer: Deserializable<T>,
-    ): ResponseResultOf<T> {
-        val (request, response, _) = responseResult
-        val headers = CaseInsensitiveMap(response.headers)
-
-        if (response.statusCode == 401 && "www-authenticate" in headers) {
-            val retryableRequest = retryRequest(headers["www-authenticate"]?.first(), request)
-            retryableRequest?.let { return it.awaitResponseResult(deserializer) }
-        }
-
-        return responseResult
+        return digest
     }
 
-    suspend fun retryRequest(header: String?, request: Request): Request? {
-        if (header == null) return null
+    override suspend fun digest(repository: Repository, reference: Reference) = when (reference) {
+        is Digest -> Result.success(reference)
+        is Tag -> {
+            val response = fuelManager.head("/v2/$repository/manifests/$reference")
+                .appendHeader(
+                    Headers.ACCEPT,
+                    APPLICATION_JSON,
+                    DockerManifestV2.MediaType,
+                    DockerManifestListV1.MediaType,
+                    OciManifestV1.MediaType,
+                    OciManifestListV1.MediaType,
+                )
+                .awaitResponseResult(EmptyDeserializer)
+                .let { responseResult ->
+                    val resultTriple = handler.retryOnUnauthorized(responseResult, EmptyDeserializer)
+                    resultTriple
+                }
 
-        val wwwAuth = try {
-            HttpAuthCredentials.parse(header)
-        } catch (e: Exception) {
-            return null
-        }
-
-        return when (wwwAuth.scheme) {
-            "Basic" -> resolveBasicAuth(request)
-            "Bearer" -> resolveTokenAuth(wwwAuth, request)
-            else -> null
+            response.third.map { response.second["Docker-content-digest"].single().let(::Digest) }
         }
     }
-
-    private fun resolveBasicAuth(request: Request): Request? {
-        if (credentials == null) return null
-
-        return AuthenticatedRequest(request.clone(fuelManager)).basic(credentials.username, credentials.password)
-    }
-
-    suspend fun resolveTokenAuth(wwwAuth: HttpAuthCredentials, request: Request): Request? {
-        val realm = wwwAuth.singleValueParams["realm"]!!.replace("\"", "")
-        val service = wwwAuth.singleValueParams["service"]!!.replace("\"", "")
-        val scope = wwwAuth.singleValueParams["scope"]!!.replace("\"", "")
-
-        class TokenResponse(val token: String)
-
-        val token = FuelManager.instance.get(realm, listOf("service" to service, "scope" to scope))
-            .let { credentials?.run { AuthenticatedRequest(it).basic(username, password) } ?: it }
-            .awaitResponseResult(jacksonDeserializer<TokenResponse>())
-            .third
-            .map(TokenResponse::token)
-            .getOrNull()
-
-        return token?.let { AuthenticatedRequest(request.clone(FuelManager.instance)).bearer(token) }
-    }
-}
-
-private fun Request.clone(fuelManager: FuelManager): Request {
-    val encoding = Encoding(httpMethod = method, urlString = url.toString())
-    return fuelManager.request(encoding)
-        .header(Headers.from(request.headers))
-        .requestProgress(request.executionOptions.requestProgress)
-        .responseProgress(request.executionOptions.responseProgress)
-        .let { if (!body.isEmpty() && !body.isConsumed()) it.body(request.body) else it }
 }

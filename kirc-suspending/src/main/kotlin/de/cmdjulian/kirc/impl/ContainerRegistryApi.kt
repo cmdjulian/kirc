@@ -17,5 +17,6 @@ internal interface ContainerRegistryApi {
     suspend fun blob(repository: Repository, digest: Digest): Result<ByteArray, FuelError>
     suspend fun manifests(repository: Repository, reference: Reference): Result<Manifest, FuelError>
     suspend fun manifest(repository: Repository, reference: Reference): Result<ManifestSingle, FuelError>
+    suspend fun deleteManifest(repository: Repository, reference: Reference): Result<Digest, FuelError>
     suspend fun digest(repository: Repository, reference: Reference): Result<Digest, FuelError>
 }

@@ -10,7 +10,7 @@ The library is compatible with GraalVM and does already include the required ref
 
 ## Overview
 
-A client can be obtained by the factory pattern from `{MODULE}ClientFactory`.
+A client can be obtained by the factory pattern from `{MODULE}ContainerImageClientFactory`.
 After initializing the client, we can also pin it to a specific container image (repository and reference like Tag or
 Digest) and make it an `ContainerImageClient` with the `.toImageClient()` function. This client is then used to interact
 with a specific Image and provides some Image specific functions like the compressed size.

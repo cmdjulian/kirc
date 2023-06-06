@@ -2,26 +2,26 @@ package de.cmdjulian.kirc.client
 
 import com.github.kittinunf.fuel.core.FuelManager
 import de.cmdjulian.kirc.image.ContainerImageName
-import de.cmdjulian.kirc.impl.ContainerRegistryApi
 import de.cmdjulian.kirc.impl.ContainerRegistryApiImpl
 import de.cmdjulian.kirc.impl.SuspendingContainerImageClientImpl
 import de.cmdjulian.kirc.impl.SuspendingContainerImageRegistryClientImpl
 import de.cmdjulian.kirc.utils.InsecureSSLSocketFactory
 import de.cmdjulian.kirc.utils.NoopHostnameVerifier
 import java.net.Proxy
-import java.net.URL
+import java.net.URI
 import java.security.KeyStore
 
-const val DOCKER_HUB_REGISTRY_URL = "https://registry.hub.docker.com"
+object SuspendingContainerImageClientFactory {
 
-object SuspendingClientFactory {
+    const val DOCKER_HUB_REGISTRY_URL = "https://registry.hub.docker.com"
+
     /**
      * Create a ContainerRegistryClient for a registry. If no args are supplied the client is constructed for Docker
      * Hub with no authentication.
      */
     @JvmStatic
     fun create(
-        url: URL = URL(DOCKER_HUB_REGISTRY_URL),
+        url: URI = URI(DOCKER_HUB_REGISTRY_URL),
         credentials: RegistryCredentials? = null,
         proxy: Proxy? = null,
         skipTlsVerify: Boolean = false,
@@ -38,9 +38,8 @@ object SuspendingClientFactory {
                 socketFactory = InsecureSSLSocketFactory
             }
         }
-        val api: ContainerRegistryApi = ContainerRegistryApiImpl(fuel, credentials)
 
-        return SuspendingContainerImageRegistryClientImpl(api)
+        return SuspendingContainerImageRegistryClientImpl(ContainerRegistryApiImpl(fuel, credentials))
     }
 
     @JvmStatic
@@ -53,7 +52,7 @@ object SuspendingClientFactory {
         keystore: KeyStore? = null,
     ): SuspendingContainerImageClient {
         val url = "${if (insecure) "http://" else "https://"}${image.registry}"
-        val client = create(URL(url), credentials, proxy, skipTlsVerify, keystore)
+        val client = create(URI(url), credentials, proxy, skipTlsVerify, keystore)
 
         return SuspendingContainerImageClientImpl(client, image)
     }
