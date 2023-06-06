@@ -1,6 +1,5 @@
 package de.cmdjulian.kirc.client
 
-import de.cmdjulian.kirc.image.ContainerImageName
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
@@ -26,19 +25,9 @@ interface SuspendingContainerImageRegistryClient {
     suspend fun tags(repository: Repository, limit: Int? = null, last: Int? = null): List<Tag>
 
     /**
-     * Check if the image exists.
-     */
-    suspend fun exists(image: ContainerImageName): Boolean = exists(image.repository, image.reference)
-
-    /**
      * Check if the image with the reference exists.
      */
     suspend fun exists(repository: Repository, reference: Reference): Boolean
-
-    /**
-     * Retrieve a manifest.
-     */
-    suspend fun manifest(image: ContainerImageName): Manifest = manifest(image.repository, image.reference)
 
     /**
      * Retrieve a manifest.
@@ -48,13 +37,7 @@ interface SuspendingContainerImageRegistryClient {
     /**
      * Get the digest of the manifest for the provided tag.
      */
-    suspend fun manifestDigest(image: ContainerImageName): Digest =
-        image.digest ?: manifestDigest(image.repository, image.tag!!)
-
-    /**
-     * Get the digest of the manifest for the provided tag.
-     */
-    suspend fun manifestDigest(repository: Repository, tag: Tag): Digest
+    suspend fun manifestDigest(repository: Repository, reference: Reference): Digest
 
     /**
      * Delete a manifest.
@@ -75,17 +58,6 @@ interface SuspendingContainerImageRegistryClient {
      *
      * To be safe, it's better to use [config] instead.
      */
-    suspend fun config(image: ContainerImageName): ImageConfig = config(image.repository, image.reference)
-
-    /**
-     * Get the config of an Image by its reference.
-     * This method should only be used, if you know, that the underlying image identified by [reference] is not a
-     * ManifestList and is identified uniquely.
-     * If the [reference] points to a ManifestList, the behaviour is up to the registry. Usually the first entry of the
-     * list is returned.
-     *
-     * To be safe, it's better to use [config] instead.
-     */
     suspend fun config(repository: Repository, reference: Reference): ImageConfig
 
     /**
@@ -96,10 +68,14 @@ interface SuspendingContainerImageRegistryClient {
     /**
      * Convert general Client to DockerImageClient.
      */
-    suspend fun toImageClient(image: ContainerImageName): SuspendingContainerImageClient
+    suspend fun toImageClient(repository: Repository, reference: Reference): SuspendingContainerImageClient
 
     /**
      * Convert general Client to DockerImageClient.
      */
-    fun toImageClient(image: ContainerImageName, manifest: ManifestSingle): SuspendingContainerImageClient
+    fun toImageClient(
+        repository: Repository,
+        reference: Reference,
+        manifest: ManifestSingle,
+    ): SuspendingContainerImageClient
 }

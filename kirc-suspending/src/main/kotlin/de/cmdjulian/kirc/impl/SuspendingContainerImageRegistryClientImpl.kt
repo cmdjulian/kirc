@@ -57,8 +57,8 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
     override suspend fun manifestDelete(repository: Repository, reference: Reference): Digest =
         api.deleteManifest(repository, reference).getOrElse { throw it.toRegistryClientError() }
 
-    override suspend fun manifestDigest(repository: Repository, tag: Tag): Digest =
-        api.digest(repository, tag).getOrElse { throw it.toRegistryClientError() }
+    override suspend fun manifestDigest(repository: Repository, reference: Reference): Digest =
+        api.digest(repository, reference).getOrElse { throw it.toRegistryClientError() }
 
     override suspend fun blob(repository: Repository, digest: Digest): ByteArray =
         api.blob(repository, digest).getOrElse { throw it.toRegistryClientError() }
@@ -78,11 +78,36 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
             }
             .getOrElse { throw it.toRegistryClientError() }
 
-    override suspend fun toImageClient(image: ContainerImageName): SuspendingContainerImageClient =
-        SuspendingContainerImageClientImpl(this, image)
+    override suspend fun toImageClient(repository: Repository, reference: Reference): SuspendingContainerImageClient =
+        when (reference) {
+            is Tag -> SuspendingContainerImageClientImpl(
+                this,
+                ContainerImageName(repository = repository, tag = reference),
+            )
 
-    override fun toImageClient(image: ContainerImageName, manifest: ManifestSingle): SuspendingContainerImageClient =
-        SuspendingContainerImageClientImpl(this, image, manifest)
+            is Digest -> SuspendingContainerImageClientImpl(
+                this,
+                ContainerImageName(repository = repository, digest = reference),
+            )
+        }
+
+    override fun toImageClient(
+        repository: Repository,
+        reference: Reference,
+        manifest: ManifestSingle,
+    ) = when (reference) {
+        is Tag -> SuspendingContainerImageClientImpl(
+            this,
+            ContainerImageName(repository = repository, tag = reference),
+            manifest,
+        )
+
+        is Digest -> SuspendingContainerImageClientImpl(
+            this,
+            ContainerImageName(repository = repository, digest = reference),
+            manifest,
+        )
+    }
 }
 
 private fun FuelError.toRegistryClientError(): RegistryClientException = when (response.statusCode) {

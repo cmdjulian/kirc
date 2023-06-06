@@ -1,6 +1,5 @@
 package de.cmdjulian.kirc.client
 
-import de.cmdjulian.kirc.image.ContainerImageName
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
@@ -14,7 +13,6 @@ import kotlinx.coroutines.runBlocking
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-@JvmDefaultWithCompatibility
 interface ReactiveContainerImageRegistryClient {
     /**
      * Checks if the registry is reachable and configured correctly. If not, a detailed Exception is thrown.
@@ -32,11 +30,6 @@ interface ReactiveContainerImageRegistryClient {
     fun tags(repository: Repository, limit: Int? = null, last: Int? = null): Flux<Tag>
 
     /**
-     * Check if the image exists.
-     */
-    fun exists(image: ContainerImageName): Mono<Boolean> = exists(image.repository, image.reference)
-
-    /**
      * Check if the image with the reference exists.
      */
     fun exists(repository: Repository, reference: Reference): Mono<Boolean>
@@ -44,18 +37,7 @@ interface ReactiveContainerImageRegistryClient {
     /**
      * Retrieve a manifest.
      */
-    fun manifest(image: ContainerImageName): Mono<Manifest> = manifest(image.repository, image.reference)
-
-    /**
-     * Retrieve a manifest.
-     */
     fun manifest(repository: Repository, reference: Reference): Mono<Manifest>
-
-    /**
-     * Get the digest of the manifest for the provided tag.
-     */
-    fun manifestDigest(image: ContainerImageName): Mono<Digest> =
-        image.digest?.let { Mono.just(it) } ?: manifestDigest(image.repository, image.tag!!)
 
     /**
      * Get the digest of the manifest for the provided tag.
@@ -81,17 +63,6 @@ interface ReactiveContainerImageRegistryClient {
      *
      * To be safe, it's better to use [config] instead.
      */
-    fun config(image: ContainerImageName): Mono<ImageConfig> = config(image.repository, image.reference)
-
-    /**
-     * Get the config of an Image by its reference.
-     * This method should only be used, if you know, that the underlying image identified by [reference] is not a
-     * ManifestList and is identified uniquely.
-     * If the [reference] points to a ManifestList, the behaviour is up to the registry. Usually the first entry of the
-     * list is returned.
-     *
-     * To be safe, it's better to use [config] instead.
-     */
     fun config(repository: Repository, reference: Reference): Mono<ImageConfig>
 
     /**
@@ -102,12 +73,11 @@ interface ReactiveContainerImageRegistryClient {
     /**
      * Convert general Client to DockerImageClient.
      */
-    fun toImageClient(image: ContainerImageName): Mono<ReactiveContainerImageClient>
-
-    /**
-     * Convert general Client to DockerImageClient.
-     */
-    fun toImageClient(image: ContainerImageName, manifest: ManifestSingle): ReactiveContainerImageClient
+    fun toImageClient(
+        repository: Repository,
+        reference: Reference,
+        manifest: ManifestSingle? = null,
+    ): Mono<ReactiveContainerImageClient>
 }
 
 fun SuspendingContainerImageRegistryClient.toReactiveClient() = object : ReactiveContainerImageRegistryClient {
@@ -140,9 +110,15 @@ fun SuspendingContainerImageRegistryClient.toReactiveClient() = object : Reactiv
     override fun blob(repository: Repository, digest: Digest): Mono<ByteArray> =
         mono { this@toReactiveClient.blob(repository, digest) }
 
-    override fun toImageClient(image: ContainerImageName): Mono<ReactiveContainerImageClient> =
-        mono { this@toReactiveClient.toImageClient(image).toReactiveClient() }
-
-    override fun toImageClient(image: ContainerImageName, manifest: ManifestSingle): ReactiveContainerImageClient =
-        this@toReactiveClient.toImageClient(image, manifest).toReactiveClient()
+    override fun toImageClient(
+        repository: Repository,
+        reference: Reference,
+        manifest: ManifestSingle?,
+    ): Mono<ReactiveContainerImageClient> {
+        return if (manifest == null) {
+            mono { this@toReactiveClient.toImageClient(repository, reference).toReactiveClient() }
+        } else {
+            Mono.just(this@toReactiveClient.toImageClient(repository, reference, manifest).toReactiveClient())
+        }
+    }
 }

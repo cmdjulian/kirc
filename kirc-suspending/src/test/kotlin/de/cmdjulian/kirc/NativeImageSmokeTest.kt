@@ -15,12 +15,10 @@ private suspend fun extracted(client: SuspendingContainerImageRegistryClient, im
         client.tags(image.repository, 1).also(::println)
 
         // exists
-        client.exists(image).also(::println)
         client.exists(image.repository, image.reference).also(::println)
 
         // digest
-        image.tag?.let { client.manifestDigest(image.repository, it).also(::println) }
-        val digest = client.manifestDigest(image).also(::println)
+        val digest = client.manifestDigest(image.repository, image.reference).also(::println)
 
         // manifest
         val manifest: ManifestSingle = when (val manifest = client.manifest(image.repository, digest).also(::println)) {
@@ -29,21 +27,21 @@ private suspend fun extracted(client: SuspendingContainerImageRegistryClient, im
         }
 
         // config
-        client.config(image).also(::println)
         client.config(image.repository, image.reference).also(::println)
 
         // blob
         client.blob(image.repository, manifest.layers.first().digest).also(::println)
 
         // image client
-        client.toImageClient(image, manifest).also(::println)
-        val imageClient = client.toImageClient(image)
+        val imageClient = client.toImageClient(image.repository, image.reference, manifest)
         imageClient.tags().also(::println)
         imageClient.manifest().also(::println)
         imageClient.config().also(::println)
         imageClient.blobs().also(::println)
         imageClient.size().also(::println)
         imageClient.toImage().also(::println)
+
+        client.manifestDelete(image.repository, image.reference)
     } catch (e: Exception) {
         throw e
     }
