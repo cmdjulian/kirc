@@ -6,11 +6,10 @@ import com.fasterxml.jackson.annotation.JsonValue
 @JvmDefaultWithCompatibility
 sealed interface Reference {
     val separator: Char
-
     fun asImagePart() = "$separator${toString()}"
 }
 
-class Tag(@JsonValue private val value: String) : Reference {
+class Tag @JsonCreator constructor(@JsonValue private val value: String) : Reference {
     init {
         require(value.matches(Regex("\\w[\\w.\\-]{0,127}"))) { "invalid tag" }
     }
@@ -24,15 +23,10 @@ class Tag(@JsonValue private val value: String) : Reference {
     companion object {
         val LATEST = Tag("latest")
         const val separator: Char = ':'
-
-        // deserializer
-        @JvmStatic
-        @JsonCreator
-        fun of(value: String) = Tag(value)
     }
 }
 
-class Digest(@JsonValue private val value: String) : Reference, Comparable<Digest> {
+class Digest @JsonCreator constructor(@JsonValue private val value: String) : Reference, Comparable<Digest> {
     init {
         require(value.matches(Regex("sha256:[\\da-fA-F]{32,}"))) { "invalid digest" }
     }
@@ -47,10 +41,5 @@ class Digest(@JsonValue private val value: String) : Reference, Comparable<Diges
 
     companion object {
         const val separator: Char = '@'
-
-        // deserializer
-        @JvmStatic
-        @JsonCreator
-        fun of(value: String) = Digest(value)
     }
 }
