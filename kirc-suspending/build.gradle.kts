@@ -25,6 +25,9 @@ dependencies {
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jdk8")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 
+    // logging
+    implementation("io.github.microutils:kotlin-logging-jvm:3.0.5")
+
     // insecure connections
     implementation("io.github.hakky54:sslcontext-kickstart:8.0.0")
 
