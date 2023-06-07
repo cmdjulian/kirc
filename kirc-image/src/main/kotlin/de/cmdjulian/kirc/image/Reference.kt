@@ -3,7 +3,7 @@ package de.cmdjulian.kirc.image
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonValue
 
-@JvmDefaultWithCompatibility
+@JvmDefaultWithoutCompatibility
 sealed interface Reference {
     val separator: Char
     fun asImagePart() = "$separator${toString()}"
