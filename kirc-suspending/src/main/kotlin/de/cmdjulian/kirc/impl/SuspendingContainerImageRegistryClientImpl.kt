@@ -24,21 +24,16 @@ import de.cmdjulian.kirc.impl.response.Catalog
 import de.cmdjulian.kirc.impl.response.TagList
 import de.cmdjulian.kirc.spec.image.DockerImageConfigV1
 import de.cmdjulian.kirc.spec.image.ImageConfig
-import de.cmdjulian.kirc.spec.image.OciImageConfigV1
 import de.cmdjulian.kirc.spec.manifest.DockerManifestV2
 import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestV1
-import mu.KotlinLogging
 
 internal class SuspendingContainerImageRegistryClientImpl(private val api: ContainerRegistryApi) :
     SuspendingContainerImageRegistryClient {
 
-    private val logger = KotlinLogging.logger { }
-
     override suspend fun testConnection() {
         api.ping().onError {
-            logger.trace(it) { "error on ping" }
             throw it.toRegistryClientError()
         }
     }
@@ -46,56 +41,47 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
     override suspend fun repositories(limit: Int?, last: Int?): List<Repository> =
         api.repositories(limit, last)
             .map(Catalog::repositories)
-            .onError { logger.trace(it) { "error on repositories retrieve" } }
             .getOrElse { throw it.toRegistryClientError() }
 
     override suspend fun tags(repository: Repository, limit: Int?, last: Int?): List<Tag> =
         api.tags(repository, limit, last)
             .map(TagList::tags)
-            .onError { logger.trace(it) { "error on tags retrieve" } }
             .getOrElse { throw it.toRegistryClientError() }
 
     override suspend fun exists(repository: Repository, reference: Reference): Boolean =
         api.digest(repository, reference)
             .map { true }
-            .onError { logger.trace(it) { "error on exists" } }
             .getOrElse { if (it.response.statusCode == 404) false else throw it.toRegistryClientError() }
 
     override suspend fun manifest(repository: Repository, reference: Reference): Manifest =
         api.manifests(repository, reference)
-            .onError { logger.trace(it) { "error on manifest retrieve" } }
             .getOrElse { throw it.toRegistryClientError() }
 
     override suspend fun manifestDelete(repository: Repository, reference: Reference): Digest =
         api.deleteManifest(repository, reference)
-            .onError { logger.trace(it) { "error on delete manifest" } }
             .getOrElse { throw it.toRegistryClientError() }
 
     override suspend fun manifestDigest(repository: Repository, reference: Reference): Digest =
         api.digest(repository, reference)
-            .onError { logger.trace(it) { "error on manifest digest retrieve" } }
             .getOrElse { throw it.toRegistryClientError() }
 
     override suspend fun blob(repository: Repository, digest: Digest): ByteArray =
         api.blob(repository, digest)
-            .onError { logger.trace(it) { "error on blob retrieve" } }
             .getOrElse { throw it.toRegistryClientError() }
 
     override suspend fun config(repository: Repository, reference: Reference): ImageConfig =
         api.manifest(repository, reference)
             .map { config(repository, it) }
-            .onError { logger.trace(it) { "error on image config retrieve" } }
             .getOrElse { throw it.toRegistryClientError() }
 
     override suspend fun config(repository: Repository, manifest: ManifestSingle): ImageConfig =
         api.blob(repository, manifest.config.digest)
             .map { config ->
                 when (manifest) {
-                    is DockerManifestV2 -> JsonMapper.readValue<DockerImageConfigV1>(config)
-                    is OciManifestV1 -> JsonMapper.readValue<OciImageConfigV1>(config)
+                    is DockerManifestV2 -> jacksonDeserializer<DockerImageConfigV1>().deserialize(config)
+                    is OciManifestV1 -> jacksonDeserializer<DockerImageConfigV1>().deserialize(config)
                 }
             }
-            .onError { logger.trace(it) { "error on image config retrieve" } }
             .getOrElse { throw it.toRegistryClientError() }
 
     override suspend fun toImageClient(repository: Repository, reference: Reference): SuspendingContainerImageClient =
