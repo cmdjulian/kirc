@@ -8,7 +8,7 @@ import org.jlleitschuh.gradle.ktlint.KtlintExtension
 import java.util.*
 
 plugins {
-    kotlin("jvm") version "1.8.21" apply false
+    kotlin("jvm") version "1.8.22" apply false
     kotlin("libs.publisher") version "0.0.61-dev-34"
     id("org.jlleitschuh.gradle.ktlint") version "11.4.0" apply false
     id("org.owasp.dependencycheck") version "8.2.1" apply false // "dependencyCheckAnalyze"
