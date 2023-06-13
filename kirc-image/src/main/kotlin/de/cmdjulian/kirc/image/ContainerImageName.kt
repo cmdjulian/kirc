@@ -1,5 +1,12 @@
 package de.cmdjulian.kirc.image
 
+data class ContainerImageNameComponents(
+    val registry: Registry?,
+    val repository: Repository,
+    val tag: Tag?,
+    val digest: Digest?,
+)
+
 /**
  * Parses a docker image name from a provided string.
  *
@@ -36,11 +43,11 @@ class ContainerImageName(
 
     override fun equals(other: Any?): Boolean = when {
         this === other -> true
-        other !is ContainerImageName -> false
-        registry != other.registry -> false
-        repository != other.repository -> false
-        reference != other.reference -> false
-        else -> true
+        else ->
+            other is ContainerImageName &&
+                registry == other.registry &&
+                repository == other.repository &&
+                reference == other.reference
     }
 
     override fun hashCode(): Int {
@@ -62,6 +69,17 @@ class ContainerImageName(
 
         @JvmStatic
         fun parse(image: String): ContainerImageName {
+            val (registry, repository, tag, digest) = parseComponents(image)
+
+            return if (registry == null) {
+                ContainerImageName(repository = repository, tag = tag, digest = digest)
+            } else {
+                ContainerImageName(registry, repository, tag, digest)
+            }
+        }
+
+        @JvmStatic
+        fun parseComponents(image: String): ContainerImageNameComponents {
             val slashIndex = image.indexOf('/')
             val isRegistryMissing = slashIndex == -1 ||
                 "." !in image.substring(0, slashIndex) &&
@@ -72,11 +90,7 @@ class ContainerImageName(
             val registry = if (isRegistryMissing) null else Registry(image.substring(0, slashIndex))
             val (repository, tag, digest) = parseRepositoryAndVersion(remoteName)
 
-            return if (registry == null) {
-                ContainerImageName(repository = repository, tag = tag, digest = digest)
-            } else {
-                ContainerImageName(registry, repository, tag, digest)
-            }
+            return ContainerImageNameComponents(registry, repository, tag, digest)
         }
 
         private fun parseRepositoryAndVersion(remoteName: String) = when {
