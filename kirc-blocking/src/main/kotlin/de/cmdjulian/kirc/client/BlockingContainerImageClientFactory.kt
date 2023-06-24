@@ -5,6 +5,7 @@ import kotlinx.coroutines.runBlocking
 import java.net.Proxy
 import java.net.URI
 import java.security.KeyStore
+import java.time.Duration
 
 object BlockingContainerImageClientFactory {
 
@@ -23,8 +24,9 @@ object BlockingContainerImageClientFactory {
         proxy: Proxy? = null,
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
+        timeout: Duration = Duration.ofSeconds(5),
     ): BlockingContainerImageRegistryClient =
-        SuspendingContainerImageClientFactory.create(url, credentials, proxy, skipTlsVerify, keystore)
+        SuspendingContainerImageClientFactory.create(url, credentials, proxy, skipTlsVerify, keystore, timeout)
             .toBlockingClient()
 
     @JvmStatic
@@ -36,8 +38,10 @@ object BlockingContainerImageClientFactory {
         insecure: Boolean = false,
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
+        timeout: Duration = Duration.ofSeconds(5),
     ): BlockingContainerImageClient = runBlocking {
-        SuspendingContainerImageClientFactory.create(image, credentials, proxy, insecure, skipTlsVerify, keystore)
+        SuspendingContainerImageClientFactory
+            .create(image, credentials, proxy, insecure, skipTlsVerify, keystore, timeout)
             .toBlockingClient()
     }
 }

@@ -10,6 +10,7 @@ import de.cmdjulian.kirc.utils.NoopHostnameVerifier
 import java.net.Proxy
 import java.net.URI
 import java.security.KeyStore
+import java.time.Duration
 
 object SuspendingContainerImageClientFactory {
 
@@ -26,12 +27,17 @@ object SuspendingContainerImageClientFactory {
         proxy: Proxy? = null,
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
+        timeout: Duration = Duration.ofSeconds(5),
     ): SuspendingContainerImageRegistryClient {
         require(keystore == null || !skipTlsVerify) { "can not skip tls verify if a keystore is set" }
+        require(timeout.toMillis() in Int.MIN_VALUE..Int.MAX_VALUE) { "timeout in ms has to be a valid int" }
 
         val fuel = FuelManager().apply {
             this.basePath = url.toString()
             this.proxy = proxy
+            this.keystore = keystore
+            this.timeoutInMillisecond = timeout.toMillis().toInt()
+            this.timeoutReadInMillisecond = timeout.toMillis().toInt()
 
             if (skipTlsVerify) {
                 hostnameVerifier = NoopHostnameVerifier
@@ -50,9 +56,10 @@ object SuspendingContainerImageClientFactory {
         insecure: Boolean = false,
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
+        timeout: Duration = Duration.ofSeconds(5),
     ): SuspendingContainerImageClient {
         val url = "${if (insecure) "http://" else "https://"}${image.registry}"
-        val client = create(URI(url), credentials, proxy, skipTlsVerify, keystore)
+        val client = create(URI(url), credentials, proxy, skipTlsVerify, keystore, timeout)
 
         return SuspendingContainerImageClientImpl(client, image)
     }
