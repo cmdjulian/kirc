@@ -21,9 +21,6 @@
     "name": "[Ljava.lang.String;"
   },
   {
-    "name": "[Lsun.security.pkcs.SignerInfo;"
-  },
-  {
     "name": "com.fasterxml.jackson.databind.PropertyNamingStrategies$LowerDotCaseStrategy",
     "methods": [
       {
@@ -354,6 +351,15 @@
     "name": "de.cmdjulian.kirc.spec.manifest.OciManifestV1"
   },
   {
+    "name": "java.io.ObjectInputStream"
+  },
+  {
+    "name": "java.io.Serializable",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "queryAllDeclaredMethods": true
+  },
+  {
     "name": "java.lang.Boolean"
   },
   {
@@ -427,31 +433,16 @@
     ]
   },
   {
-    "name": "kotlin.Any"
+    "name": "java.time.OffsetDateTime"
   },
   {
-    "name": "kotlin.Array"
+    "name": "java.util.Date"
   },
   {
-    "name": "kotlin.Boolean"
+    "name": "java.util.List"
   },
   {
-    "name": "kotlin.Byte"
-  },
-  {
-    "name": "kotlin.Char"
-  },
-  {
-    "name": "kotlin.Comparable"
-  },
-  {
-    "name": "kotlin.Enum"
-  },
-  {
-    "name": "kotlin.Int"
-  },
-  {
-    "name": "kotlin.Long"
+    "name": "java.util.Map"
   },
   {
     "name": "kotlin.Metadata",
@@ -492,18 +483,6 @@
     ]
   },
   {
-    "name": "kotlin.String"
-  },
-  {
-    "name": "kotlin.Unit"
-  },
-  {
-    "name": "kotlin.collections.List"
-  },
-  {
-    "name": "kotlin.collections.Map"
-  },
-  {
     "name": "kotlin.jvm.internal.DefaultConstructorMarker"
   },
   {
@@ -518,26 +497,5 @@
   {
     "name": "kotlin.reflect.jvm.internal.impl.resolve.scopes.DescriptorKindFilter",
     "allPublicFields": true
-  },
-  {
-    "name": "java.time.OffsetDateTime"
-  },
-  {
-    "name": "java.util.Date"
-  },
-  {
-    "name": "java.util.List"
-  },
-  {
-    "name": "java.util.Map"
-  },
-  {
-    "name": "java.io.ObjectInputStream"
-  },
-  {
-    "name": "java.io.Serializable",
-    "allDeclaredFields": true,
-    "allDeclaredClasses": true,
-    "queryAllDeclaredMethods": true
   }
 ]

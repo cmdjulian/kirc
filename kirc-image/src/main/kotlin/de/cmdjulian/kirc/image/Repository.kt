@@ -3,9 +3,9 @@ package de.cmdjulian.kirc.image
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonValue
 import java.nio.file.Path
-import java.util.Locale
+import java.util.*
 
-class Repository @JsonCreator constructor(@JsonValue private val value: String) {
+class Repository(@JsonValue private val value: String) {
     init {
         require(!Path.of(value).isAbsolute) { "invalid repository, has to be relative" }
         require(value == value.lowercase(Locale.getDefault())) {
@@ -21,4 +21,10 @@ class Repository @JsonCreator constructor(@JsonValue private val value: String) 
     override fun equals(other: Any?): Boolean = other is Repository && other.value == value
     override fun hashCode(): Int = value.hashCode()
     override fun toString(): String = value
+
+    companion object {
+        @JvmStatic
+        @JsonCreator
+        fun of(repository: String) = Repository(repository)
+    }
 }

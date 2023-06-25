@@ -12,7 +12,7 @@ object NativeImageSmokeTest {
     @JvmStatic
     fun main(args: Array<String>) {
         val kanikoClient = BlockingContainerImageClientFactory.create(
-            credentials = RegistryCredentials("cmdjulian", "R!rb8pm53%ws9dg&24NTMFasH*AMadmX"),
+            credentials = RegistryCredentials("cmdjulian", "changeMe"),
         )
         val kaniko = ContainerImageName.parse("cmdjulian/kaniko:v1.8.1")
         extracted(kanikoClient, kaniko)

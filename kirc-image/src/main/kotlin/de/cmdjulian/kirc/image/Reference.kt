@@ -9,7 +9,7 @@ sealed interface Reference {
     fun asImagePart() = "$separator${toString()}"
 }
 
-class Tag @JsonCreator constructor(@JsonValue private val value: String) : Reference {
+class Tag(@JsonValue private val value: String) : Reference {
     init {
         require(value.matches(Regex("\\w[\\w.\\-]{0,127}"))) { "invalid tag" }
     }
@@ -23,10 +23,14 @@ class Tag @JsonCreator constructor(@JsonValue private val value: String) : Refer
     companion object {
         val LATEST = Tag("latest")
         const val separator: Char = ':'
+
+        @JvmStatic
+        @JsonCreator
+        fun of(tag: String) = Tag(tag)
     }
 }
 
-class Digest @JsonCreator constructor(@JsonValue private val value: String) : Reference, Comparable<Digest> {
+class Digest(@JsonValue private val value: String) : Reference, Comparable<Digest> {
     init {
         require(value.matches(Regex("sha256:[\\da-fA-F]{32,}"))) { "invalid digest" }
     }
@@ -41,5 +45,9 @@ class Digest @JsonCreator constructor(@JsonValue private val value: String) : Re
 
     companion object {
         const val separator: Char = '@'
+
+        @JvmStatic
+        @JsonCreator
+        fun of(digest: String) = Digest(digest)
     }
 }

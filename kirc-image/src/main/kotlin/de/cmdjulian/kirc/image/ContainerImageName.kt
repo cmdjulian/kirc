@@ -1,5 +1,8 @@
 package de.cmdjulian.kirc.image
 
+import com.fasterxml.jackson.annotation.JsonCreator
+import com.fasterxml.jackson.annotation.JsonValue
+
 data class ContainerImageNameComponents(
     val registry: Registry?,
     val repository: Repository,
@@ -57,6 +60,7 @@ class ContainerImageName(
         return result
     }
 
+    @JsonValue
     override fun toString(): String {
         val tagComponent = tag?.asImagePart() ?: ""
         val digestComponent = digest?.asImagePart() ?: ""
@@ -68,6 +72,7 @@ class ContainerImageName(
         const val DOCKER_HUB_REGISTRY = "docker.io"
 
         @JvmStatic
+        @JsonCreator
         fun parse(image: String): ContainerImageName {
             val (registry, repository, tag, digest) = parseComponents(image)
 
