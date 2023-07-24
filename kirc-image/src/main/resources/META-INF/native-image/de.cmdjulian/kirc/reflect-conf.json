@@ -1,5 +1,18 @@
 [
   {
+    "name": "com.fasterxml.jackson.annotation.JsonCreator",
+    "queryAllDeclaredMethods": true,
+    "methods": [
+      {
+        "name": "mode",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.fasterxml.jackson.annotation.JsonValue"
+  },
+  {
     "name": "de.cmdjulian.kirc.image.ContainerImageName",
     "allDeclaredFields": true,
     "queryAllDeclaredMethods": true,
@@ -12,7 +25,36 @@
         ]
       },
       {
+        "name": "getReference",
+        "parameterTypes": []
+      },
+      {
         "name": "toString",
+        "parameterTypes": []
+      },
+      {
+        "name": "getRegistry",
+        "parameterTypes": []
+      },
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "de.cmdjulian.kirc.image.Registry",
+          "de.cmdjulian.kirc.image.Repository",
+          "de.cmdjulian.kirc.image.Tag",
+          "de.cmdjulian.kirc.image.Digest"
+        ]
+      },
+      {
+        "name": "getRepository",
+        "parameterTypes": []
+      },
+      {
+        "name": "getTag",
+        "parameterTypes": []
+      },
+      {
+        "name": "getDigest",
         "parameterTypes": []
       }
     ]
@@ -28,8 +70,17 @@
         "parameterTypes": [
           "java.lang.String"
         ]
+      },
+      {
+        "name": "parseComponents",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
       }
     ]
+  },
+  {
+    "name": "de.cmdjulian.kirc.image.ContainerImageNameComponents"
   },
   {
     "name": "de.cmdjulian.kirc.image.Digest",
