@@ -22,7 +22,7 @@ dependencyResolutionManagement {
             library("bom", "com.fasterxml.jackson:jackson-bom:2.15.2")
         }
         create("tests") {
-            library("junit-bom", "org.junit:junit-bom:5.9.3")
+            library("junit-bom", "org.junit:junit-bom:5.10.0")
             library("junit-api", "org.junit.jupiter", "junit-jupiter-api").withoutVersion()
             library("junit-params", "org.junit.jupiter", "junit-jupiter-params").withoutVersion()
             library("junit-engine", "org.junit.jupiter", "junit-jupiter-engine").withoutVersion()
