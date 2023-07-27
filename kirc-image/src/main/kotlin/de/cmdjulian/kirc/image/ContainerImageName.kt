@@ -32,7 +32,7 @@ class ContainerImageName(
     val repository: Repository,
     tag: Tag? = null,
     val digest: Digest? = null,
-) {
+) : Comparable<ContainerImageName> {
 
     val tag = if (tag == null && digest == null) Tag.LATEST else tag
     val reference get() = digest ?: this.tag!!
@@ -43,6 +43,8 @@ class ContainerImageName(
         tag: Tag? = this.tag,
         digest: Digest? = this.digest,
     ) = ContainerImageName(registry, repository, tag, digest)
+
+    override fun compareTo(other: ContainerImageName): Int = this.toString().compareTo(other.toString())
 
     override fun equals(other: Any?): Boolean = when {
         this === other -> true

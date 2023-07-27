@@ -3,7 +3,7 @@ package de.cmdjulian.kirc.image
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonValue
 
-class Registry(@JsonValue private val value: String) {
+class Registry(@JsonValue private val value: String) : Comparable<Registry> {
     //language=RegExp
     companion object {
         private const val IP_ADDRESS = "(((25[0-5]|(2[0-4]|1\\d|[1-9]|)\\d)\\.?\\b){4})"
@@ -21,6 +21,7 @@ class Registry(@JsonValue private val value: String) {
         require(value.matches(regex)) { "invalid registry" }
     }
 
+    override fun compareTo(other: Registry): Int = value.compareTo(value)
     override fun equals(other: Any?): Boolean = other is Registry && other.value == value
     override fun hashCode(): Int = value.hashCode()
     override fun toString(): String = value

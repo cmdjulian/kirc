@@ -9,12 +9,13 @@ sealed interface Reference {
     fun asImagePart() = "$separator${toString()}"
 }
 
-class Tag(@JsonValue private val value: String) : Reference {
+class Tag(@JsonValue private val value: String) : Reference, Comparable<Tag> {
     init {
         require(value.matches(Regex("\\w[\\w.\\-]{0,127}"))) { "invalid tag" }
     }
 
     override val separator: Char get() = Companion.separator
+    override fun compareTo(other: Tag): Int = value.compareTo(value)
 
     override fun equals(other: Any?): Boolean = other is Tag && other.value == value
     override fun hashCode(): Int = value.hashCode()
