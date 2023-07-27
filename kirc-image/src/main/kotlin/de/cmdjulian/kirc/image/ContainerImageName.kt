@@ -35,7 +35,7 @@ class ContainerImageName(
 ) : Comparable<ContainerImageName> {
 
     val tag = if (tag == null && digest == null) Tag.LATEST else tag
-    val reference get() = digest ?: this.tag!!
+    val reference: Reference get() = digest ?: this.tag!!
 
     fun copy(
         registry: Registry = this.registry,
