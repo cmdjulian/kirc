@@ -19,24 +19,6 @@
     "queryAllDeclaredConstructors": true,
     "methods": [
       {
-        "name": "parse",
-        "parameterTypes": [
-          "java.lang.String"
-        ]
-      },
-      {
-        "name": "getReference",
-        "parameterTypes": []
-      },
-      {
-        "name": "toString",
-        "parameterTypes": []
-      },
-      {
-        "name": "getRegistry",
-        "parameterTypes": []
-      },
-      {
         "name": "<init>",
         "parameterTypes": [
           "de.cmdjulian.kirc.image.Registry",
@@ -44,6 +26,18 @@
           "de.cmdjulian.kirc.image.Tag",
           "de.cmdjulian.kirc.image.Digest"
         ]
+      },
+      {
+        "name": "getDigest",
+        "parameterTypes": []
+      },
+      {
+        "name": "getReference",
+        "parameterTypes": []
+      },
+      {
+        "name": "getRegistry",
+        "parameterTypes": []
       },
       {
         "name": "getRepository",
@@ -54,7 +48,13 @@
         "parameterTypes": []
       },
       {
-        "name": "getDigest",
+        "name": "parse",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      },
+      {
+        "name": "toString",
         "parameterTypes": []
       }
     ]
@@ -97,12 +97,6 @@
       {
         "name": "getSeparator",
         "parameterTypes": []
-      },
-      {
-        "name": "of",
-        "parameterTypes": [
-          "java.lang.String"
-        ]
       }
     ]
   },
@@ -169,12 +163,6 @@
         "parameterTypes": [
           "java.lang.String"
         ]
-      },
-      {
-        "name": "of",
-        "parameterTypes": [
-          "java.lang.String"
-        ]
       }
     ]
   },
@@ -207,12 +195,6 @@
       {
         "name": "getSeparator",
         "parameterTypes": []
-      },
-      {
-        "name": "of",
-        "parameterTypes": [
-          "java.lang.String"
-        ]
       }
     ]
   },
