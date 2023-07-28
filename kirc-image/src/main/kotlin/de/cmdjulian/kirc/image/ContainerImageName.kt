@@ -44,7 +44,7 @@ class ContainerImageName(
         digest: Digest? = this.digest,
     ) = ContainerImageName(registry, repository, tag, digest)
 
-    override fun compareTo(other: ContainerImageName): Int = this.toString().compareTo(other.toString())
+    override fun compareTo(other: ContainerImageName): Int = toString().compareTo(other.toString())
 
     override fun equals(other: Any?): Boolean = when {
         this === other -> true

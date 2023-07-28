@@ -21,7 +21,7 @@ class Registry(@JsonValue private val value: String) : Comparable<Registry> {
         require(value.matches(regex)) { "invalid registry" }
     }
 
-    override fun compareTo(other: Registry): Int = value.compareTo(value)
+    override fun compareTo(other: Registry): Int = value.compareTo(other.value)
     override fun equals(other: Any?): Boolean = other is Registry && other.value == value
     override fun hashCode(): Int = value.hashCode()
     override fun toString(): String = value

@@ -39,7 +39,6 @@ class Digest(@JsonValue private val value: String) : Reference, Comparable<Diges
     override val separator: Char get() = Companion.separator
 
     override fun compareTo(other: Digest): Int = value.compareTo(other.value)
-
     override fun equals(other: Any?): Boolean = other is Digest && other.value == value
     override fun hashCode(): Int = value.hashCode()
     override fun toString(): String = value
