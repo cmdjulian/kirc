@@ -15,7 +15,12 @@ class Tag(@JsonValue private val value: String) : Reference, Comparable<Tag> {
     }
 
     override val separator: Char get() = Companion.separator
-    override fun compareTo(other: Tag): Int = value.compareTo(value)
+
+    override fun compareTo(other: Tag): Int = when {
+        this == LATEST -> if (other == LATEST) 0 else 1
+        other == LATEST -> -1
+        else -> this.value.compareTo(other.value)
+    }
 
     override fun equals(other: Any?): Boolean = other is Tag && other.value == value
     override fun hashCode(): Int = value.hashCode()
