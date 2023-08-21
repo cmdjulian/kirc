@@ -24,6 +24,7 @@ import de.cmdjulian.kirc.impl.response.Catalog
 import de.cmdjulian.kirc.impl.response.TagList
 import de.cmdjulian.kirc.spec.image.DockerImageConfigV1
 import de.cmdjulian.kirc.spec.image.ImageConfig
+import de.cmdjulian.kirc.spec.image.OciImageConfigV1
 import de.cmdjulian.kirc.spec.manifest.DockerManifestV2
 import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
@@ -79,7 +80,7 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
             .map { config ->
                 when (manifest) {
                     is DockerManifestV2 -> jacksonDeserializer<DockerImageConfigV1>().deserialize(config)
-                    is OciManifestV1 -> jacksonDeserializer<DockerImageConfigV1>().deserialize(config)
+                    is OciManifestV1 -> jacksonDeserializer<OciImageConfigV1>().deserialize(config)
                 }
             }
             .getOrElse { throw it.toRegistryClientError() }
