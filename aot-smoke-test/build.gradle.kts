@@ -1,6 +1,6 @@
 plugins {
     application
-    id("org.graalvm.buildtools.native") version "0.9.23"
+    id("org.graalvm.buildtools.native") version "0.9.24"
 }
 
 application {
