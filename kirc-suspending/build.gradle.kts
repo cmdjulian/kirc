@@ -29,7 +29,7 @@ dependencies {
     implementation("io.github.microutils:kotlin-logging-jvm:3.0.5")
 
     // insecure connections
-    implementation("io.github.hakky54:sslcontext-kickstart:8.1.5")
+    implementation("io.github.hakky54:sslcontext-kickstart:8.1.6")
 
     // tests
     testImplementation(platform(tests.junit.bom))
