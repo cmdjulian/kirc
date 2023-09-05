@@ -1,6 +1,7 @@
 package de.cmdjulian.kirc.image
 
 import com.fasterxml.jackson.annotation.JsonCreator
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonValue
 
 class Registry(@JsonValue private val value: String) : Comparable<Registry> {
@@ -11,6 +12,10 @@ class Registry(@JsonValue private val value: String) : Comparable<Registry> {
         private const val PORT =
             "(:(6553[0-5]|655[0-2][0-9]\\d|65[0-4](\\d){2}|6[0-4](\\d){3}|[1-5](\\d){4}|[1-9](\\d){0,3}))"
         val regex = Regex("^($IP_ADDRESS|$DOMAIN)$PORT?\$")
+
+        @JvmField
+        @JsonIgnore
+        val DOCKER = Registry("docker.io")
 
         @JvmStatic
         @JsonCreator
