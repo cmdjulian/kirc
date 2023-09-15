@@ -47,33 +47,35 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
     override suspend fun tags(repository: Repository, limit: Int?, last: Int?): List<Tag> =
         api.tags(repository, limit, last)
             .map(TagList::tags)
-            .getOrElse { throw it.toRegistryClientError() }
+            .getOrElse { throw it.toRegistryClientError(repository, null) }
 
     override suspend fun exists(repository: Repository, reference: Reference): Boolean =
         api.digest(repository, reference)
             .map { true }
-            .getOrElse { if (it.response.statusCode == 404) false else throw it.toRegistryClientError() }
+            .getOrElse {
+                if (it.response.statusCode == 404) false else throw it.toRegistryClientError(repository, reference)
+            }
 
     override suspend fun manifest(repository: Repository, reference: Reference): Manifest =
         api.manifests(repository, reference)
-            .getOrElse { throw it.toRegistryClientError() }
+            .getOrElse { throw it.toRegistryClientError(repository, reference) }
 
     override suspend fun manifestDelete(repository: Repository, reference: Reference): Digest =
         api.deleteManifest(repository, reference)
-            .getOrElse { throw it.toRegistryClientError() }
+            .getOrElse { throw it.toRegistryClientError(repository, reference) }
 
     override suspend fun manifestDigest(repository: Repository, reference: Reference): Digest =
         api.digest(repository, reference)
-            .getOrElse { throw it.toRegistryClientError() }
+            .getOrElse { throw it.toRegistryClientError(repository, reference) }
 
     override suspend fun blob(repository: Repository, digest: Digest): ByteArray =
         api.blob(repository, digest)
-            .getOrElse { throw it.toRegistryClientError() }
+            .getOrElse { throw it.toRegistryClientError(repository) }
 
     override suspend fun config(repository: Repository, reference: Reference): ImageConfig =
         api.manifest(repository, reference)
             .map { config(repository, it) }
-            .getOrElse { throw it.toRegistryClientError() }
+            .getOrElse { throw it.toRegistryClientError(repository, reference) }
 
     override suspend fun config(repository: Repository, manifest: ManifestSingle): ImageConfig =
         api.blob(repository, manifest.config.digest)
@@ -83,7 +85,7 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
                     is OciManifestV1 -> jacksonDeserializer<OciImageConfigV1>().deserialize(config)
                 }
             }
-            .getOrElse { throw it.toRegistryClientError() }
+            .getOrElse { throw it.toRegistryClientError(repository) }
 
     override suspend fun toImageClient(repository: Repository, reference: Reference): SuspendingContainerImageClient =
         when (reference) {
@@ -114,14 +116,27 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
         }
 }
 
-private fun FuelError.toRegistryClientError(): RegistryClientException = when (response.statusCode) {
-    -1 -> NetworkErrorException(this)
-    401 -> AuthenticationException(tryOrNull { JsonMapper.readValue(response.data) }, this)
-    403 -> AuthorizationException(tryOrNull { JsonMapper.readValue(response.data) }, this)
-    404 -> NotFoundException(tryOrNull { JsonMapper.readValue(response.data) }, this)
-    405 -> MethodNotAllowed(tryOrNull { JsonMapper.readValue(response.data) }, this)
-    in 406..499 -> UnexpectedErrorException(tryOrNull { JsonMapper.readValue(response.data) }, this)
-    else -> UnknownErrorException(this)
+private fun FuelError.toRegistryClientError(
+    repository: Repository? = null,
+    reference: Reference? = null,
+): RegistryClientException {
+    val url = this.response.url
+    val data = response.data
+    return when (response.statusCode) {
+        -1 -> NetworkErrorException(url, repository, reference, this)
+
+        401 -> AuthenticationException(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, this)
+
+        403 -> AuthorizationException(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, this)
+
+        404 -> NotFoundException(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, this)
+
+        405 -> MethodNotAllowed(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, this)
+        in 406..499 ->
+            UnexpectedErrorException(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, this)
+
+        else -> UnknownErrorException(url, repository, reference, this)
+    }
 }
 
 private inline fun <T> tryOrNull(block: () -> T): T? = runCatching(block).getOrNull()
