@@ -14,7 +14,7 @@ import java.time.Duration
 
 object SuspendingContainerImageClientFactory {
 
-    const val DOCKER_HUB_REGISTRY_URL = "https://registry.hub.docker.com"
+    const val DOCKER_HUB_REGISTRY_URL = "https://registry.hub.docker.com/"
 
     /**
      * Create a ContainerRegistryClient for a registry. If no args are supplied the client is constructed for Docker

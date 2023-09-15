@@ -18,7 +18,6 @@ internal class ResponseRetryWithAuthentication(
     private val credentials: RegistryCredentials?,
     private val fuelManager: FuelManager,
 ) {
-
     suspend fun <T : Any> retryOnUnauthorized(
         responseResult: ResponseResultOf<T>,
         deserializer: Deserializable<T>,
@@ -61,7 +60,7 @@ internal class ResponseRetryWithAuthentication(
             if (scope != null) add("scope" to scope)
             if (service != null) add("service" to service)
         }
-        val token = FuelManager.instance.get(realm, parameters)
+        val token = fuelManager.get(realm, parameters)
             .let { credentials?.run { AuthenticatedRequest(it).basic(username, password) } ?: it }
             .awaitResponseResult(jacksonDeserializer<TokenResponse>())
             .third

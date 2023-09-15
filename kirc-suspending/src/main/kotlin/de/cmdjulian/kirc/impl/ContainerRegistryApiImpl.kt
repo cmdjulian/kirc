@@ -36,7 +36,7 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
 
     private val handler = ResponseRetryWithAuthentication(credentials, fuelManager)
 
-    override suspend fun ping(): Result<*, FuelError> = fuelManager.get("/")
+    override suspend fun ping(): Result<*, FuelError> = fuelManager.get("/v2/")
         .awaitResponseResult(EmptyDeserializer)
         .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
         .third
