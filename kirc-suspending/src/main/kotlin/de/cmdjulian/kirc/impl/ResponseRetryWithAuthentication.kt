@@ -35,15 +35,9 @@ internal class ResponseRetryWithAuthentication(
     }
 
     private suspend fun retryRequest(header: String?, request: Request): Request? {
-        if (header == null) return null
+        val wwwAuth = header?.runCatching { HttpAuthCredentials.parse(this) }?.getOrNull()
 
-        val wwwAuth = try {
-            HttpAuthCredentials.parse(header)
-        } catch (e: Exception) {
-            return null
-        }
-
-        return when (wwwAuth.scheme) {
+        return when (wwwAuth?.scheme) {
             "Basic" -> resolveBasicAuth(request)
             "Bearer" -> resolveTokenAuth(wwwAuth, request)
             else -> null
@@ -58,12 +52,16 @@ internal class ResponseRetryWithAuthentication(
 
     private suspend fun resolveTokenAuth(wwwAuth: HttpAuthCredentials, request: Request): Request? {
         val realm = wwwAuth.singleValueParams["realm"]!!.replace("\"", "")
-        val service = wwwAuth.singleValueParams["service"]!!.replace("\"", "")
-        val scope = wwwAuth.singleValueParams["scope"]!!.replace("\"", "")
+        val scope = wwwAuth.singleValueParams["scope"]?.replace("\"", "")
+        val service = wwwAuth.singleValueParams["service"]?.replace("\"", "")
 
         class TokenResponse(val token: String)
 
-        val token = FuelManager.instance.get(realm, listOf("service" to service, "scope" to scope))
+        val parameters = buildList {
+            if (scope != null) add("scope" to scope)
+            if (service != null) add("service" to service)
+        }
+        val token = FuelManager.instance.get(realm, parameters)
             .let { credentials?.run { AuthenticatedRequest(it).basic(username, password) } ?: it }
             .awaitResponseResult(jacksonDeserializer<TokenResponse>())
             .third

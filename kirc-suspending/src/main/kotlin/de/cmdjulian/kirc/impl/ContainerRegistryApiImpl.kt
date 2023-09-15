@@ -5,7 +5,6 @@ import com.github.kittinunf.fuel.core.FuelManager
 import com.github.kittinunf.fuel.core.Headers
 import com.github.kittinunf.fuel.core.Parameters
 import com.github.kittinunf.fuel.core.awaitResponseResult
-import com.github.kittinunf.fuel.core.awaitResult
 import com.github.kittinunf.fuel.core.deserializers.ByteArrayDeserializer
 import com.github.kittinunf.fuel.core.deserializers.EmptyDeserializer
 import com.github.kittinunf.result.Result
@@ -37,7 +36,10 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
 
     private val handler = ResponseRetryWithAuthentication(credentials, fuelManager)
 
-    override suspend fun ping(): Result<*, FuelError> = fuelManager.get("/").awaitResult(EmptyDeserializer)
+    override suspend fun ping(): Result<*, FuelError> = fuelManager.get("/")
+        .awaitResponseResult(EmptyDeserializer)
+        .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
+        .third
 
     override suspend fun repositories(limit: Int?, last: Int?): Result<Catalog, FuelError> {
         val parameter: Parameters = buildList {
