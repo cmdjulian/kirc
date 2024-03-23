@@ -29,6 +29,6 @@ jobs:
         java-version: '11'
         distribution: 'liberica'
     - name: Build with Gradle
-      uses: gradle/gradle-build-action@3bfe3a46584a206fb8361cdedd0647b0c4204232
+      uses: gradle/gradle-build-action@942d5e1456472d289f4b112fd3b62244067bac9c
       with:
         arguments: check assemble
