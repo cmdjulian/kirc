@@ -10,6 +10,7 @@ data class DockerManifestListV1(
     override val manifests: List<ManifestListEntry>,
 ) : ManifestList {
     @ReflectionHint
+    @Suppress("ktlint:standard:property-naming")
     companion object {
         const val MediaType = "application/vnd.docker.distribution.manifest.list.v2+json"
     }

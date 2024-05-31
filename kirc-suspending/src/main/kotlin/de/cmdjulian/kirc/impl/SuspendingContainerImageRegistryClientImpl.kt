@@ -39,10 +39,9 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
         }
     }
 
-    override suspend fun repositories(limit: Int?, last: Int?): List<Repository> =
-        api.repositories(limit, last)
-            .map(Catalog::repositories)
-            .getOrElse { throw it.toRegistryClientError() }
+    override suspend fun repositories(limit: Int?, last: Int?): List<Repository> = api.repositories(limit, last)
+        .map(Catalog::repositories)
+        .getOrElse { throw it.toRegistryClientError() }
 
     override suspend fun tags(repository: Repository, limit: Int?, last: Int?): List<Tag> =
         api.tags(repository, limit, last)
@@ -68,9 +67,8 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
         api.digest(repository, reference)
             .getOrElse { throw it.toRegistryClientError(repository, reference) }
 
-    override suspend fun blob(repository: Repository, digest: Digest): ByteArray =
-        api.blob(repository, digest)
-            .getOrElse { throw it.toRegistryClientError(repository) }
+    override suspend fun blob(repository: Repository, digest: Digest): ByteArray = api.blob(repository, digest)
+        .getOrElse { throw it.toRegistryClientError(repository) }
 
     override suspend fun config(repository: Repository, reference: Reference): ImageConfig =
         api.manifest(repository, reference)

@@ -33,6 +33,7 @@ data class DockerImageConfigV1(
     override val history: List<History>,
 ) : ImageConfig {
     @ReflectionHint
+    @Suppress("ktlint:standard:property-naming")
     companion object {
         const val MediaType = "application/vnd.docker.container.image.v1+json"
     }

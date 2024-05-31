@@ -25,6 +25,7 @@ data class OciImageConfigV1(
     override val history: List<History>,
 ) : ImageConfig {
     @ReflectionHint
+    @Suppress("ktlint:standard:property-naming")
     companion object {
         const val MediaType = "application/vnd.oci.image.config.v1+json"
     }

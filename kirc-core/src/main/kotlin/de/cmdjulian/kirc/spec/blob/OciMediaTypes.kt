@@ -1,3 +1,5 @@
+@file:Suppress("ktlint:standard:property-naming")
+
 package de.cmdjulian.kirc.spec.blob
 
 const val OciBlobMediaTypeTar = "application/vnd.oci.image.layer.v1.tar"

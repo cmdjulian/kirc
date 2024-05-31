@@ -11,6 +11,7 @@ data class DockerManifestV2(
     override val layers: List<LayerReference>,
 ) : ManifestSingle {
     @ReflectionHint
+    @Suppress("ktlint:standard:property-naming")
     companion object {
         const val MediaType = "application/vnd.docker.distribution.manifest.v2+json"
     }

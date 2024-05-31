@@ -30,6 +30,7 @@ class Tag(@JsonValue private val value: String) : Reference, Comparable<Tag> {
     override fun toString(): String = value
 
     @ReflectionHint
+    @Suppress("ktlint:standard:property-naming")
     companion object {
         val LATEST = Tag("latest")
         const val separator: Char = ':'
@@ -54,6 +55,7 @@ class Digest(@JsonValue private val value: String) : Reference, Comparable<Diges
     override fun toString(): String = value
 
     @ReflectionHint
+    @Suppress("ktlint:standard:property-naming")
     companion object {
         const val separator: Char = '@'
 

@@ -13,6 +13,7 @@ data class OciManifestV1(
     val annotations: Map<String, String>,
 ) : ManifestSingle {
     @ReflectionHint
+    @Suppress("ktlint:standard:property-naming")
     companion object {
         const val MediaType = "application/vnd.oci.image.manifest.v1+json"
     }

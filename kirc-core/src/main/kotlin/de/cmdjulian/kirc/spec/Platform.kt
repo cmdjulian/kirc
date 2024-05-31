@@ -29,7 +29,8 @@ enum class OS(@get:JsonValue val string: String) {
     WINDOWS("windows"),
 
     @JsonEnumDefaultValue
-    UNKNOWN("unknown");
+    UNKNOWN("unknown"),
+    ;
 
     override fun toString() = string
 }
@@ -47,7 +48,8 @@ enum class Architecture(@get:JsonValue val string: String) {
     ARM_V5("arm/v5"),
 
     @JsonEnumDefaultValue
-    UNKNOWN("unknown");
+    UNKNOWN("unknown"),
+    ;
 
     override fun toString() = string
 }
