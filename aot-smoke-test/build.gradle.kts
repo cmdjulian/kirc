@@ -1,10 +1,10 @@
 plugins {
     application
-    id("org.graalvm.buildtools.native") version "0.9.26"
+    id("org.graalvm.buildtools.native") version "0.10.2"
 }
 
 application {
-    mainClass.set("de.cmdjulian.kirc.NativeImageSmokeTest")
+    mainClass = "de.cmdjulian.kirc.NativeImageSmokeTest"
     applicationDefaultJvmArgs = listOf("-agentlib:native-image-agent=config-output-dir=native-image")
 }
 
@@ -16,15 +16,15 @@ dependencies {
 
 graalvmNative {
     agent {
-        defaultMode.set("standard")
+        defaultMode = "standard"
     }
-    toolchainDetection.set(false)
+    toolchainDetection = false
     binaries {
         all {
             buildArgs("--enable-url-protocols=https,http")
         }
     }
     metadataRepository {
-        enabled.set(true)
+        enabled = true
     }
 }

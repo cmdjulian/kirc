@@ -8,20 +8,21 @@ import org.jlleitschuh.gradle.ktlint.KtlintExtension
 import java.util.*
 
 plugins {
-    kotlin("jvm") version "1.9.10" apply false
+    kotlin("jvm") version "2.0.0" apply false
+    kotlin("kapt") version "2.0.0" apply false
     kotlin("libs.publisher") version "0.0.61-dev-34"
-    id("org.jlleitschuh.gradle.ktlint") version "11.5.1" apply false
+    id("org.jlleitschuh.gradle.ktlint") version "12.1.1" apply false
     id("org.owasp.dependencycheck") version "8.4.0" apply false // "dependencyCheckAnalyze"
     id("com.github.ben-manes.versions") version "0.48.0" apply false // "dependencyUpdates --refresh-dependencies"
     id("me.qoomon.git-versioning") version "6.4.2"
 }
 
 kotlinPublications {
-    defaultGroup.set("com.github.cmdjulian.kirc")
-    fairDokkaJars.set(false)
+    defaultGroup = "com.github.cmdjulian.kirc"
+    fairDokkaJars = false
 
     pom {
-        inceptionYear.set("2022")
+        inceptionYear = "2022"
         licenses {
             apache2()
         }
@@ -81,8 +82,8 @@ subprojects {
     }
 
     configure<KtlintExtension> {
-        version.set("0.48.2")
-        enableExperimentalRules.set(true)
+        version = "1.2.1"
+        enableExperimentalRules = true
     }
 
     tasks.withType<DependencyUpdatesTask>().configureEach {
@@ -109,10 +110,9 @@ subprojects {
     }
 
     tasks.withType<KotlinCompile>().configureEach {
-        kotlinOptions {
+        compilerOptions {
             javaParameters = true
             freeCompilerArgs = listOf("-Xjsr305=strict", "-Xemit-jvm-type-annotations", "-Xcontext-receivers", "-Xjvm-default=all")
-            jvmTarget = "${JavaVersion.VERSION_11}"
         }
     }
 }

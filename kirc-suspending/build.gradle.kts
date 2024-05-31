@@ -29,7 +29,7 @@ dependencies {
     implementation("io.github.microutils:kotlin-logging-jvm:3.0.5")
 
     // insecure connections
-    implementation("io.github.hakky54:sslcontext-kickstart:8.1.6")
+    implementation("io.github.hakky54:sslcontext-kickstart:8.3.5")
 
     // tests
     testImplementation(platform(tests.junit.bom))
@@ -48,7 +48,7 @@ tasks.jar {
 
 kotlinPublications {
     publication {
-        publicationName.set("suspending")
-        description.set("GraalVM compatible coroutine based container image registry client written in kotlin")
+        publicationName = "suspending"
+        description = "GraalVM compatible coroutine based container image registry client written in kotlin"
     }
 }

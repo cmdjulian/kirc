@@ -20,7 +20,7 @@ tasks.jar {
 
 kotlinPublications {
     publication {
-        publicationName.set("blocking")
-        description.set("GraalVM compatible based container image registry client written in kotlin")
+        publicationName = "blocking"
+        description = "GraalVM compatible based container image registry client written in kotlin"
     }
 }

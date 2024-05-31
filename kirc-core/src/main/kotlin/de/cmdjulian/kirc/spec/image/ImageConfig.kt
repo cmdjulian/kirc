@@ -4,8 +4,10 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies
 import com.fasterxml.jackson.databind.annotation.JsonNaming
 import de.cmdjulian.kirc.spec.Architecture
 import de.cmdjulian.kirc.spec.OS
+import io.goodforgod.graalvm.hint.annotation.ReflectionHint
 import java.time.OffsetDateTime
 
+@ReflectionHint
 sealed interface ImageConfig {
     val created: OffsetDateTime?
     val author: String?
@@ -15,6 +17,7 @@ sealed interface ImageConfig {
     val rootfs: RootFs
     val history: List<History>
 
+    @ReflectionHint
     @JsonNaming(PropertyNamingStrategies.UpperCamelCaseStrategy::class)
     data class Config(
         val hostname: String?,

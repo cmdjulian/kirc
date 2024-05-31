@@ -17,7 +17,7 @@ dependencies {
 
 kotlinPublications {
     publication {
-        publicationName.set("image")
-        description.set("kirc module for parsing container image name and components")
+        publicationName = "image"
+        description = "kirc module for parsing container image name and components"
     }
 }

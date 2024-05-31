@@ -1,10 +1,15 @@
 plugins {
     `java-library`
     kotlin("libs.publisher")
+    kotlin("kapt")
 }
 
 dependencies {
     implementation(project(":kirc-image"))
+
+    // reflection registration
+    kapt("io.goodforgod:graalvm-hint-processor:1.2.0")
+    compileOnly("io.goodforgod:graalvm-hint-annotations:1.2.0")
 
     // jackson
     implementation(platform(jackson.bom))
@@ -25,7 +30,7 @@ tasks.jar {
 
 kotlinPublications {
     publication {
-        publicationName.set("core")
-        description.set("kirc core components")
+        publicationName = "core"
+        description = "kirc core components"
     }
 }

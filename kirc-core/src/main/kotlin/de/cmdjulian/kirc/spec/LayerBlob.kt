@@ -1,7 +1,9 @@
 package de.cmdjulian.kirc.spec
 
 import de.cmdjulian.kirc.image.Digest
+import io.goodforgod.graalvm.hint.annotation.ReflectionHint
 
+@ReflectionHint
 class LayerBlob(val digest: Digest, val mediaType: String, val data: ByteArray) {
     override fun equals(other: Any?): Boolean = when {
         this === other -> true

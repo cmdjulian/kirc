@@ -6,9 +6,11 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies
 import com.fasterxml.jackson.databind.annotation.JsonNaming
 import de.cmdjulian.kirc.spec.Architecture
 import de.cmdjulian.kirc.spec.OS
+import io.goodforgod.graalvm.hint.annotation.ReflectionHint
 import java.time.OffsetDateTime
 
 // https://github.com/moby/moby/blob/master/image/spec/v1.2.md
+@ReflectionHint
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
 data class DockerImageConfigV1(
@@ -28,6 +30,7 @@ data class DockerImageConfigV1(
     override val rootfs: RootFs,
     override val history: List<History>,
 ) : ImageConfig {
+    @ReflectionHint
     companion object {
         const val MediaType = "application/vnd.docker.container.image.v1+json"
     }
