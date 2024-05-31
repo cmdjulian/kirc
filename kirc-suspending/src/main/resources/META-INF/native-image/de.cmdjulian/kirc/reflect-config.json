@@ -1,0 +1,27 @@
+[
+  {
+    "name": "de.cmdjulian.kirc.impl.ManifestListMixIn",
+    "queryAllDeclaredMethods": true
+  },
+  {
+    "name": "de.cmdjulian.kirc.impl.ManifestMixIn",
+    "queryAllDeclaredMethods": true
+  },
+  {
+    "name": "de.cmdjulian.kirc.impl.ManifestSingleMixIn",
+    "queryAllDeclaredMethods": true
+  },
+  {
+    "name": "de.cmdjulian.kirc.impl.ResponseRetryWithAuthentication",
+    "methods": [
+      {
+        "name": "resolveTokenAuth",
+        "parameterTypes": [
+          "im.toss.http.parser.HttpAuthCredentials",
+          "com.github.kittinunf.fuel.core.Request",
+          "kotlin.coroutines.Continuation"
+        ]
+      }
+    ]
+  },
+]
