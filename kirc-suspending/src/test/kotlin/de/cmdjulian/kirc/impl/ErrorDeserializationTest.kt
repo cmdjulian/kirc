@@ -1,6 +1,6 @@
 package de.cmdjulian.kirc.impl
 
-import de.cmdjulian.kirc.exception.ErrorResponse
+import de.cmdjulian.kirc.spec.ErrorResponse
 import de.cmdjulian.kirc.unmarshal
 import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.shouldBe

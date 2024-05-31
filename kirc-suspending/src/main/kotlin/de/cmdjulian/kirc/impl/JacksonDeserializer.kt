@@ -1,7 +1,7 @@
 package de.cmdjulian.kirc.impl
 
 import com.github.kittinunf.fuel.core.ResponseDeserializable
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 class JacksonDeserializer<T : Any>(private val clazz: Class<T>) : ResponseDeserializable<T> {
 

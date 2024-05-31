@@ -1,6 +1,7 @@
 plugins {
     `java-library`
     kotlin("libs.publisher")
+    kotlin("kapt")
 }
 
 tasks.jar {
@@ -13,6 +14,10 @@ dependencies {
     // jackson
     implementation(platform(jackson.bom))
     implementation("com.fasterxml.jackson.core:jackson-databind")
+
+    // graal reflect config
+    kapt(graalHints.processor)
+    compileOnly(graalHints.annotations)
 }
 
 kotlinPublications {

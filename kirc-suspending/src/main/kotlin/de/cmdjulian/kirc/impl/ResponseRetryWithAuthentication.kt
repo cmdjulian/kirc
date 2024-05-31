@@ -13,6 +13,7 @@ import com.github.kittinunf.result.map
 import de.cmdjulian.kirc.client.RegistryCredentials
 import de.cmdjulian.kirc.utils.CaseInsensitiveMap
 import im.toss.http.parser.HttpAuthCredentials
+import io.goodforgod.graalvm.hint.annotation.ReflectionHint
 
 internal class ResponseRetryWithAuthentication(
     private val credentials: RegistryCredentials?,
@@ -54,6 +55,7 @@ internal class ResponseRetryWithAuthentication(
         val scope = wwwAuth.singleValueParams["scope"]?.replace("\"", "")
         val service = wwwAuth.singleValueParams["service"]?.replace("\"", "")
 
+        @ReflectionHint
         class TokenResponse(val token: String)
 
         val parameters = buildList {

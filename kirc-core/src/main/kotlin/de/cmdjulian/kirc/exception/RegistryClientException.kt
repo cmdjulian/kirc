@@ -2,6 +2,7 @@ package de.cmdjulian.kirc.exception
 
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
+import de.cmdjulian.kirc.spec.ErrorResponse
 import java.net.URL
 
 sealed class RegistryClientException(

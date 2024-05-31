@@ -3,9 +3,12 @@ package de.cmdjulian.kirc.image
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonValue
+import io.goodforgod.graalvm.hint.annotation.ReflectionHint
 
+@ReflectionHint
 class Registry(@JsonValue private val value: String) : Comparable<Registry> {
     //language=RegExp
+    @ReflectionHint
     companion object {
         private const val IP_ADDRESS = "(((25[0-5]|(2[0-4]|1\\d|[1-9]|)\\d)\\.?\\b){4})"
         private const val DOMAIN = "(([a-zA-Z\\d_\\-]+)((\\.[a-zA-Z\\d_\\-]+)*))"

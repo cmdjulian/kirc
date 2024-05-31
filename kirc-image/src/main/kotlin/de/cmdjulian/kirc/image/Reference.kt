@@ -2,13 +2,16 @@ package de.cmdjulian.kirc.image
 
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonValue
+import io.goodforgod.graalvm.hint.annotation.ReflectionHint
 
+@ReflectionHint
 @JvmDefaultWithoutCompatibility
 sealed interface Reference {
     val separator: Char
     fun asImagePart() = "$separator${toString()}"
 }
 
+@ReflectionHint
 class Tag(@JsonValue private val value: String) : Reference, Comparable<Tag> {
     init {
         require(value.matches(Regex("\\w[\\w.\\-]{0,127}"))) { "invalid tag" }
@@ -26,6 +29,7 @@ class Tag(@JsonValue private val value: String) : Reference, Comparable<Tag> {
     override fun hashCode(): Int = value.hashCode()
     override fun toString(): String = value
 
+    @ReflectionHint
     companion object {
         val LATEST = Tag("latest")
         const val separator: Char = ':'
@@ -36,6 +40,7 @@ class Tag(@JsonValue private val value: String) : Reference, Comparable<Tag> {
     }
 }
 
+@ReflectionHint
 class Digest(@JsonValue private val value: String) : Reference, Comparable<Digest> {
     init {
         require(value.matches(Regex("sha256:[\\da-fA-F]{32,}"))) { "invalid digest" }
@@ -48,6 +53,7 @@ class Digest(@JsonValue private val value: String) : Reference, Comparable<Diges
     override fun hashCode(): Int = value.hashCode()
     override fun toString(): String = value
 
+    @ReflectionHint
     companion object {
         const val separator: Char = '@'
 

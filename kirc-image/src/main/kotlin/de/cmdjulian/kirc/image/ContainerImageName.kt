@@ -2,7 +2,9 @@ package de.cmdjulian.kirc.image
 
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonValue
+import io.goodforgod.graalvm.hint.annotation.ReflectionHint
 
+@ReflectionHint
 data class ContainerImageNameComponents(
     val registry: Registry?,
     val repository: Repository,
@@ -27,6 +29,7 @@ data class ContainerImageNameComponents(
  *
  * etc.
  */
+@ReflectionHint
 class ContainerImageName(
     val registry: Registry = Registry(DOCKER_HUB_REGISTRY),
     val repository: Repository,
@@ -70,6 +73,7 @@ class ContainerImageName(
         return "$registry/$repository$tagComponent$digestComponent"
     }
 
+    @ReflectionHint
     companion object {
         const val DOCKER_HUB_REGISTRY = "docker.io"
 

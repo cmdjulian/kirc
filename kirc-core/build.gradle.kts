@@ -7,9 +7,9 @@ plugins {
 dependencies {
     implementation(project(":kirc-image"))
 
-    // reflection registration
-    kapt("io.goodforgod:graalvm-hint-processor:1.2.0")
-    compileOnly("io.goodforgod:graalvm-hint-annotations:1.2.0")
+    // graal reflect config
+    kapt(graalHints.processor)
+    compileOnly(graalHints.annotations)
 
     // jackson
     implementation(platform(jackson.bom))

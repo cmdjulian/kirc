@@ -21,6 +21,11 @@ dependencyResolutionManagement {
         create("jackson") {
             library("bom", "com.fasterxml.jackson:jackson-bom:2.17.1")
         }
+        create("graalHints") {
+            version("goodforgod", "1.2.0")
+            library("annotations", "io.goodforgod", "graalvm-hint-annotations").versionRef("goodforgod")
+            library("processor", "io.goodforgod", "graalvm-hint-processor").versionRef("goodforgod")
+        }
         create("tests") {
             library("junit-bom", "org.junit:junit-bom:5.10.2")
             library("junit-api", "org.junit.jupiter", "junit-jupiter-api").withoutVersion()

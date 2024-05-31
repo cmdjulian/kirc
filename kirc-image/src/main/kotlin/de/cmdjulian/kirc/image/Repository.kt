@@ -2,9 +2,11 @@ package de.cmdjulian.kirc.image
 
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonValue
+import io.goodforgod.graalvm.hint.annotation.ReflectionHint
 import java.nio.file.Path
 import java.util.*
 
+@ReflectionHint
 class Repository(@JsonValue private val value: String) : Comparable<Repository> {
     init {
         require(!Path.of(value).isAbsolute) { "invalid repository, has to be relative" }
@@ -23,6 +25,7 @@ class Repository(@JsonValue private val value: String) : Comparable<Repository> 
     override fun hashCode(): Int = value.hashCode()
     override fun toString(): String = value
 
+    @ReflectionHint
     companion object {
         @JvmStatic
         @JsonCreator

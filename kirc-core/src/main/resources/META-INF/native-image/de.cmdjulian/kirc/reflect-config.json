@@ -1,17 +1,5 @@
 [
   {
-    "name": "com.fasterxml.jackson.databind.PropertyNamingStrategies$LowerDotCaseStrategy",
-    "allDeclaredConstructors": true
-  },
-  {
-    "name": "com.fasterxml.jackson.databind.PropertyNamingStrategies$SnakeCaseStrategy",
-    "allDeclaredConstructors": true
-  },
-  {
-    "name": "com.fasterxml.jackson.databind.PropertyNamingStrategies$UpperCamelCaseStrategy",
-    "allDeclaredConstructors": true
-  },
-  {
     "name": "java.lang.Enum",
     "allDeclaredClasses": true,
     "allDeclaredFields": true,

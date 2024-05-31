@@ -8,7 +8,10 @@ import de.cmdjulian.kirc.spec.manifest.DockerManifestListV1
 import de.cmdjulian.kirc.spec.manifest.DockerManifestV2
 import de.cmdjulian.kirc.spec.manifest.OciManifestListV1
 import de.cmdjulian.kirc.spec.manifest.OciManifestV1
+import io.goodforgod.graalvm.hint.annotation.ReflectionHint
+import io.goodforgod.graalvm.hint.annotation.ReflectionHint.AccessType
 
+@ReflectionHint(AccessType.ALL_DECLARED_METHODS)
 @JsonTypeInfo(use = Id.NAME, include = As.EXISTING_PROPERTY, property = "mediaType", visible = true)
 @JsonSubTypes(
     JsonSubTypes.Type(value = DockerManifestV2::class, name = DockerManifestV2.MediaType),
@@ -18,6 +21,7 @@ import de.cmdjulian.kirc.spec.manifest.OciManifestV1
 )
 interface ManifestMixIn
 
+@ReflectionHint(AccessType.ALL_DECLARED_METHODS)
 @JsonTypeInfo(use = Id.NAME, include = As.EXISTING_PROPERTY, property = "mediaType", visible = true)
 @JsonSubTypes(
     JsonSubTypes.Type(value = DockerManifestV2::class, name = DockerManifestV2.MediaType),
@@ -25,6 +29,7 @@ interface ManifestMixIn
 )
 interface ManifestSingleMixIn
 
+@ReflectionHint(AccessType.ALL_DECLARED_METHODS)
 @JsonTypeInfo(use = Id.NAME, include = As.EXISTING_PROPERTY, property = "mediaType", visible = true)
 @JsonSubTypes(
     JsonSubTypes.Type(value = DockerManifestListV1::class, name = DockerManifestListV1.MediaType),
