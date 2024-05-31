@@ -14,7 +14,9 @@ import de.cmdjulian.kirc.client.RegistryCredentials
 import de.cmdjulian.kirc.utils.CaseInsensitiveMap
 import im.toss.http.parser.HttpAuthCredentials
 import io.goodforgod.graalvm.hint.annotation.ReflectionHint
+import io.goodforgod.graalvm.hint.annotation.ReflectionHint.AccessType
 
+@ReflectionHint(AccessType.ALL_PUBLIC_METHODS)
 internal class ResponseRetryWithAuthentication(
     private val credentials: RegistryCredentials?,
     private val fuelManager: FuelManager,
