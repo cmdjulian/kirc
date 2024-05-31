@@ -1,0 +1,8 @@
+[
+  {
+    "name": "java.lang.Enum",
+    "allDeclaredClasses": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true
+  }
+]
