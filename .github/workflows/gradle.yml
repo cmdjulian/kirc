@@ -16,6 +16,6 @@ jobs:
       - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
-      - uses: gradle/wrapper-validation-action@v3
+      - uses: gradle/actions/wrapper-validation@v3
       - name: Build with Gradle
         run: ./gradlew check assemble
