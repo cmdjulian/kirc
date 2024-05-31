@@ -14,9 +14,7 @@ import de.cmdjulian.kirc.client.RegistryCredentials
 import de.cmdjulian.kirc.utils.CaseInsensitiveMap
 import im.toss.http.parser.HttpAuthCredentials
 import io.goodforgod.graalvm.hint.annotation.ReflectionHint
-import io.goodforgod.graalvm.hint.annotation.ReflectionHint.AccessType
 
-@ReflectionHint(AccessType.ALL_PUBLIC_METHODS)
 internal class ResponseRetryWithAuthentication(
     private val credentials: RegistryCredentials?,
     private val fuelManager: FuelManager,
@@ -52,13 +50,13 @@ internal class ResponseRetryWithAuthentication(
         return AuthenticatedRequest(request.clone(fuelManager)).basic(credentials.username, credentials.password)
     }
 
+    @ReflectionHint
+    private class TokenResponse(val token: String)
+
     private suspend fun resolveTokenAuth(wwwAuth: HttpAuthCredentials, request: Request): Request? {
         val realm = wwwAuth.singleValueParams["realm"]!!.replace("\"", "")
         val scope = wwwAuth.singleValueParams["scope"]?.replace("\"", "")
         val service = wwwAuth.singleValueParams["service"]?.replace("\"", "")
-
-        @ReflectionHint
-        class TokenResponse(val token: String)
 
         val parameters = buildList {
             if (scope != null) add("scope" to scope)
