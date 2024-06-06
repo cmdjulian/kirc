@@ -33,7 +33,7 @@ dependencyResolutionManagement {
             library("junit-engine", "org.junit.jupiter", "junit-jupiter-engine").withoutVersion()
             bundle("junit", listOf("junit-api", "junit-params", "junit-engine"))
 
-            version("kotest", "5.9.0")
+            version("kotest", "5.9.1")
             library("kotest-runner", "io.kotest", "kotest-runner-junit5").versionRef("kotest")
             library("kotest-assertions", "io.kotest", "kotest-assertions-core-jvm").versionRef("kotest")
             bundle("kotest", listOf("kotest-runner", "kotest-assertions"))
