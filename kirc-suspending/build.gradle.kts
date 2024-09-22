@@ -34,7 +34,7 @@ dependencies {
     implementation("io.github.oshai:kotlin-logging-jvm:6.0.9")
 
     // insecure connections
-    implementation("io.github.hakky54:sslcontext-kickstart:8.3.5")
+    implementation("io.github.hakky54:sslcontext-kickstart:8.3.7")
 
     // tests
     testImplementation(platform(tests.junit.bom))
