@@ -19,7 +19,7 @@ dependencyResolutionManagement {
             library("bom", "org.jetbrains.kotlinx:kotlinx-coroutines-bom:1.8.1")
         }
         create("jackson") {
-            library("bom", "com.fasterxml.jackson:jackson-bom:2.17.1")
+            library("bom", "com.fasterxml.jackson:jackson-bom:2.18.0")
         }
         create("graalHints") {
             version("goodforgod", "1.2.0")
