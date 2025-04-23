@@ -23,7 +23,7 @@ instance of `RegistryClientException` for all errors. These errors are than divi
 2. network related errors (`NetworkError`) like HostNotFound or SSL related errors
 3. unexpected errors (`UnknownError`)
 
-As authentication schema JWT auth and BasicAuth are supported. Currently, there are no plans to implement certificate
+As an authentication schema, JWT auth and BasicAuth are supported. Currently, there are no plans to implement certificate
 based authentication.
 
 The Registry communication can be done using either `HTTP` or `HTTPS`. The library is also able to use a proxy for the
