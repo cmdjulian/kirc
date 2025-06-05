@@ -36,6 +36,9 @@ dependencies {
     // insecure connections
     implementation("io.github.hakky54:sslcontext-kickstart:8.3.5")
 
+    // parallel gzip in / out
+    implementation("org.anarres:parallelgzip:1.0.3")
+
     // tests
     testImplementation(platform(tests.junit.bom))
     testImplementation(tests.bundles.junit)
@@ -46,6 +49,9 @@ dependencies {
 
     // resource injection
     testImplementation("io.hosuaby:inject-resources-junit-jupiter:0.3.3")
+
+    // test container
+    testImplementation("org.testcontainers:testcontainers:1.21.1")
 }
 
 tasks.jar {
