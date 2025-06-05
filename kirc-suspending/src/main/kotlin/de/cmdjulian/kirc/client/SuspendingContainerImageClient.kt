@@ -5,7 +5,12 @@ import de.cmdjulian.kirc.spec.ContainerImage
 import de.cmdjulian.kirc.spec.LayerBlob
 import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
+import java.util.zip.GZIPInputStream
+import java.util.zip.GZIPOutputStream
 
+/**
+ * Provides access to certain registry to allow handling docker images.
+ */
 interface SuspendingContainerImageClient {
     /**
      * Get a list of tags for a certain repository.

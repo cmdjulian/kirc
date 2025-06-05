@@ -8,6 +8,11 @@ import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 
+/**
+ * Handles calls to the container registry and returns the result upon success.
+ *
+ * Either methods throw an error upon request failure or return the result.
+ */
 interface SuspendingContainerImageRegistryClient {
     /**
      * Checks if the registry is reachable and configured correctly. If not, a detailed Exception is thrown.

@@ -6,6 +6,11 @@ import io.goodforgod.graalvm.hint.annotation.ReflectionHint
 import java.nio.file.Path
 import java.util.*
 
+/**
+ * Represents a Docker Repository
+ *
+ * A repository is a collection of related container images within a [Registry].
+ */
 @ReflectionHint
 class Repository(@JsonValue private val value: String) : Comparable<Repository> {
     init {

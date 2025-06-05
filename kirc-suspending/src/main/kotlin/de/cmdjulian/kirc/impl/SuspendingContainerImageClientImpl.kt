@@ -20,6 +20,7 @@ internal class SuspendingContainerImageClientImpl(
     private val image: ContainerImageName,
     private val manifest: ManifestSingle,
 ) : SuspendingContainerImageClient {
+
     companion object {
         suspend operator fun invoke(client: SuspendingContainerImageRegistryClient, image: ContainerImageName) =
             SuspendingContainerImageClientImpl(

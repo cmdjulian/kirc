@@ -10,6 +10,11 @@ import de.cmdjulian.kirc.impl.response.TagList
 import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 
+/**
+ * Defines the calls to the container registry API
+ *
+ * Wraps calls in a [Result]
+ */
 internal interface ContainerRegistryApi {
     suspend fun ping(): Result<*, FuelError>
     suspend fun repositories(limit: Int?, last: Int?): Result<Catalog, FuelError>
