@@ -14,6 +14,10 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import org.anarres.parallelgzip.ParallelGZIPOutputStream
+import java.io.ByteArrayOutputStream
+import java.io.OutputStream
+import java.util.zip.GZIPInputStream
 
 internal class SuspendingContainerImageClientImpl(
     private val client: SuspendingContainerImageRegistryClient,
@@ -57,5 +61,22 @@ internal class SuspendingContainerImageClientImpl(
         val blobs = async { blobs() }
 
         ContainerImage(manifest, config.await(), blobs.await())
+    }
+
+    override suspend fun upload(gzip: GZIPInputStream) {
+        gzip.use { data ->
+
+        }
+        gzip.transferTo()
+    }
+
+    override suspend fun download(): OutputStream {
+        val image = toImage()
+
+        return ByteArrayOutputStream().also { destination ->
+            ParallelGZIPOutputStream(destination).use { stream ->
+                stream.write(JsonMapper.writeValueAsBytes(image))
+            }
+        }
     }
 }

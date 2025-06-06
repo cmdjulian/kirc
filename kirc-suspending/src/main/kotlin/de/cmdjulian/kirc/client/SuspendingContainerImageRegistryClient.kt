@@ -7,6 +7,7 @@ import de.cmdjulian.kirc.image.Tag
 import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
+import java.util.*
 
 /**
  * Handles calls to the container registry and returns the result upon success.
@@ -18,6 +19,11 @@ interface SuspendingContainerImageRegistryClient {
      * Checks if the registry is reachable and configured correctly. If not, a detailed Exception is thrown.
      */
     suspend fun testConnection()
+
+    /**
+     * Checks if registry contains a blob identified by [digest] in [repository]
+     */
+    suspend fun existsBlob(repository: Repository, digest: Digest): Boolean
 
     /**
      * Get a list of repositories the registry holds.
@@ -74,6 +80,25 @@ interface SuspendingContainerImageRegistryClient {
      * Convert general Client to DockerImageClient.
      */
     suspend fun toImageClient(repository: Repository, reference: Reference): SuspendingContainerImageClient
+
+    /**
+     * Initiate data upload
+     *
+     * @return the upload session id or null if the mount was successful
+     */
+    suspend fun initiateUpload(repository: Repository, from: Repository?, mount: Digest?): UUID?
+
+    /**
+     * Upload a blob or finish the chunked upload of a blob
+     */
+    suspend fun uploadBlob(repository: Repository, uploadUUID: UUID, digest: Digest, blob: ByteArray?): Digest
+
+    /**
+     * Upload a manifest
+     */
+    suspend fun uploadManifest(repository: Repository, reference: Reference, manifest: ManifestSingle): Digest
+
+    suspend fun cancelBlobUpload(repository: Repository, sessionUUID: UUID)
 
     /**
      * Convert general Client to DockerImageClient.

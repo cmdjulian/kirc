@@ -5,8 +5,8 @@ import de.cmdjulian.kirc.spec.ContainerImage
 import de.cmdjulian.kirc.spec.LayerBlob
 import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
-import java.util.zip.GZIPInputStream
-import java.util.zip.GZIPOutputStream
+import java.io.InputStream
+import java.io.OutputStream
 
 /**
  * Provides access to certain registry to allow handling docker images.
@@ -41,4 +41,14 @@ interface SuspendingContainerImageClient {
      * Retrieve a completed Container Image.
      */
     suspend fun toImage(): ContainerImage
+
+    /**
+     * Upload a Container Image as gzip
+     */
+    suspend fun upload(gzip: InputStream)
+
+    /**
+     * Download a Container Image in gzip format
+     */
+    suspend fun download(): OutputStream
 }

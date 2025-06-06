@@ -29,6 +29,7 @@ import de.cmdjulian.kirc.spec.manifest.DockerManifestV2
 import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestV1
+import java.util.*
 
 internal class SuspendingContainerImageRegistryClientImpl(private val api: ContainerRegistryApi) :
     SuspendingContainerImageRegistryClient {
@@ -38,6 +39,17 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
             throw it.toRegistryClientError()
         }
     }
+
+    override suspend fun existsBlob(repository: Repository, digest: Digest): Boolean =
+        api.existsBlob(repository, digest)
+            .map { true }
+            .getOrElse { error ->
+                if (error.response.statusCode == 404) {
+                    false
+                } else {
+                    throw error.toRegistryClientError(repository, digest)
+                }
+            }
 
     override suspend fun repositories(limit: Int?, last: Int?): List<Repository> = api.repositories(limit, last)
         .map(Catalog::repositories)
@@ -85,6 +97,33 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
             }
             .getOrElse { throw it.toRegistryClientError(repository) }
 
+    // Upload
+
+    override suspend fun initiateUpload(repository: Repository, from: Repository?, mount: Digest?): UUID? =
+        api.initiateUpload(repository, from, mount).getOrElse { throw it.toRegistryClientError(repository, null) }
+
+    override suspend fun uploadBlob(
+        repository: Repository,
+        uploadUUID: UUID,
+        digest: Digest,
+        blob: ByteArray?,
+    ): Digest = api.uploadBlob(repository, uploadUUID, digest, blob)
+        .getOrElse { throw it.toRegistryClientError(repository, null) }
+
+    override suspend fun cancelBlobUpload(repository: Repository, sessionUUID: UUID) {
+        api.cancelBlobUpload(repository, sessionUUID)
+            .onError { throw it.toRegistryClientError(repository, null) }
+    }
+
+    override suspend fun uploadManifest(
+        repository: Repository,
+        reference: Reference,
+        manifest: ManifestSingle,
+    ): Digest = api.uploadManifest(repository, reference, manifest)
+        .getOrElse { throw it.toRegistryClientError(repository, null) }
+
+    // To Image Client
+
     override suspend fun toImageClient(repository: Repository, reference: Reference): SuspendingContainerImageClient =
         when (reference) {
             is Tag -> SuspendingContainerImageClientImpl(
@@ -121,6 +160,7 @@ private fun FuelError.toRegistryClientError(
     val url = this.response.url
     val data = response.data
     return when (response.statusCode) {
+        // todo add missing statusCodes
         -1 -> NetworkErrorException(url, repository, reference, this)
 
         401 -> AuthenticationException(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, this)

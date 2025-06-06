@@ -27,6 +27,7 @@ import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestListV1
 import de.cmdjulian.kirc.spec.manifest.OciManifestV1
+import java.util.*
 
 private const val APPLICATION_JSON = "application/json"
 private const val APPLICATION_OCTET_STREAM = "application/octet-stream"
@@ -68,6 +69,14 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
             .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
             .third
     }
+
+    override suspend fun existsBlob(repository: Repository, digest: Digest): Result<*, FuelError> =
+        fuelManager.head("/v2/$repository/blobs/$digest")
+            .awaitResponseResult(EmptyDeserializer)
+            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
+            .third
+
+    // Pull
 
     override suspend fun blob(repository: Repository, digest: Digest): Result<ByteArray, FuelError> {
         val deserializable = ByteArrayDeserializer()
@@ -142,12 +151,81 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
                     OciManifestListV1.MediaType,
                 )
                 .awaitResponseResult(EmptyDeserializer)
-                .let { responseResult ->
-                    val resultTriple = handler.retryOnUnauthorized(responseResult, EmptyDeserializer)
-                    resultTriple
-                }
+                .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
 
             response.third.map { response.second["Docker-content-digest"].single().let(::Digest) }
         }
     }
+
+    // Upload
+
+    override suspend fun initiateUpload(
+        repository: Repository,
+        from: Repository?,
+        mount: Digest?,
+    ): Result<UUID?, FuelError> {
+        require((from == null && mount == null) || (from != null && mount != null)) {
+            "Please provide both 'from' and 'mount' parameters to initiate upload or neither of them"
+        }
+        val parameters = buildList {
+            if (from != null) {
+                add("from" to from)
+                add("mount" to mount)
+            }
+        }
+        val response = fuelManager.post("/v2/$repository/blobs/uploads", parameters)
+            .awaitResponseResult(EmptyDeserializer)
+            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
+
+        return response.third.map {
+            when (val statusCode = response.second.statusCode) {
+                // Blob successfully mounted from another repository
+                201 -> null
+                // Upload initiated successfully (or fallback if mount fails)
+                202 -> response.second["Docker-Upload-UUID"].single().let(UUID::fromString)
+
+                else -> error("Unknown status code ($statusCode) encountered during initiate upload")
+            }
+        }
+    }
+
+    override suspend fun uploadBlob(
+        repository: Repository,
+        sessionUUID: UUID,
+        digest: Digest,
+        blob: ByteArray?,
+    ): Result<Digest, FuelError> {
+        val parameters = listOf("digest" to digest)
+        val response = fuelManager.put("/v2/$repository/blobs/uploads/$sessionUUID", parameters)
+            .appendHeader(Headers.ACCEPT, APPLICATION_OCTET_STREAM)
+            .apply { if (blob != null) body(blob) }
+            .awaitResponseResult(EmptyDeserializer)
+            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
+
+        return response.third.map { response.second["Docker-Content-Digest"].single().let(::Digest) }
+    }
+
+    override suspend fun uploadManifest(
+        repository: Repository,
+        reference: Reference,
+        manifest: ManifestSingle,
+    ): Result<Digest, FuelError> {
+        val contentType = when (manifest) {
+            is DockerManifestV2 -> DockerManifestV2.MediaType
+            is OciManifestV1 -> OciManifestV1.MediaType
+        }
+        val response = fuelManager.put("/v2/$repository/manifests/$reference")
+            .appendHeader(Headers.CONTENT_TYPE, contentType)
+            .body(JsonMapper.writeValueAsString(manifest))
+            .awaitResponseResult(EmptyDeserializer)
+            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
+
+        return response.third.map { response.second["Docker-Content-Digest"].single().let(::Digest) }
+    }
+
+    override suspend fun cancelBlobUpload(repository: Repository, sessionUUID: UUID): Result<*, FuelError> =
+        fuelManager.delete("/v2/$repository/blobs/uploads/$sessionUUID")
+            .awaitResponseResult(EmptyDeserializer)
+            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
+            .third
 }
