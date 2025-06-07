@@ -27,7 +27,7 @@ dependencyResolutionManagement {
             library("processor", "io.goodforgod", "graalvm-hint-processor").versionRef("goodforgod")
         }
         create("tests") {
-            library("junit-bom", "org.junit:junit-bom:5.10.2")
+            library("junit-bom", "org.junit:junit-bom:5.13.1")
             library("junit-api", "org.junit.jupiter", "junit-jupiter-api").withoutVersion()
             library("junit-params", "org.junit.jupiter", "junit-jupiter-params").withoutVersion()
             library("junit-engine", "org.junit.jupiter", "junit-jupiter-engine").withoutVersion()
