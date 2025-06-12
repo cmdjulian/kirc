@@ -37,6 +37,8 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
 
     private val handler = ResponseRetryWithAuthentication(credentials, fuelManager)
 
+    // Status
+
     override suspend fun ping(): Result<*, FuelError> = fuelManager.get("/v2/")
         .awaitResponseResult(EmptyDeserializer)
         .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
@@ -70,30 +72,36 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
             .third
     }
 
-    override suspend fun existsBlob(repository: Repository, digest: Digest): Result<*, FuelError> =
-        fuelManager.head("/v2/$repository/blobs/$digest")
-            .awaitResponseResult(EmptyDeserializer)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-            .third
+    override suspend fun digest(repository: Repository, reference: Reference) = when (reference) {
+        is Digest -> Result.success(reference)
+        is Tag -> {
+            val response = fuelManager.head("/v2/$repository/manifests/$reference")
+                .appendHeader(
+                    Headers.ACCEPT,
+                    APPLICATION_JSON,
+                    DockerManifestV2.MediaType,
+                    DockerManifestListV1.MediaType,
+                    OciManifestV1.MediaType,
+                    OciManifestListV1.MediaType,
+                )
+                .awaitResponseResult(EmptyDeserializer)
+                .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
 
-    // Pull
-
-    override suspend fun blob(repository: Repository, digest: Digest): Result<ByteArray, FuelError> {
-        val deserializable = ByteArrayDeserializer()
-        return fuelManager.get("/v2/$repository/blobs/$digest")
-            .appendHeader(
-                Headers.ACCEPT,
-                APPLICATION_JSON,
-                APPLICATION_OCTET_STREAM,
-                DockerBlobMediaType,
-                OciBlobMediaTypeTar,
-                OciBlobMediaTypeGzip,
-                OciBlobMediaTypeZstd,
-            )
-            .awaitResponseResult(deserializable)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
-            .third
+            response.third.map { response.second["Docker-content-digest"].single().let(::Digest) }
+        }
     }
+
+    // Manifest
+
+    override suspend fun existsManifest(
+        repository: Repository,
+        reference: Reference,
+        accept: String,
+    ): Result<*, FuelError> = fuelManager.head("/v2/$repository/manifests/$reference")
+        .appendHeader(Headers.ACCEPT, accept)
+        .awaitResponseResult(EmptyDeserializer)
+        .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
+        .third
 
     override suspend fun manifests(repository: Repository, reference: Reference): Result<Manifest, FuelError> {
         val deserializable = jacksonDeserializer<Manifest>()
@@ -120,6 +128,24 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
             .third
     }
 
+    override suspend fun uploadManifest(
+        repository: Repository,
+        reference: Reference,
+        manifest: ManifestSingle,
+    ): Result<Digest, FuelError> {
+        val contentType = when (manifest) {
+            is DockerManifestV2 -> DockerManifestV2.MediaType
+            is OciManifestV1 -> OciManifestV1.MediaType
+        }
+        val response = fuelManager.put("/v2/$repository/manifests/$reference")
+            .appendHeader(Headers.CONTENT_TYPE, contentType)
+            .body(JsonMapper.writeValueAsString(manifest))
+            .awaitResponseResult(EmptyDeserializer)
+            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
+
+        return response.third.map { response.second["Docker-Content-Digest"].single().let(::Digest) }
+    }
+
     override suspend fun deleteManifest(repository: Repository, reference: Reference): Result<Digest, FuelError> {
         return digest(repository, reference).flatMap { digest ->
             fuelManager.delete("/v2/$repository/manifests/$digest")
@@ -138,26 +164,30 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
         }
     }
 
-    override suspend fun digest(repository: Repository, reference: Reference) = when (reference) {
-        is Digest -> Result.success(reference)
-        is Tag -> {
-            val response = fuelManager.head("/v2/$repository/manifests/$reference")
-                .appendHeader(
-                    Headers.ACCEPT,
-                    APPLICATION_JSON,
-                    DockerManifestV2.MediaType,
-                    DockerManifestListV1.MediaType,
-                    OciManifestV1.MediaType,
-                    OciManifestListV1.MediaType,
-                )
-                .awaitResponseResult(EmptyDeserializer)
-                .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
+    // Blob
 
-            response.third.map { response.second["Docker-content-digest"].single().let(::Digest) }
-        }
+    override suspend fun existsBlob(repository: Repository, digest: Digest): Result<*, FuelError> =
+        fuelManager.head("/v2/$repository/blobs/$digest")
+            .awaitResponseResult(EmptyDeserializer)
+            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
+            .third
+
+    override suspend fun blob(repository: Repository, digest: Digest): Result<ByteArray, FuelError> {
+        val deserializable = ByteArrayDeserializer()
+        return fuelManager.get("/v2/$repository/blobs/$digest")
+            .appendHeader(
+                Headers.ACCEPT,
+                APPLICATION_JSON,
+                APPLICATION_OCTET_STREAM,
+                DockerBlobMediaType,
+                OciBlobMediaTypeTar,
+                OciBlobMediaTypeGzip,
+                OciBlobMediaTypeZstd,
+            )
+            .awaitResponseResult(deserializable)
+            .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
+            .third
     }
-
-    // Upload
 
     override suspend fun initiateUpload(
         repository: Repository,
@@ -199,24 +229,6 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
         val response = fuelManager.put("/v2/$repository/blobs/uploads/$sessionUUID", parameters)
             .appendHeader(Headers.ACCEPT, APPLICATION_OCTET_STREAM)
             .apply { if (blob != null) body(blob) }
-            .awaitResponseResult(EmptyDeserializer)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-
-        return response.third.map { response.second["Docker-Content-Digest"].single().let(::Digest) }
-    }
-
-    override suspend fun uploadManifest(
-        repository: Repository,
-        reference: Reference,
-        manifest: ManifestSingle,
-    ): Result<Digest, FuelError> {
-        val contentType = when (manifest) {
-            is DockerManifestV2 -> DockerManifestV2.MediaType
-            is OciManifestV1 -> OciManifestV1.MediaType
-        }
-        val response = fuelManager.put("/v2/$repository/manifests/$reference")
-            .appendHeader(Headers.CONTENT_TYPE, contentType)
-            .body(JsonMapper.writeValueAsString(manifest))
             .awaitResponseResult(EmptyDeserializer)
             .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
 

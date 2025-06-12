@@ -2,6 +2,7 @@ package de.cmdjulian.kirc.image
 
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonValue
+import de.cmdjulian.kirc.image.Tag.Companion.LATEST
 import io.goodforgod.graalvm.hint.annotation.ReflectionHint
 
 /**
@@ -69,6 +70,7 @@ class Digest(@JsonValue private val value: String) : Reference, Comparable<Diges
     }
 
     override val separator: Char get() = Companion.separator
+    val hash: String get() = value.split(":")[1]
 
     override fun compareTo(other: Digest): Int = value.compareTo(other.value)
     override fun equals(other: Any?): Boolean = other is Digest && other.value == value

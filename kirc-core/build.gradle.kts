@@ -7,6 +7,10 @@ plugins {
 dependencies {
     implementation(project(":kirc-image"))
 
+    // Kotlin
+    implementation(platform(coroutines.bom))
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
+
     // graal reflect config
     kapt(graalHints.processor)
     compileOnly(graalHints.annotations)

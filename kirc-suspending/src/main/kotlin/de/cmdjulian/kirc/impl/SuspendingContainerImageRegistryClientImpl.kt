@@ -22,13 +22,20 @@ import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
 import de.cmdjulian.kirc.impl.response.Catalog
 import de.cmdjulian.kirc.impl.response.TagList
+import de.cmdjulian.kirc.spec.DownloadImage
 import de.cmdjulian.kirc.spec.image.DockerImageConfigV1
 import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.image.OciImageConfigV1
 import de.cmdjulian.kirc.spec.manifest.DockerManifestV2
 import de.cmdjulian.kirc.spec.manifest.Manifest
+import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestV1
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import org.anarres.parallelgzip.ParallelGZIPInputStream
+import java.io.InputStream
+import java.io.OutputStream
 import java.util.*
 
 internal class SuspendingContainerImageRegistryClientImpl(private val api: ContainerRegistryApi) :
@@ -121,6 +128,79 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
         manifest: ManifestSingle,
     ): Digest = api.uploadManifest(repository, reference, manifest)
         .getOrElse { throw it.toRegistryClientError(repository, null) }
+
+    override suspend fun upload(
+        repository: Repository,
+        reference: Reference,
+        gzip: InputStream,
+    ) {
+        // first decompress & deserialize
+        val uploadImages = gzip.use(::ParallelGZIPInputStream).use { data ->
+            OciImageArchiveProcessor.readFromGZIP(data)
+        }
+
+        // upload architecture images
+        uploadImages.forEach { (manifest, digest, blobs) ->
+            blobs.forEach { blob ->
+                if (!existsBlob(repository, blob.digest)) {
+                    val sessionUUID = initiateUpload(repository, null, null)
+                        ?: error("No session id returned from registry upon initiating upload for repository '$repository'")
+                    uploadBlob(repository, sessionUUID, blob.digest, blob.data)
+                }
+                uploadManifest(repository, digest, manifest)
+            }
+        }
+
+        // TODO upload image index manifest needed ?
+        // val sessionUUID = initiateUpload(repository, null, null)
+        //     ?: error("No session id returned from registry upon initiating upload for repository '$repository'")
+        // uploadManifest(repository, reference, manifest())
+    }
+
+    // Download
+
+    override suspend fun download(repository: Repository, reference: Reference): suspend (OutputStream) -> Unit =
+        when (val index = manifest(repository, reference)) {
+            is ManifestSingle -> {
+                val image = index.toDownloadImage(repository, reference)
+                OciImageArchiveProcessor.writeToGZIP(image)
+            }
+
+            is ManifestList -> {
+                val images = index.manifests.map { listEntry ->
+                    val singleManifest = manifest(repository, listEntry.digest) as ManifestSingle
+                    singleManifest.toDownloadImage(repository, reference)
+                }
+                OciImageArchiveProcessor.writeToGZIP(index, images)
+            }
+        }
+
+    suspend fun getBlobWithCheck(repository: Repository, digest: Digest): ByteArray {
+        if (!existsBlob(repository, digest)) {
+            error("Blob does not exist!")
+        }
+        return blob(repository, digest)
+    }
+
+    suspend fun ManifestSingle.toDownloadImage(repository: Repository, reference: Reference): DownloadImage =
+        coroutineScope {
+            val deferredLayerBlobs = layers.map { layer ->
+                DownloadImage.DeferredImageBlob(
+                    layer.digest,
+                    async { getBlobWithCheck(repository, layer.digest) },
+                )
+            }
+            val deferredConfigBlob = DownloadImage.DeferredImageBlob(
+                config.digest,
+                async { getBlobWithCheck(repository, config.digest) },
+            )
+            DownloadImage(
+                this@toDownloadImage,
+                reference as? Digest ?: manifestDigest(repository, reference),
+                deferredConfigBlob,
+                deferredLayerBlobs,
+            )
+        }
 
     // To Image Client
 

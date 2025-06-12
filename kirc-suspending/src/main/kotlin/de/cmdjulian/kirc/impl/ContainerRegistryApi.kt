@@ -20,7 +20,7 @@ import java.util.*
  */
 internal interface ContainerRegistryApi {
 
-    // Status information
+    // Status
 
     suspend fun ping(): Result<*, FuelError>
     suspend fun repositories(limit: Int?, last: Int?): Result<Catalog, FuelError>
@@ -29,7 +29,7 @@ internal interface ContainerRegistryApi {
 
     // Manifest
 
-    suspend fun existsManifest()
+    suspend fun existsManifest(repository: Repository, reference: Reference, accept: String): Result<*, FuelError>
     suspend fun manifest(repository: Repository, reference: Reference): Result<ManifestSingle, FuelError>
     suspend fun manifests(repository: Repository, reference: Reference): Result<Manifest, FuelError>
     suspend fun uploadManifest(

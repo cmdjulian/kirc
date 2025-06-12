@@ -36,8 +36,9 @@ dependencies {
     // insecure connections
     implementation("io.github.hakky54:sslcontext-kickstart:8.3.5")
 
-    // parallel gzip in / out
+    // compression handling (zip, gzip)
     implementation("org.anarres:parallelgzip:1.0.3")
+    implementation("org.apache.commons:commons-compress:1.26.1")
 
     // tests
     testImplementation(platform(tests.junit.bom))

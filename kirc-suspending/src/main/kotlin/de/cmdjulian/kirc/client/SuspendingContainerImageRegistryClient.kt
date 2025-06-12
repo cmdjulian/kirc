@@ -7,6 +7,8 @@ import de.cmdjulian.kirc.image.Tag
 import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
+import java.io.InputStream
+import java.io.OutputStream
 import java.util.*
 
 /**
@@ -108,4 +110,8 @@ interface SuspendingContainerImageRegistryClient {
         reference: Reference,
         manifest: ManifestSingle,
     ): SuspendingContainerImageClient
+
+    suspend fun upload(repository: Repository, reference: Reference, gzip: InputStream)
+
+    suspend fun download(repository: Repository, reference: Reference): suspend (OutputStream) -> Unit
 }
