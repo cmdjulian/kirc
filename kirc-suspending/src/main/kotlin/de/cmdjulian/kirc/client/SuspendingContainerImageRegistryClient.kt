@@ -4,6 +4,7 @@ import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
+import de.cmdjulian.kirc.spec.Platform
 import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
@@ -100,6 +101,9 @@ interface SuspendingContainerImageRegistryClient {
      */
     suspend fun uploadManifest(repository: Repository, reference: Reference, manifest: ManifestSingle): Digest
 
+    /**
+     * Cancels the ongoing upload of blobs for certain session id
+     */
     suspend fun cancelBlobUpload(repository: Repository, sessionUUID: UUID)
 
     /**
@@ -113,5 +117,13 @@ interface SuspendingContainerImageRegistryClient {
 
     suspend fun upload(repository: Repository, reference: Reference, gzip: InputStream)
 
-    suspend fun download(repository: Repository, reference: Reference): suspend (OutputStream) -> Unit
+    /**
+     * Downloads a docker image for certain [reference] and [platform].
+     * If no platform is provided, all will be downloaded.
+     */
+    suspend fun download(
+        repository: Repository,
+        reference: Reference,
+        platform: Platform?,
+    ): suspend (OutputStream) -> Unit
 }

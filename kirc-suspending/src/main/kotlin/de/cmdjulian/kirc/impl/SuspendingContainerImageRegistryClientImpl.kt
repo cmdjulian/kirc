@@ -23,13 +23,16 @@ import de.cmdjulian.kirc.image.Tag
 import de.cmdjulian.kirc.impl.response.Catalog
 import de.cmdjulian.kirc.impl.response.TagList
 import de.cmdjulian.kirc.spec.DownloadImage
+import de.cmdjulian.kirc.spec.Platform
 import de.cmdjulian.kirc.spec.image.DockerImageConfigV1
 import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.image.OciImageConfigV1
+import de.cmdjulian.kirc.spec.manifest.DockerManifestListV1
 import de.cmdjulian.kirc.spec.manifest.DockerManifestV2
 import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
+import de.cmdjulian.kirc.spec.manifest.OciManifestListV1
 import de.cmdjulian.kirc.spec.manifest.OciManifestV1
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -150,56 +153,73 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
                 uploadManifest(repository, digest, manifest)
             }
         }
-
-        // TODO upload image index manifest needed ?
-        // val sessionUUID = initiateUpload(repository, null, null)
-        //     ?: error("No session id returned from registry upon initiating upload for repository '$repository'")
-        // uploadManifest(repository, reference, manifest())
     }
 
     // Download
 
-    override suspend fun download(repository: Repository, reference: Reference): suspend (OutputStream) -> Unit =
+    override suspend fun download(
+        repository: Repository,
+        reference: Reference,
+        platform: Platform?,
+    ): suspend (OutputStream) -> Unit =
         when (val index = manifest(repository, reference)) {
-            is ManifestSingle -> {
-                val image = index.toDownloadImage(repository, reference)
-                OciImageArchiveProcessor.writeToGZIP(image)
-            }
+            is ManifestSingle -> error(
+                "Expected a reference to an index manifest but received a reference to an image manifest " +
+                    "'$repository/${reference.asImagePart()}'",
+            )
 
             is ManifestList -> {
-                val images = index.manifests.map { listEntry ->
+                val images = index.manifests.mapNotNull { listEntry ->
                     val singleManifest = manifest(repository, listEntry.digest) as ManifestSingle
-                    singleManifest.toDownloadImage(repository, reference)
+                    singleManifest.toDownloadImage(repository, listEntry.digest, platform)
                 }
-                OciImageArchiveProcessor.writeToGZIP(index, images)
+                // we need to filter the index, so that it contains no manifests of another platform, other than specified
+                val filteredIndex = if (platform == null) {
+                    index
+                } else {
+                    index.filterForDigests(images.map(DownloadImage::digest))
+                }
+                OciImageArchiveProcessor.writeToGZIP(filteredIndex, images)
             }
         }
 
-    suspend fun getBlobWithCheck(repository: Repository, digest: Digest): ByteArray {
+    private fun ManifestList.filterForDigests(digests: List<Digest>): ManifestList {
+        fun filterManifests() = manifests.filter { digests.contains(it.digest) }
+        return when (this) {
+            is DockerManifestListV1 -> copy(manifests = filterManifests())
+            is OciManifestListV1 -> copy(manifests = filterManifests())
+        }
+    }
+
+    private suspend fun getBlobWithCheck(repository: Repository, digest: Digest): ByteArray {
         if (!existsBlob(repository, digest)) {
             error("Blob does not exist!")
         }
         return blob(repository, digest)
     }
 
-    suspend fun ManifestSingle.toDownloadImage(repository: Repository, reference: Reference): DownloadImage =
+    private suspend fun ManifestSingle.toDownloadImage(
+        repository: Repository,
+        manifestDigest: Digest,
+        platform: Platform?,
+    ): DownloadImage? =
         coroutineScope {
+            val config = getBlobWithCheck(repository, this@toDownloadImage.config.digest).let {
+                jacksonDeserializer<ImageConfig>().deserialize(it)
+            }
             val deferredLayerBlobs = layers.map { layer ->
                 DownloadImage.DeferredImageBlob(
                     layer.digest,
                     async { getBlobWithCheck(repository, layer.digest) },
                 )
             }
-            val deferredConfigBlob = DownloadImage.DeferredImageBlob(
-                config.digest,
-                async { getBlobWithCheck(repository, config.digest) },
-            )
-            DownloadImage(
-                this@toDownloadImage,
-                reference as? Digest ?: manifestDigest(repository, reference),
-                deferredConfigBlob,
-                deferredLayerBlobs,
-            )
+
+            // filter image for platform
+            if (platform != null && platform.os == config.os && platform.arch == config.architecture) {
+                DownloadImage(this@toDownloadImage, manifestDigest, config, deferredLayerBlobs)
+            } else {
+                null
+            }
         }
 
     // To Image Client

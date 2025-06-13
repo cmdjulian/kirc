@@ -37,8 +37,8 @@ internal object OciImageArchiveProcessor {
 
     private suspend fun TarArchiveOutputStream.writeImage(image: DownloadImage) {
         writeEntry("/blobs/sha256/${image.digest.hash}", image.manifest)
-        writeEntry("/blobs/sha256/${image.manifest.config.digest.hash}.json", image.configBlob.deferred.await())
-        image.layerBlobs.forEach { layerBlob ->
+        writeEntry("/blobs/sha256/${image.manifest.config.digest.hash}.json", image.config)
+        image.blobs.forEach { layerBlob ->
             writeEntry("/blobs/sha256/${layerBlob.digest.hash}", layerBlob.deferred.await())
         }
     }
