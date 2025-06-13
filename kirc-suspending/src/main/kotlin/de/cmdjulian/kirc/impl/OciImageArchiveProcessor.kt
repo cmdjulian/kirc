@@ -43,18 +43,9 @@ internal object OciImageArchiveProcessor {
         }
     }
 
-    // todo what format for single image?
-    fun writeToGZIP(image: DownloadImage): suspend (OutputStream) -> Unit = { outputStream ->
-        ParallelGZIPOutputStream(TarArchiveOutputStream(outputStream)).use { gzipOutput ->
-            writeToOutputStream(gzipOutput, image)
-
-        }
-    }
-
-    private fun writeToOutputStream(outputStream: OutputStream, image: DownloadImage) {
-    }
-
     // Process for upload
+
+    // Todo zwischenspeichern in temp folder -> siehe java temp folder
 
     fun readFromGZIP(inputStream: ParallelGZIPInputStream) = TarArchiveInputStream(inputStream).use { stream ->
         var entry: ArchiveEntry? = stream.nextEntry
