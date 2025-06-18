@@ -58,8 +58,9 @@ internal class SuspendingContainerImageClientImpl(
     override suspend fun toImage(): ContainerImage = coroutineScope {
         val config = async { config() }
         val blobs = async { blobs() }
+        val digest = async { image.digest ?: client.manifestDigest(image.repository, image.reference) }
 
-        ContainerImage(manifest, config.await(), blobs.await())
+        ContainerImage(manifest, digest.await(), config.await(), blobs.await())
     }
 
     override suspend fun download(): OutputStream {

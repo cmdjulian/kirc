@@ -4,10 +4,11 @@ import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
-import de.cmdjulian.kirc.spec.Platform
 import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.manifest.Manifest
+import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
+import org.jetbrains.annotations.Blocking
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.*
@@ -115,15 +116,22 @@ interface SuspendingContainerImageRegistryClient {
         manifest: ManifestSingle,
     ): SuspendingContainerImageClient
 
-    suspend fun upload(repository: Repository, reference: Reference, gzip: InputStream)
+    /**
+     * Uploads [tar] image archive to container registry at [repository] with [reference]
+     *
+     * @return the digest of uploaded image
+     */
+    // TODO JG: check if InputStream is a good fit here
+    suspend fun upload(repository: Repository, reference: Reference, tar: InputStream): Digest
 
     /**
-     * Downloads a docker image for certain [reference] and [platform].
-     * If no platform is provided, all will be downloaded.
+     * Downloads a docker image for certain [reference].
+     *
+     * For [reference] we download everything to what [reference] directs to (either [ManifestSingle] or [ManifestList])
+     *
+     * Todo return outputstream for blocking api -> julian will look after what in suspending case
      */
-    suspend fun download(
-        repository: Repository,
-        reference: Reference,
-        platform: Platform?,
-    ): suspend (OutputStream) -> Unit
+    // TODO JG: check if OutputStream is a good fit here
+    @Blocking
+    suspend fun download(repository: Repository, reference: Reference): OutputStream
 }

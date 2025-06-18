@@ -22,8 +22,6 @@ import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
 import de.cmdjulian.kirc.impl.response.Catalog
 import de.cmdjulian.kirc.impl.response.TagList
-import de.cmdjulian.kirc.spec.DownloadImage
-import de.cmdjulian.kirc.spec.Platform
 import de.cmdjulian.kirc.spec.image.DockerImageConfigV1
 import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.image.OciImageConfigV1
@@ -34,11 +32,12 @@ import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestListV1
 import de.cmdjulian.kirc.spec.manifest.OciManifestV1
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import org.anarres.parallelgzip.ParallelGZIPInputStream
+import org.apache.commons.io.IOUtils
+import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.OutputStream
+import java.nio.file.Files
+import java.time.OffsetDateTime
 import java.util.*
 
 internal class SuspendingContainerImageRegistryClientImpl(private val api: ContainerRegistryApi) :
@@ -135,15 +134,17 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
     override suspend fun upload(
         repository: Repository,
         reference: Reference,
-        gzip: InputStream,
-    ) {
-        // first decompress & deserialize
-        val uploadImages = gzip.use(::ParallelGZIPInputStream).use { data ->
-            OciImageArchiveProcessor.readFromGZIP(data)
-        }
+        tar: InputStream,
+    ): Digest {
+        // store data temporarily
+        val tempFile = Files.createTempFile("$repository-$reference-${OffsetDateTime.now()}", "tar.gz").toFile()
+            .also { file ->
+                file.deleteOnExit()
+                IOUtils.copy(tar, file.outputStream())
+            }
 
         // upload architecture images
-        uploadImages.forEach { (manifest, digest, blobs) ->
+        OciImageArchiveProcessor.readFromTar(tar).forEach { (manifest, digest, blobs) ->
             blobs.forEach { blob ->
                 if (!existsBlob(repository, blob.digest)) {
                     val sessionUUID = initiateUpload(repository, null, null)
@@ -153,37 +154,39 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
                 uploadManifest(repository, digest, manifest)
             }
         }
+
+        // delete temp file just in case
+        Files.deleteIfExists(tempFile.toPath())
     }
 
     // Download
 
-    override suspend fun download(
-        repository: Repository,
-        reference: Reference,
-        platform: Platform?,
-    ): suspend (OutputStream) -> Unit =
-        when (val index = manifest(repository, reference)) {
-            is ManifestSingle -> error(
-                "Expected a reference to an index manifest but received a reference to an image manifest " +
-                    "'$repository/${reference.asImagePart()}'",
-            )
+    override suspend fun download(repository: Repository, reference: Reference): OutputStream =
+        when (val manifest = manifest(repository, reference)) {
+            is ManifestSingle -> {
+                val image = toImageClient(repository, reference).toImage()
+
+                ByteArrayOutputStream().apply {
+                    use {
+                        OciImageArchiveProcessor.writeToTar(it, image)
+                    }
+                }
+            }
 
             is ManifestList -> {
-                val images = index.manifests.mapNotNull { listEntry ->
-                    val singleManifest = manifest(repository, listEntry.digest) as ManifestSingle
-                    singleManifest.toDownloadImage(repository, listEntry.digest, platform)
+                val images = manifest.manifests.map { listEntry ->
+                    toImageClient(repository, listEntry.digest).toImage()
                 }
-                // we need to filter the index, so that it contains no manifests of another platform, other than specified
-                val filteredIndex = if (platform == null) {
-                    index
-                } else {
-                    index.filterForDigests(images.map(DownloadImage::digest))
+
+                ByteArrayOutputStream().apply {
+                    use {
+                        OciImageArchiveProcessor.writeToTar(it, manifest, images)
+                    }
                 }
-                OciImageArchiveProcessor.writeToGZIP(filteredIndex, images)
             }
         }
 
-    private fun ManifestList.filterForDigests(digests: List<Digest>): ManifestList {
+    private fun ManifestList.filterForDigests(digests: Set<Digest>): ManifestList {
         fun filterManifests() = manifests.filter { digests.contains(it.digest) }
         return when (this) {
             is DockerManifestListV1 -> copy(manifests = filterManifests())
@@ -197,30 +200,6 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
         }
         return blob(repository, digest)
     }
-
-    private suspend fun ManifestSingle.toDownloadImage(
-        repository: Repository,
-        manifestDigest: Digest,
-        platform: Platform?,
-    ): DownloadImage? =
-        coroutineScope {
-            val config = getBlobWithCheck(repository, this@toDownloadImage.config.digest).let {
-                jacksonDeserializer<ImageConfig>().deserialize(it)
-            }
-            val deferredLayerBlobs = layers.map { layer ->
-                DownloadImage.DeferredImageBlob(
-                    layer.digest,
-                    async { getBlobWithCheck(repository, layer.digest) },
-                )
-            }
-
-            // filter image for platform
-            if (platform != null && platform.os == config.os && platform.arch == config.architecture) {
-                DownloadImage(this@toDownloadImage, manifestDigest, config, deferredLayerBlobs)
-            } else {
-                null
-            }
-        }
 
     // To Image Client
 
@@ -270,6 +249,7 @@ private fun FuelError.toRegistryClientError(
         404 -> NotFoundException(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, this)
 
         405 -> MethodNotAllowed(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, this)
+
         in 406..499 ->
             UnexpectedErrorException(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, this)
 

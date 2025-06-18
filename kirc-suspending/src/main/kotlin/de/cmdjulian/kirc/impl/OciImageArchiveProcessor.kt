@@ -1,31 +1,50 @@
 package de.cmdjulian.kirc.impl
 
-import de.cmdjulian.kirc.spec.DownloadImage
+import de.cmdjulian.kirc.spec.ContainerImage
 import de.cmdjulian.kirc.spec.LayerBlob
+import de.cmdjulian.kirc.spec.ManifestJson
+import de.cmdjulian.kirc.spec.Repositories
 import de.cmdjulian.kirc.spec.UploadImage
 import de.cmdjulian.kirc.spec.manifest.ManifestList
+import de.cmdjulian.kirc.spec.manifest.ManifestListEntry
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
-import org.anarres.parallelgzip.ParallelGZIPInputStream
-import org.anarres.parallelgzip.ParallelGZIPOutputStream
+import de.cmdjulian.kirc.spec.manifest.OciManifestListV1
 import org.apache.commons.compress.archivers.ArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
+import java.io.InputStream
 import java.io.OutputStream
 
 internal object OciImageArchiveProcessor {
 
     // process for download
 
-    fun writeToGZIP(index: ManifestList, images: List<DownloadImage>): suspend (OutputStream) -> Unit =
-        { output ->
-            ParallelGZIPOutputStream(output).use { gzipOutput ->
-                TarArchiveOutputStream(gzipOutput).use { tarOutput ->
-                    tarOutput.writeEntry("/index.json", index)
-                    images.forEach { image -> tarOutput.writeImage(image) }
-                }
-            }
+    fun writeToTar(outputStream: OutputStream, image: ContainerImage) {
+        val manifestListEntry = ManifestListEntry(
+            mediaType = "",
+            digest = image.digest,
+            size = 2,
+            platform = ManifestListEntry.Platform(image.config.os, image.config.architecture, emptyList()),
+        )
+        val index = OciManifestListV1(2, OciManifestListV1.MediaType, listOf(manifestListEntry), mapOf())
+        writeToTar(outputStream, index, listOf(image))
+    }
+
+    fun writeToTar(outputStream: OutputStream, index: ManifestList, images: List<ContainerImage>) =
+        TarArchiveOutputStream(outputStream).use { tarOutput ->
+            tarOutput.writeEntry("index.json", index)
+
+            images.forEach { image -> tarOutput.writeImage(image) }
         }
+
+    private fun TarArchiveOutputStream.writeImage(image: ContainerImage) {
+        writeEntry("blobs/sha256/${image.digest.hash}", image.manifest)
+        writeEntry("blobs/sha256/${image.manifest.config.digest.hash}.json", image.config)
+        image.blobs.forEach { layerBlob ->
+            writeEntry("blobs/sha256/${layerBlob.digest.hash}", layerBlob.data)
+        }
+    }
 
     private fun TarArchiveOutputStream.writeEntry(name: String, data: Any) {
         val indexEntry = TarArchiveEntry(name)
@@ -35,42 +54,42 @@ internal object OciImageArchiveProcessor {
         closeArchiveEntry()
     }
 
-    private suspend fun TarArchiveOutputStream.writeImage(image: DownloadImage) {
-        writeEntry("/blobs/sha256/${image.digest.hash}", image.manifest)
-        writeEntry("/blobs/sha256/${image.manifest.config.digest.hash}.json", image.config)
-        image.blobs.forEach { layerBlob ->
-            writeEntry("/blobs/sha256/${layerBlob.digest.hash}", layerBlob.deferred.await())
-        }
-    }
-
     // Process for upload
 
-    // Todo zwischenspeichern in temp folder -> siehe java temp folder
+    fun readFromTar(inputTarStream: InputStream) = inputTarStream.use { tarStream ->
+        TarArchiveInputStream(tarStream).use { stream ->
+            var entry: ArchiveEntry? = stream.nextEntry
+            val blobs = mutableMapOf<String, ByteArray>()
+            var index: ManifestList? = null
+            var repositories: Repositories? = null
+            var manifestJson: ManifestJson? = null
 
-    fun readFromGZIP(inputStream: ParallelGZIPInputStream) = TarArchiveInputStream(inputStream).use { stream ->
-        var entry: ArchiveEntry? = stream.nextEntry
-        val blobs = mutableMapOf<String, ByteArray>()
-        var index: ManifestList? = null
+            while (entry != null) {
+                val readEntryData = { stream.readNBytes(entry!!.size.toInt()) }
+                when {
+                    entry.isDirectory -> continue
 
-        while (entry != null) {
-            val readEntryData = { stream.readNBytes(entry!!.size.toInt()) }
-            when {
-                entry.isDirectory -> continue
+                    entry.name.contains("blobs/sha256/") ->
+                        blobs[entry.name] = readEntryData()
 
-                entry.name.contains("blobs/sha256/") ->
-                    blobs[entry.name] = readEntryData()
+                    entry.name.contains("index.json") ->
+                        index = jacksonDeserializer<ManifestList>().deserialize(readEntryData())
 
-                entry.name.contains("index.json") ->
-                    index = jacksonDeserializer<ManifestList>().deserialize(readEntryData())
+                    entry.name.contains("repositories") ->
+                        repositories = jacksonDeserializer<Repositories>().deserialize(readEntryData())
 
-                else -> readEntryData()
+                    entry.name.contains("manifest.json") ->
+                        manifestJson = jacksonDeserializer<ManifestJson>().deserialize(readEntryData())
+
+                    else -> readEntryData()
+                }
+                entry = stream.nextEntry
             }
-            entry = stream.nextEntry
+
+            require(index != null) { "index should not be null" }
+
+            associateManifestsWithBlobs(index, blobs)
         }
-
-        require(index != null) { "index could not be null" }
-
-        associateManifestsWithBlobs(index, blobs)
     }
 
     private fun findBlob(blobs: Map<String, ByteArray>, regex: String, notFoundMessage: String): ByteArray {
