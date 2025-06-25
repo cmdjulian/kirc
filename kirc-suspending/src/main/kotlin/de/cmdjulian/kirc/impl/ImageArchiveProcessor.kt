@@ -3,12 +3,12 @@ package de.cmdjulian.kirc.impl
 import de.cmdjulian.kirc.spec.ContainerImage
 import de.cmdjulian.kirc.spec.LayerBlob
 import de.cmdjulian.kirc.spec.ManifestJson
+import de.cmdjulian.kirc.spec.OciLayout
 import de.cmdjulian.kirc.spec.Repositories
-import de.cmdjulian.kirc.spec.UploadImage
+import de.cmdjulian.kirc.spec.UploadContainerImage
+import de.cmdjulian.kirc.spec.UploadSingleImage
 import de.cmdjulian.kirc.spec.manifest.ManifestList
-import de.cmdjulian.kirc.spec.manifest.ManifestListEntry
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
-import de.cmdjulian.kirc.spec.manifest.OciManifestListV1
 import org.apache.commons.compress.archivers.ArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
@@ -16,27 +16,32 @@ import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import java.io.InputStream
 import java.io.OutputStream
 
-internal object OciImageArchiveProcessor {
+internal object ImageArchiveProcessor {
 
     // process for download
 
-    fun writeToTar(outputStream: OutputStream, image: ContainerImage) {
-        val manifestListEntry = ManifestListEntry(
-            mediaType = "",
-            digest = image.digest,
-            size = 2,
-            platform = ManifestListEntry.Platform(image.config.os, image.config.architecture, emptyList()),
-        )
-        val index = OciManifestListV1(2, OciManifestListV1.MediaType, listOf(manifestListEntry), mapOf())
-        writeToTar(outputStream, index, listOf(image))
+    fun writeToTar(
+        outputStream: OutputStream,
+        index: ManifestList,
+        manifestJson: ManifestJson,
+        repositories: Repositories,
+        image: ContainerImage,
+    ) = writeToTar(outputStream, index, manifestJson, repositories, listOf(image))
+
+    fun writeToTar(
+        outputStream: OutputStream,
+        index: ManifestList,
+        manifestJson: ManifestJson,
+        repositories: Repositories,
+        images: List<ContainerImage>,
+    ) = TarArchiveOutputStream(outputStream).use { tarOutput ->
+        tarOutput.writeEntry("index.json", index)
+        tarOutput.writeEntry("manifest.json", manifestJson)
+        tarOutput.writeEntry("repositories", repositories)
+        tarOutput.writeEntry("oci-layout", OciLayout("1.0.0"))
+
+        images.forEach { image -> tarOutput.writeImage(image) }
     }
-
-    fun writeToTar(outputStream: OutputStream, index: ManifestList, images: List<ContainerImage>) =
-        TarArchiveOutputStream(outputStream).use { tarOutput ->
-            tarOutput.writeEntry("index.json", index)
-
-            images.forEach { image -> tarOutput.writeImage(image) }
-        }
 
     private fun TarArchiveOutputStream.writeImage(image: ContainerImage) {
         writeEntry("blobs/sha256/${image.digest.hash}", image.manifest)
@@ -61,8 +66,9 @@ internal object OciImageArchiveProcessor {
             var entry: ArchiveEntry? = stream.nextEntry
             val blobs = mutableMapOf<String, ByteArray>()
             var index: ManifestList? = null
-            var repositories: Repositories? = null
-            var manifestJson: ManifestJson? = null
+            var repositoriesFile: Repositories? = null
+            var manifestJsonFile: ManifestJson? = null
+            var layoutFile: OciLayout? = null
 
             while (entry != null) {
                 val readEntryData = { stream.readNBytes(entry!!.size.toInt()) }
@@ -76,19 +82,24 @@ internal object OciImageArchiveProcessor {
                         index = jacksonDeserializer<ManifestList>().deserialize(readEntryData())
 
                     entry.name.contains("repositories") ->
-                        repositories = jacksonDeserializer<Repositories>().deserialize(readEntryData())
+                        repositoriesFile = jacksonDeserializer<Repositories>().deserialize(readEntryData())
 
                     entry.name.contains("manifest.json") ->
-                        manifestJson = jacksonDeserializer<ManifestJson>().deserialize(readEntryData())
+                        manifestJsonFile = jacksonDeserializer<ManifestJson>().deserialize(readEntryData())
+
+                    entry.name.contains("oci-layout") ->
+                        layoutFile = jacksonDeserializer<OciLayout>().deserialize(readEntryData())
 
                     else -> readEntryData()
                 }
                 entry = stream.nextEntry
             }
 
-            require(index != null) { "index should not be null" }
+            require(index != null) { "index should be present inside provided docker image" }
+            require(layoutFile != null) { "layoutFile should be present inside provided docker image" }
 
-            associateManifestsWithBlobs(index, blobs)
+            val singleImages = associateManifestsWithBlobs(index, blobs)
+            UploadContainerImage(index, singleImages, manifestJsonFile, repositoriesFile, layoutFile)
         }
     }
 
@@ -107,7 +118,7 @@ internal object OciImageArchiveProcessor {
     private fun associateManifestsWithBlobs(
         index: ManifestList,
         blobs: MutableMap<String, ByteArray>,
-    ): List<UploadImage> {
+    ): List<UploadSingleImage> {
         // find manifests from index
         val manifests = index.manifests.associate { manifest ->
             val blob = findBlob(blobs, "blobs/sha256/${manifest.digest.hash}.json", "TODO")
@@ -127,7 +138,7 @@ internal object OciImageArchiveProcessor {
                 LayerBlob(config.digest, config.mediaType, blob)
             }
 
-            UploadImage(manifest, digest, layerBlobs + configBlob)
+            UploadSingleImage(manifest, digest, layerBlobs + configBlob)
         }
     }
 }

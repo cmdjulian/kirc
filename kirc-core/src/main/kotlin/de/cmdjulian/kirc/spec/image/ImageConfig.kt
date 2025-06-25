@@ -13,7 +13,7 @@ sealed interface ImageConfig {
     val author: String?
     val architecture: Architecture
     val os: OS
-    val config: Config?
+    val config: Config? // todo if this ain't nullable we could extract config.env python version?
     val rootfs: RootFs
     val history: List<History>
 

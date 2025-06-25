@@ -12,6 +12,7 @@ dependencies {
     implementation(kotlin("stdlib"))
     implementation(platform(coroutines.bom))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
+    implementation("org.jetbrains.kotlinx:kotlinx-io-core:0.7.0")
 
     // graal reflect config
     kapt(graalHints.processor)
@@ -36,8 +37,7 @@ dependencies {
     // insecure connections
     implementation("io.github.hakky54:sslcontext-kickstart:8.3.5")
 
-    // compression handling (zip, gzip)
-    implementation("org.anarres:parallelgzip:1.0.3")
+    // tar file handling
     implementation("org.apache.commons:commons-compress:1.26.1")
 
     // tests

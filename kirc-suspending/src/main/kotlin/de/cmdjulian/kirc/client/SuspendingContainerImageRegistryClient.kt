@@ -8,9 +8,8 @@ import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
-import org.jetbrains.annotations.Blocking
-import java.io.InputStream
-import java.io.OutputStream
+import kotlinx.io.Sink
+import kotlinx.io.Source
 import java.util.*
 
 /**
@@ -100,7 +99,7 @@ interface SuspendingContainerImageRegistryClient {
     /**
      * Upload a manifest
      */
-    suspend fun uploadManifest(repository: Repository, reference: Reference, manifest: ManifestSingle): Digest
+    suspend fun uploadManifest(repository: Repository, reference: Reference, manifest: Manifest): Digest
 
     /**
      * Cancels the ongoing upload of blobs for certain session id
@@ -121,17 +120,21 @@ interface SuspendingContainerImageRegistryClient {
      *
      * @return the digest of uploaded image
      */
-    // TODO JG: check if InputStream is a good fit here
-    suspend fun upload(repository: Repository, reference: Reference, tar: InputStream): Digest
+    suspend fun upload(repository: Repository, reference: Reference, tar: Source): Digest
+
+    /**
+     * Uploads [tar] image archive to container registry, deducting repository and reference from the archive itself.
+     *
+     * > Attention, the archive has to contain this information
+     *
+     * @return the digest of uploaded image
+     */
+    suspend fun upload(tar: Source): Digest
 
     /**
      * Downloads a docker image for certain [reference].
      *
      * For [reference] we download everything to what [reference] directs to (either [ManifestSingle] or [ManifestList])
-     *
-     * Todo return outputstream for blocking api -> julian will look after what in suspending case
      */
-    // TODO JG: check if OutputStream is a good fit here
-    @Blocking
-    suspend fun download(repository: Repository, reference: Reference): OutputStream
+    suspend fun download(repository: Repository, reference: Reference): Sink
 }

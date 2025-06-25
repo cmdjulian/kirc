@@ -14,8 +14,6 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import org.anarres.parallelgzip.ParallelGZIPOutputStream
-import java.io.ByteArrayOutputStream
 import java.io.OutputStream
 
 internal class SuspendingContainerImageClientImpl(
@@ -64,12 +62,6 @@ internal class SuspendingContainerImageClientImpl(
     }
 
     override suspend fun download(): OutputStream {
-        val image = toImage()
-
-        return ByteArrayOutputStream().also { destination ->
-            ParallelGZIPOutputStream(destination).use { stream ->
-                stream.write(JsonMapper.writeValueAsBytes(image))
-            }
-        }
+        TODO()
     }
 }

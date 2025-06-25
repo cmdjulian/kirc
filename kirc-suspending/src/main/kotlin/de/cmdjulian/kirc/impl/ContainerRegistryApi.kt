@@ -35,7 +35,7 @@ internal interface ContainerRegistryApi {
     suspend fun uploadManifest(
         repository: Repository,
         reference: Reference,
-        manifest: ManifestSingle,
+        manifest: Manifest,
     ): Result<Digest, FuelError>
 
     suspend fun deleteManifest(repository: Repository, reference: Reference): Result<Digest, FuelError>

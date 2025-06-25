@@ -131,11 +131,13 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
     override suspend fun uploadManifest(
         repository: Repository,
         reference: Reference,
-        manifest: ManifestSingle,
+        manifest: Manifest,
     ): Result<Digest, FuelError> {
         val contentType = when (manifest) {
             is DockerManifestV2 -> DockerManifestV2.MediaType
+            is DockerManifestListV1 -> DockerManifestListV1.MediaType
             is OciManifestV1 -> OciManifestV1.MediaType
+            is OciManifestListV1 -> OciManifestListV1.MediaType
         }
         val response = fuelManager.put("/v2/$repository/manifests/$reference")
             .appendHeader(Headers.CONTENT_TYPE, contentType)

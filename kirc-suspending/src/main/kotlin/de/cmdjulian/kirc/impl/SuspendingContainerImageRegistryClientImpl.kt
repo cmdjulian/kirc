@@ -25,20 +25,23 @@ import de.cmdjulian.kirc.impl.response.TagList
 import de.cmdjulian.kirc.spec.image.DockerImageConfigV1
 import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.image.OciImageConfigV1
-import de.cmdjulian.kirc.spec.manifest.DockerManifestListV1
 import de.cmdjulian.kirc.spec.manifest.DockerManifestV2
 import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
-import de.cmdjulian.kirc.spec.manifest.OciManifestListV1
 import de.cmdjulian.kirc.spec.manifest.OciManifestV1
-import org.apache.commons.io.IOUtils
-import java.io.ByteArrayOutputStream
-import java.io.InputStream
-import java.io.OutputStream
-import java.nio.file.Files
+import kotlinx.io.Buffer
+import kotlinx.io.Sink
+import kotlinx.io.Source
+import kotlinx.io.asInputStream
+import kotlinx.io.asOutputStream
+import kotlinx.io.buffered
+import kotlinx.io.files.Path
+import kotlinx.io.files.SystemFileSystem
 import java.time.OffsetDateTime
 import java.util.*
+import kotlin.io.path.createTempFile
+import kotlin.io.path.pathString
 
 internal class SuspendingContainerImageRegistryClientImpl(private val api: ContainerRegistryApi) :
     SuspendingContainerImageRegistryClient {
@@ -127,24 +130,28 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
     override suspend fun uploadManifest(
         repository: Repository,
         reference: Reference,
-        manifest: ManifestSingle,
+        manifest: Manifest,
     ): Digest = api.uploadManifest(repository, reference, manifest)
         .getOrElse { throw it.toRegistryClientError(repository, null) }
 
     override suspend fun upload(
         repository: Repository,
         reference: Reference,
-        tar: InputStream,
+        tar: Source,
     ): Digest {
+        // todo what to do if reference already has some images? (manifests and index wise?)
+
         // store data temporarily
-        val tempFile = Files.createTempFile("$repository-$reference-${OffsetDateTime.now()}", "tar.gz").toFile()
-            .also { file ->
-                file.deleteOnExit()
-                IOUtils.copy(tar, file.outputStream())
-            }
+        val tempFilePath = createTempFile("$repository-$reference-${OffsetDateTime.now()}", "tar")
+        val tempFilePathKt = Path(tempFilePath.pathString)
+        SystemFileSystem.sink(tempFilePathKt).also(tar::transferTo)
+
+        // read from temp file and deserialize
+        val fileInputStream = SystemFileSystem.source(tempFilePathKt).buffered().asInputStream()
+        val uploadContainerImage = ImageArchiveProcessor.readFromTar(fileInputStream)
 
         // upload architecture images
-        OciImageArchiveProcessor.readFromTar(tar).forEach { (manifest, digest, blobs) ->
+        uploadContainerImage.images.forEach { (manifest, digest, blobs) ->
             blobs.forEach { blob ->
                 if (!existsBlob(repository, blob.digest)) {
                     val sessionUUID = initiateUpload(repository, null, null)
@@ -156,19 +163,28 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
         }
 
         // delete temp file just in case
-        Files.deleteIfExists(tempFile.toPath())
+        SystemFileSystem.delete(tempFilePathKt)
+        // upload index
+        return uploadManifest(repository, reference, uploadContainerImage.index)
+    }
+
+    override suspend fun upload(tar: Source): Digest {
+        TODO("Not yet implemented")
     }
 
     // Download
 
-    override suspend fun download(repository: Repository, reference: Reference): OutputStream =
+    override suspend fun download(repository: Repository, reference: Reference): Sink =
         when (val manifest = manifest(repository, reference)) {
             is ManifestSingle -> {
                 val image = toImageClient(repository, reference).toImage()
+                val index = DockerArchiveHelper.createIndexFile(image)
+                val manifestJsonEntry = DockerArchiveHelper.createManifestJsonFile(repository, reference, image)
+                val repositories = DockerArchiveHelper.createRepositoriesFile(repository, reference, image.digest)
 
-                ByteArrayOutputStream().apply {
-                    use {
-                        OciImageArchiveProcessor.writeToTar(it, image)
+                Buffer().apply {
+                    asOutputStream().use {
+                        ImageArchiveProcessor.writeToTar(it, index, listOf(manifestJsonEntry), repositories, image)
                     }
                 }
             }
@@ -177,29 +193,17 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
                 val images = manifest.manifests.map { listEntry ->
                     toImageClient(repository, listEntry.digest).toImage()
                 }
+                // todo get tag?
+                val manifestJson = images.map { image -> createManifestJsonFile(repository, image.digest, image) }
+                val repositories = DockerArchiveHelper.createRepositoriesFile(repository, manifest)
 
-                ByteArrayOutputStream().apply {
-                    use {
-                        OciImageArchiveProcessor.writeToTar(it, manifest, images)
+                Buffer().apply {
+                    asOutputStream().use {
+                        ImageArchiveProcessor.writeToTar(it, manifest, manifestJson, repositories, images)
                     }
                 }
             }
         }
-
-    private fun ManifestList.filterForDigests(digests: Set<Digest>): ManifestList {
-        fun filterManifests() = manifests.filter { digests.contains(it.digest) }
-        return when (this) {
-            is DockerManifestListV1 -> copy(manifests = filterManifests())
-            is OciManifestListV1 -> copy(manifests = filterManifests())
-        }
-    }
-
-    private suspend fun getBlobWithCheck(repository: Repository, digest: Digest): ByteArray {
-        if (!existsBlob(repository, digest)) {
-            error("Blob does not exist!")
-        }
-        return blob(repository, digest)
-    }
 
     // To Image Client
 
