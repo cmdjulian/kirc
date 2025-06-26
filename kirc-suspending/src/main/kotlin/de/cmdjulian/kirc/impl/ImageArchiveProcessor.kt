@@ -95,6 +95,7 @@ internal object ImageArchiveProcessor {
         }
     }
 
+    // todo
     private fun findBlob(blobs: Map<String, ByteArray>, regex: String, notFoundMessage: String): ByteArray {
         val blob = blobs.keys.first { blobName -> blobName.contains(regex) }
             .let(blobs::get)
