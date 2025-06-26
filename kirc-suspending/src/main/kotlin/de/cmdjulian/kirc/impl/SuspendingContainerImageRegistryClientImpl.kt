@@ -22,6 +22,7 @@ import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
 import de.cmdjulian.kirc.impl.response.Catalog
 import de.cmdjulian.kirc.impl.response.TagList
+import de.cmdjulian.kirc.spec.ContainerImage
 import de.cmdjulian.kirc.spec.image.DockerImageConfigV1
 import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.image.OciImageConfigV1
@@ -139,8 +140,6 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
         reference: Reference,
         tar: Source,
     ): Digest {
-        // todo what to do if reference already has some images? (manifests and index wise?)
-
         // store data temporarily
         val tempFilePath = createTempFile("$repository-$reference-${OffsetDateTime.now()}", "tar")
         val tempFilePathKt = Path(tempFilePath.pathString)
@@ -174,17 +173,18 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
 
     // Download
 
+    // todo extract tag from annotations, labels or somewhere for index, manifestJson, repositories generation
     override suspend fun download(repository: Repository, reference: Reference): Sink =
         when (val manifest = manifest(repository, reference)) {
             is ManifestSingle -> {
                 val image = toImageClient(repository, reference).toImage()
-                val index = DockerArchiveHelper.createIndexFile(image)
-                val manifestJsonEntry = DockerArchiveHelper.createManifestJsonFile(repository, reference, image)
-                val repositories = DockerArchiveHelper.createRepositoriesFile(repository, reference, image.digest)
+                val index = DockerArchiveHelper.createIndexForSingleImage(image)
+                val manifestJson = DockerArchiveHelper.createManifestJson(repository, reference, image)
+                val repositories = DockerArchiveHelper.createRepositories(repository, reference, image.digest)
 
                 Buffer().apply {
                     asOutputStream().use {
-                        ImageArchiveProcessor.writeToTar(it, index, listOf(manifestJsonEntry), repositories, image)
+                        ImageArchiveProcessor.writeToTar(it, index, manifestJson, repositories, image)
                     }
                 }
             }
@@ -192,14 +192,15 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
             is ManifestList -> {
                 val images = manifest.manifests.map { listEntry ->
                     toImageClient(repository, listEntry.digest).toImage()
-                }
-                // todo get tag?
-                val manifestJson = images.map { image -> createManifestJsonFile(repository, image.digest, image) }
-                val repositories = DockerArchiveHelper.createRepositoriesFile(repository, manifest)
+                }.toTypedArray()
+                val manifestJson = DockerArchiveHelper.createManifestJson(repository, reference, *images)
+                val digests = images.map(ContainerImage::digest)
+                val repositories =
+                    DockerArchiveHelper.createRepositories(repository, reference, *digests.toTypedArray())
 
                 Buffer().apply {
                     asOutputStream().use {
-                        ImageArchiveProcessor.writeToTar(it, manifest, manifestJson, repositories, images)
+                        ImageArchiveProcessor.writeToTar(it, manifest, manifestJson, repositories, *images)
                     }
                 }
             }

@@ -25,15 +25,7 @@ internal object ImageArchiveProcessor {
         index: ManifestList,
         manifestJson: ManifestJson,
         repositories: Repositories,
-        image: ContainerImage,
-    ) = writeToTar(outputStream, index, manifestJson, repositories, listOf(image))
-
-    fun writeToTar(
-        outputStream: OutputStream,
-        index: ManifestList,
-        manifestJson: ManifestJson,
-        repositories: Repositories,
-        images: List<ContainerImage>,
+        vararg images: ContainerImage,
     ) = TarArchiveOutputStream(outputStream).use { tarOutput ->
         tarOutput.writeEntry("index.json", index)
         tarOutput.writeEntry("manifest.json", manifestJson)
