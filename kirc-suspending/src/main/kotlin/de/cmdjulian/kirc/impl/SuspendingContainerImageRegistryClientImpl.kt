@@ -22,6 +22,7 @@ import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
 import de.cmdjulian.kirc.impl.response.Catalog
 import de.cmdjulian.kirc.impl.response.TagList
+import de.cmdjulian.kirc.impl.response.UploadSession
 import de.cmdjulian.kirc.spec.ContainerImage
 import de.cmdjulian.kirc.spec.image.DockerImageConfigV1
 import de.cmdjulian.kirc.spec.image.ImageConfig
@@ -34,14 +35,15 @@ import de.cmdjulian.kirc.spec.manifest.OciManifestV1
 import kotlinx.io.Buffer
 import kotlinx.io.Sink
 import kotlinx.io.Source
-import kotlinx.io.asInputStream
 import kotlinx.io.asOutputStream
-import kotlinx.io.buffered
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
+import java.io.InputStream
 import java.time.OffsetDateTime
-import java.util.*
 import kotlin.io.path.createTempFile
+import kotlin.io.path.deleteExisting
+import kotlin.io.path.fileSize
+import kotlin.io.path.inputStream
 import kotlin.io.path.pathString
 
 internal class SuspendingContainerImageRegistryClientImpl(private val api: ContainerRegistryApi) :
@@ -112,18 +114,24 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
 
     // Upload
 
-    override suspend fun initiateUpload(repository: Repository, from: Repository?, mount: Digest?): UUID? =
-        api.initiateUpload(repository, from, mount).getOrElse { throw it.toRegistryClientError(repository, null) }
+    override suspend fun initiateBlobUpload(repository: Repository): UploadSession =
+        api.initiateUpload(repository, null, null, null).getOrElse { throw it.toRegistryClientError(repository, null) }
+            ?: error("Session information should be present when initiating upload")
+
+    override suspend fun uploadBlobMonolithic(repository: Repository, digest: Digest, blob: InputStream, size: Long) {
+        api.initiateUpload(repository, digest, blob, size).onError { throw it.toRegistryClientError(repository, null) }
+    }
 
     override suspend fun uploadBlob(
         repository: Repository,
-        uploadUUID: UUID,
+        uploadUUID: String,
         digest: Digest,
-        blob: ByteArray?,
-    ): Digest = api.uploadBlob(repository, uploadUUID, digest, blob)
+        blob: InputStream,
+        size: Long,
+    ): Digest = api.uploadBlob(repository, uploadUUID, digest, blob, size)
         .getOrElse { throw it.toRegistryClientError(repository, null) }
 
-    override suspend fun cancelBlobUpload(repository: Repository, sessionUUID: UUID) {
+    override suspend fun cancelBlobUpload(repository: Repository, sessionUUID: String) {
         api.cancelBlobUpload(repository, sessionUUID)
             .onError { throw it.toRegistryClientError(repository, null) }
     }
@@ -141,28 +149,31 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
         tar: Source,
     ): Digest {
         // store data temporarily
-        val tempFilePath = createTempFile("$repository-$reference-${OffsetDateTime.now()}", "tar")
-        val tempFilePathKt = Path(tempFilePath.pathString)
-        SystemFileSystem.sink(tempFilePathKt).also(tar::transferTo)
+        val tempFilePath = createTempFile("${OffsetDateTime.now()}-$repository-$reference", ".tar")
+        SystemFileSystem.sink(Path(tempFilePath.pathString)).also(tar::transferTo)
 
         // read from temp file and deserialize
-        val fileInputStream = SystemFileSystem.source(tempFilePathKt).buffered().asInputStream()
-        val uploadContainerImage = ImageArchiveProcessor.readFromTar(fileInputStream)
+        val uploadContainerImage = ImageArchiveProcessor.readFromTar(tempFilePath.inputStream().buffered())
+        tempFilePath.deleteExisting()
 
         // upload architecture images
         uploadContainerImage.images.forEach { (manifest, digest, blobs) ->
             blobs.forEach { blob ->
                 if (!existsBlob(repository, blob.digest)) {
-                    val sessionUUID = initiateUpload(repository, null, null)
-                        ?: error("No session id returned from registry upon initiating upload for repository '$repository'")
-                    uploadBlob(repository, sessionUUID, blob.digest, blob.data)
+                    val session = initiateBlobUpload(repository)
+                    uploadBlob(
+                        repository,
+                        session.sessionId,
+                        blob.digest,
+                        blob.path.inputStream(),
+                        blob.path.fileSize(),
+                    )
+                    blob.path.deleteExisting()
                 }
-                uploadManifest(repository, digest, manifest)
             }
+            uploadManifest(repository, digest, manifest)
         }
 
-        // delete temp file just in case
-        SystemFileSystem.delete(tempFilePathKt)
         // upload index
         return uploadManifest(repository, reference, uploadContainerImage.index)
     }

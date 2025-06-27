@@ -41,6 +41,8 @@ dependencies {
     implementation("org.apache.commons:commons-compress:1.26.1")
 
     // tests
+    testApi(project(":kirc-blocking"))
+
     testImplementation(platform(tests.junit.bom))
     testImplementation(tests.bundles.junit)
     testImplementation(tests.bundles.kotest)

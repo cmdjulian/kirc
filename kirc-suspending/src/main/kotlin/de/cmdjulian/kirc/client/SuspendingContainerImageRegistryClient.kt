@@ -4,13 +4,14 @@ import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
+import de.cmdjulian.kirc.impl.response.UploadSession
 import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import kotlinx.io.Sink
 import kotlinx.io.Source
-import java.util.*
+import java.io.InputStream
 
 /**
  * Handles calls to the container registry and returns the result upon success.
@@ -87,14 +88,25 @@ interface SuspendingContainerImageRegistryClient {
     /**
      * Initiate data upload
      *
-     * @return the upload session id or null if the mount was successful
+     * @return the upload session id
      */
-    suspend fun initiateUpload(repository: Repository, from: Repository?, mount: Digest?): UUID?
+    suspend fun initiateBlobUpload(repository: Repository): UploadSession
 
     /**
      * Upload a blob or finish the chunked upload of a blob
      */
-    suspend fun uploadBlob(repository: Repository, uploadUUID: UUID, digest: Digest, blob: ByteArray?): Digest
+    suspend fun uploadBlob(
+        repository: Repository,
+        uploadUUID: String,
+        digest: Digest,
+        blob: InputStream,
+        size: Long,
+    ): Digest
+
+    /**
+     * Initiate upload and upload data all in one request
+     */
+    suspend fun uploadBlobMonolithic(repository: Repository, digest: Digest, blob: InputStream, size: Long)
 
     /**
      * Upload a manifest
@@ -104,7 +116,7 @@ interface SuspendingContainerImageRegistryClient {
     /**
      * Cancels the ongoing upload of blobs for certain session id
      */
-    suspend fun cancelBlobUpload(repository: Repository, sessionUUID: UUID)
+    suspend fun cancelBlobUpload(repository: Repository, sessionUUID: String)
 
     /**
      * Convert general Client to DockerImageClient.
