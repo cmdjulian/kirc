@@ -4,7 +4,7 @@ import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import io.goodforgod.graalvm.hint.annotation.ReflectionHint
-import java.nio.file.Path
+import kotlinx.io.files.Path
 
 /**
  * Represents the whole content of uploaded image
@@ -37,13 +37,15 @@ data class UploadContainerImage(
 data class UploadSingleImage(val manifest: ManifestSingle, val digest: Digest, val blobs: List<UploadBlobPath>)
 
 @ReflectionHint
-class UploadBlobPath(val digest: Digest, val mediaType: String, val path: Path) {
+class UploadBlobPath(val digest: Digest, val mediaType: String, val path: Path, val size: Long) {
     override fun equals(other: Any?): Boolean = when {
         this === other -> true
-        other !is LayerBlob -> false
+        other !is UploadBlobPath -> false
         mediaType != other.mediaType -> false
         digest != other.digest -> false
-        else -> path == other.data
+        path != other.path -> false
+        size != other.size -> false
+        else -> true
     }
 
     override fun hashCode(): Int {
@@ -53,5 +55,5 @@ class UploadBlobPath(val digest: Digest, val mediaType: String, val path: Path) 
         return result
     }
 
-    override fun toString(): String = "Blob(digest=$digest, mediaType='$mediaType', path=$path)"
+    override fun toString(): String = "Blob(digest=$digest, mediaType='$mediaType', path=$path, size=$size)"
 }

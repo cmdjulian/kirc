@@ -10,7 +10,6 @@ import de.cmdjulian.kirc.impl.response.TagList
 import de.cmdjulian.kirc.impl.response.UploadSession
 import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
-import java.io.InputStream
 
 /**
  * Defines the calls to the container registry API
@@ -45,20 +44,23 @@ internal interface ContainerRegistryApi {
 
     suspend fun existsBlob(repository: Repository, digest: Digest): Result<*, FuelError>
     suspend fun blob(repository: Repository, digest: Digest): Result<ByteArray, FuelError>
-    suspend fun initiateUpload(
-        repository: Repository,
-        digest: Digest?,
-        blob: InputStream?,
-        size: Long?,
-    ): Result<UploadSession?, FuelError>
 
-    suspend fun uploadBlob(
+    /** Initiates an upload session */
+    suspend fun initiateUpload(repository: Repository): Result<UploadSession, FuelError>
+
+    suspend fun finishBlobUpload(
         repository: Repository,
-        sessionUUID: String,
+        session: UploadSession,
         digest: Digest,
-        blob: InputStream?,
-        size: Long?,
     ): Result<Digest, FuelError>
+
+    suspend fun uploadBlobChunked(
+        session: UploadSession,
+        blob: ByteArray,
+        startRange: Long,
+        endRange: Long,
+        size: Long,
+    ): Result<UploadSession, FuelError>
 
     suspend fun cancelBlobUpload(repository: Repository, sessionUUID: String): Result<*, FuelError>
 }

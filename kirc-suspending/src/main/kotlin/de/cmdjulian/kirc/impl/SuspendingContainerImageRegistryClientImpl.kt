@@ -32,19 +32,19 @@ import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestV1
+import kotlinx.coroutines.coroutineScope
 import kotlinx.io.Buffer
 import kotlinx.io.Sink
 import kotlinx.io.Source
 import kotlinx.io.asOutputStream
+import kotlinx.io.buffered
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
-import java.io.InputStream
+import kotlinx.io.files.SystemTemporaryDirectory
+import kotlinx.io.readByteArray
 import java.time.OffsetDateTime
-import kotlin.io.path.createTempFile
-import kotlin.io.path.deleteExisting
-import kotlin.io.path.fileSize
-import kotlin.io.path.inputStream
-import kotlin.io.path.pathString
+import java.time.temporal.ChronoUnit
+import kotlin.math.min
 
 internal class SuspendingContainerImageRegistryClientImpl(private val api: ContainerRegistryApi) :
     SuspendingContainerImageRegistryClient {
@@ -115,21 +115,41 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
     // Upload
 
     override suspend fun initiateBlobUpload(repository: Repository): UploadSession =
-        api.initiateUpload(repository, null, null, null).getOrElse { throw it.toRegistryClientError(repository, null) }
-            ?: error("Session information should be present when initiating upload")
+        api.initiateUpload(repository).getOrElse { throw it.toRegistryClientError(repository, null) }
 
-    override suspend fun uploadBlobMonolithic(repository: Repository, digest: Digest, blob: InputStream, size: Long) {
-        api.initiateUpload(repository, digest, blob, size).onError { throw it.toRegistryClientError(repository, null) }
+    //override suspend fun uploadBlobMonolithic(repository: Repository, digest: Digest, blob: Source, size: Long) {
+    //    api.initiateUpload(repository, digest, blob, size).onError { throw it.toRegistryClientError(repository, null) }
+    //}
+
+    override suspend fun uploadBlobChunks(session: UploadSession, blob: Source, size: Long): UploadSession {
+        var remaining = size
+        var uploadSession = session
+
+        while (remaining > 0) {
+            val buffer = blob.readByteArray(min(remaining, 100000L).toInt())
+            val readBytes = buffer.size.toLong()
+
+            val startRange = size - remaining
+            val endRange = startRange + readBytes
+
+            uploadSession = api.uploadBlobChunked(
+                uploadSession,
+                buffer,
+                startRange,
+                endRange,
+                readBytes,
+            )
+                .getOrElse { throw it.toRegistryClientError(null, null) }
+
+            remaining -= readBytes
+        }
+
+        return uploadSession
     }
 
-    override suspend fun uploadBlob(
-        repository: Repository,
-        uploadUUID: String,
-        digest: Digest,
-        blob: InputStream,
-        size: Long,
-    ): Digest = api.uploadBlob(repository, uploadUUID, digest, blob, size)
-        .getOrElse { throw it.toRegistryClientError(repository, null) }
+    override suspend fun finishBlobUpload(repository: Repository, session: UploadSession, digest: Digest): Digest =
+        api.finishBlobUpload(repository, session, digest)
+            .getOrElse { throw it.toRegistryClientError() }
 
     override suspend fun cancelBlobUpload(repository: Repository, sessionUUID: String) {
         api.cancelBlobUpload(repository, sessionUUID)
@@ -147,35 +167,41 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
         repository: Repository,
         reference: Reference,
         tar: Source,
-    ): Digest {
+    ): Digest = coroutineScope {
         // store data temporarily
-        val tempFilePath = createTempFile("${OffsetDateTime.now()}-$repository-$reference", ".tar")
-        SystemFileSystem.sink(Path(tempFilePath.pathString)).also(tar::transferTo)
+        val tempDirectory = Path(
+            SystemTemporaryDirectory,
+            "${OffsetDateTime.now().truncatedTo(ChronoUnit.SECONDS)}--$repository--$reference",
+        ).also(SystemFileSystem::createDirectories)
 
         // read from temp file and deserialize
-        val uploadContainerImage = ImageArchiveProcessor.readFromTar(tempFilePath.inputStream().buffered())
-        tempFilePath.deleteExisting()
+        val uploadContainerImage = ImageArchiveProcessor.readFromTar(tar, tempDirectory)
 
         // upload architecture images
-        uploadContainerImage.images.forEach { (manifest, digest, blobs) ->
-            blobs.forEach { blob ->
-                if (!existsBlob(repository, blob.digest)) {
-                    val session = initiateBlobUpload(repository)
-                    uploadBlob(
-                        repository,
-                        session.sessionId,
-                        blob.digest,
-                        blob.path.inputStream(),
-                        blob.path.fileSize(),
-                    )
-                    blob.path.deleteExisting()
+        try {
+            uploadContainerImage.images.forEach { (manifest, manifestDigest, blobs) ->
+                // todo async {
+                blobs.forEach { blob ->
+                    if (!existsBlob(repository, blob.digest)) {
+                        val session = initiateBlobUpload(repository)
+
+                        val source = SystemFileSystem.source(blob.path).buffered()
+
+                        val endSession = uploadBlobChunks(session, source, blob.size)
+                        finishBlobUpload(repository, endSession, blob.digest)
+                    }
                 }
+                uploadManifest(repository, manifestDigest, manifest)
             }
-            uploadManifest(repository, digest, manifest)
+            // todo }.awaitAll()
+        } finally {
+            // clear up temporary blob files
+            SystemFileSystem.list(tempDirectory).forEach(SystemFileSystem::delete)
+            SystemFileSystem.delete(tempDirectory)
         }
 
         // upload index
-        return uploadManifest(repository, reference, uploadContainerImage.index)
+        uploadManifest(repository, reference, uploadContainerImage.index)
     }
 
     override suspend fun upload(tar: Source): Digest {

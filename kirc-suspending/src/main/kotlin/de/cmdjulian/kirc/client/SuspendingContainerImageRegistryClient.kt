@@ -11,7 +11,6 @@ import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import kotlinx.io.Sink
 import kotlinx.io.Source
-import java.io.InputStream
 
 /**
  * Handles calls to the container registry and returns the result upon success.
@@ -88,30 +87,27 @@ interface SuspendingContainerImageRegistryClient {
     /**
      * Initiate data upload
      *
-     * @return the upload session id
+     * @return the upload session id and location
      */
     suspend fun initiateBlobUpload(repository: Repository): UploadSession
 
     /**
-     * Upload a blob or finish the chunked upload of a blob
+     * Uploads a blob in chunks
      */
-    suspend fun uploadBlob(
-        repository: Repository,
-        uploadUUID: String,
-        digest: Digest,
-        blob: InputStream,
-        size: Long,
-    ): Digest
+    suspend fun uploadBlobChunks(session: UploadSession, blob: Source, size: Long): UploadSession
 
-    /**
-     * Initiate upload and upload data all in one request
-     */
-    suspend fun uploadBlobMonolithic(repository: Repository, digest: Digest, blob: InputStream, size: Long)
+    // /**
+    //  * Initiate upload and upload data all in one request
+    //  */
+    // suspend fun uploadBlobMonolithic(repository: Repository, digest: Digest, blob: Source, size: Long)
 
     /**
      * Upload a manifest
      */
     suspend fun uploadManifest(repository: Repository, reference: Reference, manifest: Manifest): Digest
+
+    /** Finishes blob upload session */
+    suspend fun finishBlobUpload(repository: Repository, session: UploadSession, digest: Digest): Digest
 
     /**
      * Cancels the ongoing upload of blobs for certain session id

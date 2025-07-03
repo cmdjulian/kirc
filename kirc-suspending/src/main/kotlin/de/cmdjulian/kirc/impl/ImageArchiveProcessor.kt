@@ -9,17 +9,17 @@ import de.cmdjulian.kirc.spec.UploadContainerImage
 import de.cmdjulian.kirc.spec.UploadSingleImage
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
-import org.apache.commons.compress.archivers.ArchiveEntry
+import kotlinx.io.Source
+import kotlinx.io.asInputStream
+import kotlinx.io.asSource
+import kotlinx.io.buffered
+import kotlinx.io.files.Path
+import kotlinx.io.files.SystemFileSystem
+import kotlinx.io.readByteArray
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
-import java.io.InputStream
 import java.io.OutputStream
-import java.nio.file.Path
-import java.time.OffsetDateTime
-import kotlin.io.path.createTempFile
-import kotlin.io.path.inputStream
-import kotlin.io.path.outputStream
 
 internal object ImageArchiveProcessor {
 
@@ -58,38 +58,29 @@ internal object ImageArchiveProcessor {
 
     // Process for upload
 
-    fun readFromTar(inputTarStream: InputStream) = inputTarStream.use { tarStream ->
-        TarArchiveInputStream(tarStream).use { stream ->
-            var entry: ArchiveEntry? = stream.nextEntry
+    fun readFromTar(tarSource: Source, tempDirectory: Path) = tarSource.use { source ->
+        TarArchiveInputStream(source.asInputStream()).use { stream ->
             val blobs = mutableMapOf<String, Path>()
             var index: ManifestList? = null
             var repositoriesFile: Repositories? = null
             var manifestJsonFile: ManifestJson? = null
             var layoutFile: OciLayout? = null
 
-            while (entry != null) {
+            generateSequence(stream::getNextEntry).forEach { entry ->
                 // read data shortcut
-                val readEntryData = { stream.readNBytes(entry!!.size.toInt()) }
-                // store data in file shortcut
+                val readEntryData = { stream.readNBytes(entry.size.toInt()) }
+
                 when {
                     entry.isDirectory -> readEntryData()
 
-                    // todo
                     entry.name.contains("blobs/sha256/") -> {
                         val blobDigest = entry.name.removePrefix("blobs/sha256/")
-                        val tempBlobPath = createTempFile("${OffsetDateTime.now()}-${blobDigest}", "").also { path ->
-                            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                            var remaining = entry.size
-                            val tempFileOutputStream = path.outputStream()
-                            while (remaining > 0) {
-                                val toRead = minOf(remaining, buffer.size.toLong()).toInt()
-                                val read = stream.read(buffer, 0, toRead)
-                                if (read == -1) break
-                                tempFileOutputStream.write(buffer, 0, read)
-                                remaining -= read
-                            }
+                        val tempPath = Path(tempDirectory, blobDigest)
+                        SystemFileSystem.sink(tempPath).buffered().also { path ->
+                            path.write(stream.asSource(), entry.realSize)
+                            path.flush()
                         }
-                        blobs[entry.name] = tempBlobPath
+                        blobs[entry.name] = tempPath
                     }
 
                     entry.name.contains("index.json") ->
@@ -106,18 +97,21 @@ internal object ImageArchiveProcessor {
 
                     else -> readEntryData()
                 }
-                entry = stream.nextEntry
             }
 
             require(index != null) { "index should be present inside provided docker image" }
-            require(layoutFile != null) { "layoutFile should be present inside provided docker image" }
+            require(layoutFile != null) { "'oci-layout' file should be present inside the provided docker image" }
 
-            val singleImages = associateManifestsWithBlobs(index, blobs)
-            UploadContainerImage(index, singleImages, manifestJsonFile, repositoriesFile, layoutFile)
+            UploadContainerImage(
+                index = index,
+                images = associateManifestsWithBlobs(index, blobs),
+                manifest = manifestJsonFile,
+                repositories = repositoriesFile,
+                layout = layoutFile,
+            )
         }
     }
-
-    // todo
+    
     private fun findBlob(blobs: Map<String, Path>, regex: String): Path {
         val blobPath = blobs.keys.first { blobName -> blobName.contains(regex) }
             .let(blobs::get)
@@ -138,21 +132,25 @@ internal object ImageArchiveProcessor {
         val manifests = index.manifests.associate { manifest ->
             val blobPath = findBlob(blobs, "blobs/sha256/${manifest.digest.hash}")
             // We can read the data into memory because it is small enough
-            val manifestSingle =
-                jacksonDeserializer<ManifestSingle>().deserialize(blobPath.inputStream().readAllBytes())
-            manifestSingle to manifest.digest
+            val manifestSingle = jacksonDeserializer<ManifestSingle>()
+                .deserialize(SystemFileSystem.source(blobPath).buffered().readByteArray())
+
+            // clear up of read manifest file
+            SystemFileSystem.delete(blobPath)
+
+            manifest.digest to manifestSingle
         }
 
         // associate manifests to their blobs and config
-        return manifests.map { (manifest, digest) ->
+        return manifests.map { (digest, manifest) ->
             val layerBlobs = manifest.layers.map { layer ->
                 val blob = findBlob(blobs, layer.digest.hash)
-                UploadBlobPath(layer.digest, layer.mediaType, blob)
+                UploadBlobPath(layer.digest, layer.mediaType, blob, layer.size)
             }
             val configBlob = manifest.config.let { config ->
                 val blob = findBlob(blobs, config.digest.hash)
                 // technically no layer blob but handled as blob when uploaded
-                UploadBlobPath(config.digest, config.mediaType, blob)
+                UploadBlobPath(config.digest, config.mediaType, blob, config.size)
             }
 
             UploadSingleImage(manifest, digest, layerBlobs + configBlob)
