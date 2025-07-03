@@ -41,7 +41,6 @@ import kotlinx.io.buffered
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
 import kotlinx.io.files.SystemTemporaryDirectory
-import kotlinx.io.readByteArray
 import java.time.OffsetDateTime
 import java.time.temporal.ChronoUnit
 import kotlin.math.min
@@ -117,43 +116,43 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
     override suspend fun initiateBlobUpload(repository: Repository): UploadSession =
         api.initiateUpload(repository).getOrElse { throw it.toRegistryClientError(repository, null) }
 
-    //override suspend fun uploadBlobMonolithic(repository: Repository, digest: Digest, blob: Source, size: Long) {
-    //    api.initiateUpload(repository, digest, blob, size).onError { throw it.toRegistryClientError(repository, null) }
-    //}
+    override suspend fun uploadBlobStream(session: UploadSession, stream: Source, size: Long): UploadSession =
+        api.uploadBlobStream(session, stream, size).getOrElse { throw it.toRegistryClientError() }
 
     override suspend fun uploadBlobChunks(session: UploadSession, blob: Source, size: Long): UploadSession {
         var remaining = size
         var uploadSession = session
+        val buffer = Buffer()
 
         while (remaining > 0) {
-            val buffer = blob.readByteArray(min(remaining, 100000L).toInt())
-            val readBytes = buffer.size.toLong()
+            val readBytes = min(remaining, 1048576L)
+            buffer.write(blob, readBytes)
 
             val startRange = size - remaining
-            val endRange = startRange + readBytes
+            val endRange = startRange + readBytes - 1
 
-            uploadSession = api.uploadBlobChunked(
-                uploadSession,
-                buffer,
-                startRange,
-                endRange,
-                readBytes,
-            )
+            val status = uploadStatus(uploadSession)
+
+            uploadSession = api.uploadBlobChunked(uploadSession, buffer, startRange, endRange, readBytes)
                 .getOrElse { throw it.toRegistryClientError(null, null) }
 
+            buffer.clear()
             remaining -= readBytes
         }
 
         return uploadSession
     }
 
-    override suspend fun finishBlobUpload(repository: Repository, session: UploadSession, digest: Digest): Digest =
-        api.finishBlobUpload(repository, session, digest)
+    override suspend fun finishBlobUpload(session: UploadSession, digest: Digest): Digest =
+        api.finishBlobUpload(session, digest)
             .getOrElse { throw it.toRegistryClientError() }
 
-    override suspend fun cancelBlobUpload(repository: Repository, sessionUUID: String) {
-        api.cancelBlobUpload(repository, sessionUUID)
-            .onError { throw it.toRegistryClientError(repository, null) }
+    override suspend fun uploadStatus(session: UploadSession): Pair<Long, Long> =
+        api.uploadStatus(session).getOrElse { throw it.toRegistryClientError() }
+
+    override suspend fun cancelBlobUpload(session: UploadSession) {
+        api.cancelBlobUpload(session)
+            .onError { throw it.toRegistryClientError() }
     }
 
     override suspend fun uploadManifest(
@@ -188,7 +187,8 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
                         val source = SystemFileSystem.source(blob.path).buffered()
 
                         val endSession = uploadBlobChunks(session, source, blob.size)
-                        finishBlobUpload(repository, endSession, blob.digest)
+
+                        finishBlobUpload(endSession, blob.digest)
                     }
                 }
                 uploadManifest(repository, manifestDigest, manifest)

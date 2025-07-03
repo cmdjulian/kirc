@@ -10,6 +10,7 @@ import de.cmdjulian.kirc.impl.response.TagList
 import de.cmdjulian.kirc.impl.response.UploadSession
 import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
+import kotlinx.io.Source
 
 /**
  * Defines the calls to the container registry API
@@ -48,19 +49,19 @@ internal interface ContainerRegistryApi {
     /** Initiates an upload session */
     suspend fun initiateUpload(repository: Repository): Result<UploadSession, FuelError>
 
-    suspend fun finishBlobUpload(
-        repository: Repository,
-        session: UploadSession,
-        digest: Digest,
-    ): Result<Digest, FuelError>
+    suspend fun finishBlobUpload(session: UploadSession, digest: Digest): Result<Digest, FuelError>
 
     suspend fun uploadBlobChunked(
         session: UploadSession,
-        blob: ByteArray,
+        source: Source,
         startRange: Long,
         endRange: Long,
         size: Long,
     ): Result<UploadSession, FuelError>
 
-    suspend fun cancelBlobUpload(repository: Repository, sessionUUID: String): Result<*, FuelError>
+    suspend fun uploadBlobStream(session: UploadSession, source: Source, size: Long): Result<UploadSession, FuelError>
+
+    suspend fun uploadStatus(session: UploadSession): Result<Pair<Long, Long>, FuelError>
+
+    suspend fun cancelBlobUpload(session: UploadSession): Result<*, FuelError>
 }

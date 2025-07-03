@@ -17,6 +17,7 @@ class TestRegistry(image: String = "registry:2") : GenericContainer<TestRegistry
         withEnv("REGISTRY_HTTP_ADDR", "0.0.0.0:5000")
         withEnv("REGISTRY_HTTP_SECRET", "shared")
         withEnv("REGISTRY_STORAGE_DELETE_ENABLED", "${true}")
+        withEnv("REGISTRY_HTTP_RELATIVEURLS", "${true}")
         withEnv("REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY", "/var/lib/registry")
 
         //withCommand("docker run registry")

@@ -28,6 +28,9 @@ import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestListV1
 import de.cmdjulian.kirc.spec.manifest.OciManifestV1
+import de.cmdjulian.kirc.utils.mapToUploadSession
+import kotlinx.io.Source
+import kotlinx.io.asInputStream
 
 private const val APPLICATION_JSON = "application/json"
 private const val APPLICATION_OCTET_STREAM = "application/octet-stream"
@@ -209,71 +212,65 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
         }
     }
 
-    //override suspend fun uploadBlobMonolithic(
-    //    session: UploadSession,
-    //    digest: Digest,
-    //    blob: Source?,
-    //    size: Long?,
-    //): Result<Digest, FuelError> {
-    //    require((blob == null && size == null) || (blob != null && size != null)) {
-    //        "Either provide both blob and size for uploading a blob or neither of them to finish upload"
-    //    }
-    //    val parameters = listOf("digest" to digest)
-//
-    //    val request = fuelManager.put(session.location, parameters)
-    //        .apply {
-    //            if (blob != null) {
-    //                appendHeader(Headers.CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-    //                appendHeader(Headers.CONTENT_LENGTH, size!!)
-    //                body(blob.readByteArray())
-    //            }
-    //        }
-    //        .awaitResponseResult(EmptyDeserializer)
-    //        .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-//
-    //    return request.third.map { request.second["Docker-Content-Digest"].single().let(::Digest) }
-    //}
-
     override suspend fun finishBlobUpload(
-        repository: Repository,
         session: UploadSession,
         digest: Digest,
     ): Result<Digest, FuelError> {
         val parameters = listOf("digest" to digest)
 
-        val request =
-            fuelManager.put(session.location, parameters)
-                .awaitResponseResult(EmptyDeserializer)
-                .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
+        val request = fuelManager.put(session.location, parameters)
+            .awaitResponseResult(EmptyDeserializer)
+            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
 
         return request.third.map { request.second["Docker-Content-Digest"].single().let(::Digest) }
     }
 
     override suspend fun uploadBlobChunked(
         session: UploadSession,
-        blob: ByteArray,
+        source: Source,
         startRange: Long,
         endRange: Long,
         size: Long,
     ): Result<UploadSession, FuelError> {
         val request = fuelManager.patch(session.location)
             .appendHeader(Headers.CONTENT_LENGTH, size)
-            .appendHeader("Content-Range", "$startRange-$endRange")
+            .appendHeader("Content-Range", "bytes $startRange-$endRange")
             .appendHeader(Headers.CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-            .body(blob)
+            .body(source.asInputStream(), { size })
+            // .requestProgress { readBytes, totalBytes ->
+            //     val progress = (readBytes.toFloat() / totalBytes.toFloat()) * 100
+            //     println("Bytes uploaded $readBytes / $totalBytes ($progress %)")
+            // }
+            .awaitResponseResult(EmptyDeserializer)
+            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
+
+        return request.mapToUploadSession()
+    }
+
+    override suspend fun uploadBlobStream(
+        session: UploadSession,
+        source: Source,
+        size: Long,
+    ): Result<UploadSession, FuelError> = fuelManager.patch(session.location)
+        .appendHeader(Headers.CONTENT_TYPE, APPLICATION_OCTET_STREAM)
+        .body(source.asInputStream())
+        .awaitResponseResult(EmptyDeserializer)
+        .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
+        .mapToUploadSession()
+
+    override suspend fun uploadStatus(session: UploadSession): Result<Pair<Long, Long>, FuelError> {
+        val request = fuelManager.get(session.location)
             .awaitResponseResult(EmptyDeserializer)
             .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
 
         return request.third.map {
-            UploadSession(
-                sessionId = request.second["Docker-Upload-UUID"].single(),
-                location = request.second["Location"].single(),
-            )
+            val range = request.second["Range"].single().split("-")
+            range[0].toLong() to range[1].toLong()
         }
     }
 
-    override suspend fun cancelBlobUpload(repository: Repository, sessionUUID: String): Result<*, FuelError> =
-        fuelManager.delete("/v2/$repository/blobs/uploads/$sessionUUID")
+    override suspend fun cancelBlobUpload(session: UploadSession): Result<*, FuelError> =
+        fuelManager.delete(session.location)
             .awaitResponseResult(EmptyDeserializer)
             .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
             .third

@@ -92,14 +92,14 @@ interface SuspendingContainerImageRegistryClient {
     suspend fun initiateBlobUpload(repository: Repository): UploadSession
 
     /**
-     * Uploads a blob in chunks
+     * Uploads a chunk of a blob
      */
     suspend fun uploadBlobChunks(session: UploadSession, blob: Source, size: Long): UploadSession
 
-    // /**
-    //  * Initiate upload and upload data all in one request
-    //  */
-    // suspend fun uploadBlobMonolithic(repository: Repository, digest: Digest, blob: Source, size: Long)
+    /**
+     * Uploads an entire blob by stream
+     */
+    suspend fun uploadBlobStream(session: UploadSession, stream: Source, size: Long): UploadSession
 
     /**
      * Upload a manifest
@@ -107,12 +107,14 @@ interface SuspendingContainerImageRegistryClient {
     suspend fun uploadManifest(repository: Repository, reference: Reference, manifest: Manifest): Digest
 
     /** Finishes blob upload session */
-    suspend fun finishBlobUpload(repository: Repository, session: UploadSession, digest: Digest): Digest
+    suspend fun finishBlobUpload(session: UploadSession, digest: Digest): Digest
+
+    suspend fun uploadStatus(session: UploadSession): Pair<Long, Long>
 
     /**
      * Cancels the ongoing upload of blobs for certain session id
      */
-    suspend fun cancelBlobUpload(repository: Repository, sessionUUID: String)
+    suspend fun cancelBlobUpload(session: UploadSession)
 
     /**
      * Convert general Client to DockerImageClient.
