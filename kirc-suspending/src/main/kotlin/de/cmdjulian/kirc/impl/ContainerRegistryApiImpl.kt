@@ -28,6 +28,7 @@ import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestListV1
 import de.cmdjulian.kirc.spec.manifest.OciManifestV1
+import de.cmdjulian.kirc.utils.SourceDeserializer
 import de.cmdjulian.kirc.utils.mapToUploadSession
 import kotlinx.io.Source
 import kotlinx.io.asInputStream
@@ -181,9 +182,25 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
             .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
             .third
 
-    // todo als Sink
     override suspend fun blob(repository: Repository, digest: Digest): Result<ByteArray, FuelError> {
         val deserializable = ByteArrayDeserializer()
+        return fuelManager.get("/v2/$repository/blobs/$digest")
+            .appendHeader(
+                Headers.ACCEPT,
+                APPLICATION_JSON,
+                APPLICATION_OCTET_STREAM,
+                DockerBlobMediaType,
+                OciBlobMediaTypeTar,
+                OciBlobMediaTypeGzip,
+                OciBlobMediaTypeZstd,
+            )
+            .awaitResponseResult(deserializable)
+            .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
+            .third
+    }
+
+    override suspend fun blobStream(repository: Repository, digest: Digest): Result<Source, FuelError> {
+        val deserializable = SourceDeserializer()
         return fuelManager.get("/v2/$repository/blobs/$digest")
             .appendHeader(
                 Headers.ACCEPT,
@@ -233,14 +250,10 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
         size: Long,
     ): Result<UploadSession, FuelError> {
         val request = fuelManager.patch(session.location)
-            .appendHeader(Headers.CONTENT_LENGTH, size)
-            .appendHeader("Content-Range", "bytes $startRange-$endRange")
+            .appendHeader(Headers.CONTENT_LENGTH, size.toString())
+            .appendHeader("Content-Range", "$startRange-$endRange")
             .appendHeader(Headers.CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-            .body(source.asInputStream(), { size })
-            // .requestProgress { readBytes, totalBytes ->
-            //     val progress = (readBytes.toFloat() / totalBytes.toFloat()) * 100
-            //     println("Bytes uploaded $readBytes / $totalBytes ($progress %)")
-            // }
+            .body({ source.asInputStream() }, { size })
             .awaitResponseResult(EmptyDeserializer)
             .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
 
@@ -253,7 +266,7 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
         size: Long,
     ): Result<UploadSession, FuelError> = fuelManager.patch(session.location)
         .appendHeader(Headers.CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-        .body(source.asInputStream())
+        .body(source.asInputStream(), { size })
         .awaitResponseResult(EmptyDeserializer)
         .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
         .mapToUploadSession()

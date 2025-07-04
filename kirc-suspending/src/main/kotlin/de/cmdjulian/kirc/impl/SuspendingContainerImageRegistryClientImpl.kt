@@ -96,6 +96,9 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
     override suspend fun blob(repository: Repository, digest: Digest): ByteArray = api.blob(repository, digest)
         .getOrElse { throw it.toRegistryClientError(repository) }
 
+    override suspend fun blobStream(repository: Repository, digest: Digest): Source = api.blobStream(repository, digest)
+        .getOrElse { throw it.toRegistryClientError(repository) }
+
     override suspend fun config(repository: Repository, reference: Reference): ImageConfig =
         api.manifest(repository, reference)
             .map { config(repository, it) }
@@ -121,26 +124,26 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
 
     override suspend fun uploadBlobChunks(session: UploadSession, blob: Source, size: Long): UploadSession {
         var remaining = size
-        var uploadSession = session
         val buffer = Buffer()
+        var returnedSession = session
 
-        while (remaining > 0) {
-            val readBytes = min(remaining, 1048576L)
-            buffer.write(blob, readBytes)
+        blob.use { stream ->
+            while (remaining > 0) {
+                val readBytes = min(remaining, 1048576L)
+                buffer.write(stream, readBytes)
 
-            val startRange = size - remaining
-            val endRange = startRange + readBytes - 1
+                val startRange = size - remaining
+                val endRange = startRange + readBytes - 1
 
-            val status = uploadStatus(uploadSession)
+                returnedSession = api.uploadBlobChunked(session, buffer, startRange, endRange, readBytes)
+                    .getOrElse { throw it.toRegistryClientError(null, null) }
 
-            uploadSession = api.uploadBlobChunked(uploadSession, buffer, startRange, endRange, readBytes)
-                .getOrElse { throw it.toRegistryClientError(null, null) }
-
-            buffer.clear()
-            remaining -= readBytes
+                buffer.clear()
+                remaining -= readBytes
+            }
         }
 
-        return uploadSession
+        return returnedSession
     }
 
     override suspend fun finishBlobUpload(session: UploadSession, digest: Digest): Digest =

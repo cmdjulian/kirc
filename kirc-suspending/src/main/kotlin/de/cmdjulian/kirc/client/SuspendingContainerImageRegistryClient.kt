@@ -79,6 +79,8 @@ interface SuspendingContainerImageRegistryClient {
      */
     suspend fun blob(repository: Repository, digest: Digest): ByteArray
 
+    suspend fun blobStream(repository: Repository, digest: Digest): Source
+
     /**
      * Convert general Client to DockerImageClient.
      */

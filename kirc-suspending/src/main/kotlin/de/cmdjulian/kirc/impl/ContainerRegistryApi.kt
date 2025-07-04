@@ -45,6 +45,7 @@ internal interface ContainerRegistryApi {
 
     suspend fun existsBlob(repository: Repository, digest: Digest): Result<*, FuelError>
     suspend fun blob(repository: Repository, digest: Digest): Result<ByteArray, FuelError>
+    suspend fun blobStream(repository: Repository, digest: Digest): Result<Source, FuelError>
 
     /** Initiates an upload session */
     suspend fun initiateUpload(repository: Repository): Result<UploadSession, FuelError>
