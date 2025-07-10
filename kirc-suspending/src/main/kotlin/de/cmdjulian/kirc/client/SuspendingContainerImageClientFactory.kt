@@ -38,6 +38,17 @@ object SuspendingContainerImageClientFactory {
             this.keystore = keystore
             this.timeoutInMillisecond = timeout.toMillis().toInt()
             this.timeoutReadInMillisecond = timeout.toMillis().toInt()
+            /*
+             * From the official fuel library documentation it is stated:
+             *
+             * The default client is HttpClient which is a thin wrapper over java.net.HttpUrlConnection.
+             * java.net.HttpUrlConnection does not support a PATCH method.
+             * HttpClient converts PATCH requests to a POST request and adds a X-HTTP-Method-Override: PATCH header.
+             * While this is a semi-standard industry practice not all APIs are configured to accept this header by default.
+             *
+             * Therefore we have to set this flag
+             */
+            this.forceMethods = true
 
             if (skipTlsVerify) {
                 hostnameVerifier = NoopHostnameVerifier

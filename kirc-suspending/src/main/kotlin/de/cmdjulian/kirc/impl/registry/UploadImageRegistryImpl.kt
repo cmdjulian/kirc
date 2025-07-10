@@ -1,6 +1,10 @@
-package de.cmdjulian.kirc.impl
+package de.cmdjulian.kirc.impl.registry
 
-import de.cmdjulian.kirc.spec.ContainerImage
+import de.cmdjulian.kirc.client.SuspendingContainerImageRegistryClient
+import de.cmdjulian.kirc.image.Digest
+import de.cmdjulian.kirc.image.Reference
+import de.cmdjulian.kirc.image.Repository
+import de.cmdjulian.kirc.impl.jacksonDeserializer
 import de.cmdjulian.kirc.spec.ManifestJson
 import de.cmdjulian.kirc.spec.OciLayout
 import de.cmdjulian.kirc.spec.Repositories
@@ -9,56 +13,69 @@ import de.cmdjulian.kirc.spec.UploadContainerImage
 import de.cmdjulian.kirc.spec.UploadSingleImage
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
+import kotlinx.coroutines.coroutineScope
 import kotlinx.io.Source
 import kotlinx.io.asInputStream
 import kotlinx.io.asSource
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
+import kotlinx.io.files.SystemTemporaryDirectory
 import kotlinx.io.readByteArray
-import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
-import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
-import java.io.OutputStream
+import java.time.OffsetDateTime
+import java.time.temporal.ChronoUnit
 
-internal object ImageArchiveProcessor {
+internal interface UploadImageRegistryImpl : SuspendingContainerImageRegistryClient {
 
-    // process for download
+    override suspend fun upload(
+        repository: Repository,
+        reference: Reference,
+        tar: Source,
+    ): Digest = coroutineScope {
+        // store data temporarily
+        val tempDirectory = Path(
+            SystemTemporaryDirectory,
+            "${OffsetDateTime.now().truncatedTo(ChronoUnit.SECONDS)}--$repository--$reference",
+        ).also(SystemFileSystem::createDirectories)
 
-    fun writeToTar(
-        outputStream: OutputStream,
-        index: ManifestList,
-        manifestJson: ManifestJson,
-        repositories: Repositories,
-        vararg images: ContainerImage,
-    ) = TarArchiveOutputStream(outputStream).use { tarOutput ->
-        tarOutput.writeEntry("index.json", index)
-        tarOutput.writeEntry("manifest.json", manifestJson)
-        tarOutput.writeEntry("repositories", repositories)
-        tarOutput.writeEntry("oci-layout", OciLayout("1.0.0"))
+        // read from temp file and deserialize
+        val uploadContainerImage = readFromTar(tar, tempDirectory)
 
-        images.forEach { image -> tarOutput.writeImage(image) }
-    }
+        // upload architecture images
+        try {
+            uploadContainerImage.images.forEach { (manifest, manifestDigest, blobs) ->
+                // todo async {
+                blobs.forEach { blob ->
+                    if (!existsBlob(repository, blob.digest)) {
+                        val session = initiateBlobUpload(repository)
 
-    private fun TarArchiveOutputStream.writeImage(image: ContainerImage) {
-        writeEntry("blobs/sha256/${image.digest.hash}", image.manifest)
-        writeEntry("blobs/sha256/${image.manifest.config.digest.hash}.json", image.config)
-        image.blobs.forEach { layerBlob ->
-            writeEntry("blobs/sha256/${layerBlob.digest.hash}", layerBlob.data)
+                        val source = SystemFileSystem.source(blob.path).buffered()
+
+                        val endSession = uploadBlobChunks(session, source, blob.size)
+
+                        finishBlobUpload(endSession, blob.digest)
+                    }
+                }
+
+                uploadManifest(repository, manifestDigest, manifest)
+            }
+            // todo }.awaitAll()
+        } finally {
+            // clear up temporary blob files
+            SystemFileSystem.list(tempDirectory).forEach(SystemFileSystem::delete)
+            SystemFileSystem.delete(tempDirectory)
         }
+
+        // upload index
+        uploadManifest(repository, reference, uploadContainerImage.index)
     }
 
-    private fun TarArchiveOutputStream.writeEntry(name: String, data: Any) {
-        val indexEntry = TarArchiveEntry(name)
-        val indexBytes = JsonMapper.writeValueAsBytes(data)
-        putArchiveEntry(indexEntry)
-        write(indexBytes)
-        closeArchiveEntry()
+    override suspend fun upload(tar: Source): Digest {
+        TODO("Not yet implemented")
     }
 
-    // Process for upload
-
-    fun readFromTar(tarSource: Source, tempDirectory: Path) = tarSource.use { source ->
+    private fun readFromTar(tarSource: Source, tempDirectory: Path) = tarSource.use { source ->
         TarArchiveInputStream(source.asInputStream()).use { stream ->
             val blobs = mutableMapOf<String, Path>()
             var index: ManifestList? = null
@@ -111,8 +128,8 @@ internal object ImageArchiveProcessor {
             )
         }
     }
-    
-    private fun findBlob(blobs: Map<String, Path>, regex: String): Path {
+
+    private fun findBlobPath(blobs: Map<String, Path>, regex: String): Path {
         val blobPath = blobs.keys.first { blobName -> blobName.contains(regex) }
             .let(blobs::get)
 
@@ -130,13 +147,13 @@ internal object ImageArchiveProcessor {
     ): List<UploadSingleImage> {
         // find manifests from index
         val manifests = index.manifests.associate { manifest ->
-            val blobPath = findBlob(blobs, "blobs/sha256/${manifest.digest.hash}")
+            val blobPath = findBlobPath(blobs, "blobs/sha256/${manifest.digest.hash}")
             // We can read the data into memory because it is small enough
             val manifestSingle = jacksonDeserializer<ManifestSingle>()
                 .deserialize(SystemFileSystem.source(blobPath).buffered().readByteArray())
 
             // clear up of read manifest file
-            SystemFileSystem.delete(blobPath)
+            // SystemFileSystem.delete(blobPath)
 
             manifest.digest to manifestSingle
         }
@@ -144,16 +161,21 @@ internal object ImageArchiveProcessor {
         // associate manifests to their blobs and config
         return manifests.map { (digest, manifest) ->
             val layerBlobs = manifest.layers.map { layer ->
-                val blob = findBlob(blobs, layer.digest.hash)
-                UploadBlobPath(layer.digest, layer.mediaType, blob, layer.size)
+                val blobPath = findBlobPath(blobs, layer.digest.hash)
+                UploadBlobPath(layer.digest, layer.mediaType, blobPath, layer.size)
             }
             val configBlob = manifest.config.let { config ->
-                val blob = findBlob(blobs, config.digest.hash)
+                val blobPath = findBlobPath(blobs, config.digest.hash)
                 // technically no layer blob but handled as blob when uploaded
-                UploadBlobPath(config.digest, config.mediaType, blob, config.size)
+                UploadBlobPath(config.digest, config.mediaType, blobPath, config.size)
+            }
+            val manifestBlob = digest.let {
+                val manifestPath = findBlobPath(blobs, it.hash)
+                val size = SystemFileSystem.metadataOrNull(manifestPath)!!.size
+                UploadBlobPath(it, manifest.mediaType!!, manifestPath, size)
             }
 
-            UploadSingleImage(manifest, digest, layerBlobs + configBlob)
+            UploadSingleImage(manifest, digest, layerBlobs + configBlob + manifestBlob)
         }
     }
 }

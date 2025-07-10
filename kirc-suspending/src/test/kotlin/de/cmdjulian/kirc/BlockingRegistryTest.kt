@@ -12,6 +12,7 @@ import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.test.runTest
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
+import kotlinx.io.files.SystemFileSystem
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import java.net.URI
@@ -32,9 +33,7 @@ internal class BlockingRegistryTest {
 
     @Test
     fun testSuspendingUpload() = runTest {
-        val data =
-            _root_ide_package_.kotlinx.io.files.SystemFileSystem.source("src/test/resources/test-image.small.tar".let(::Path))
-                .buffered()
+        val data = SystemFileSystem.source("src/test/resources/test-image.small.tar".let(::Path)).buffered()
         val repository = Repository("python")
         val tag = Tag("test")
 

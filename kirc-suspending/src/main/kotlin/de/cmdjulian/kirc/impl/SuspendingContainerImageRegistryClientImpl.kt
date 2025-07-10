@@ -20,33 +20,26 @@ import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
+import de.cmdjulian.kirc.impl.registry.DownloadImageRegistryImpl
+import de.cmdjulian.kirc.impl.registry.UploadImageRegistryImpl
 import de.cmdjulian.kirc.impl.response.Catalog
 import de.cmdjulian.kirc.impl.response.TagList
 import de.cmdjulian.kirc.impl.response.UploadSession
-import de.cmdjulian.kirc.spec.ContainerImage
 import de.cmdjulian.kirc.spec.image.DockerImageConfigV1
 import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.image.OciImageConfigV1
 import de.cmdjulian.kirc.spec.manifest.DockerManifestV2
 import de.cmdjulian.kirc.spec.manifest.Manifest
-import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestV1
-import kotlinx.coroutines.coroutineScope
 import kotlinx.io.Buffer
-import kotlinx.io.Sink
 import kotlinx.io.Source
-import kotlinx.io.asOutputStream
-import kotlinx.io.buffered
-import kotlinx.io.files.Path
-import kotlinx.io.files.SystemFileSystem
-import kotlinx.io.files.SystemTemporaryDirectory
-import java.time.OffsetDateTime
-import java.time.temporal.ChronoUnit
 import kotlin.math.min
 
 internal class SuspendingContainerImageRegistryClientImpl(private val api: ContainerRegistryApi) :
-    SuspendingContainerImageRegistryClient {
+    SuspendingContainerImageRegistryClient,
+    DownloadImageRegistryImpl,
+    UploadImageRegistryImpl {
 
     override suspend fun testConnection() {
         api.ping().onError {
@@ -129,16 +122,15 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
 
         blob.use { stream ->
             while (remaining > 0) {
-                val readBytes = min(remaining, 1048576L)
+                val readBytes = min(remaining, 10 * 1048576L /* 10 MiB */)
                 buffer.write(stream, readBytes)
 
                 val startRange = size - remaining
                 val endRange = startRange + readBytes - 1
 
-                returnedSession = api.uploadBlobChunked(session, buffer, startRange, endRange, readBytes)
+                returnedSession = api.uploadBlobChunked(returnedSession, buffer, startRange, endRange, readBytes)
                     .getOrElse { throw it.toRegistryClientError(null, null) }
 
-                buffer.clear()
                 remaining -= readBytes
             }
         }
@@ -164,87 +156,6 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
         manifest: Manifest,
     ): Digest = api.uploadManifest(repository, reference, manifest)
         .getOrElse { throw it.toRegistryClientError(repository, null) }
-
-    override suspend fun upload(
-        repository: Repository,
-        reference: Reference,
-        tar: Source,
-    ): Digest = coroutineScope {
-        // store data temporarily
-        val tempDirectory = Path(
-            SystemTemporaryDirectory,
-            "${OffsetDateTime.now().truncatedTo(ChronoUnit.SECONDS)}--$repository--$reference",
-        ).also(SystemFileSystem::createDirectories)
-
-        // read from temp file and deserialize
-        val uploadContainerImage = ImageArchiveProcessor.readFromTar(tar, tempDirectory)
-
-        // upload architecture images
-        try {
-            uploadContainerImage.images.forEach { (manifest, manifestDigest, blobs) ->
-                // todo async {
-                blobs.forEach { blob ->
-                    if (!existsBlob(repository, blob.digest)) {
-                        val session = initiateBlobUpload(repository)
-
-                        val source = SystemFileSystem.source(blob.path).buffered()
-
-                        val endSession = uploadBlobChunks(session, source, blob.size)
-
-                        finishBlobUpload(endSession, blob.digest)
-                    }
-                }
-                uploadManifest(repository, manifestDigest, manifest)
-            }
-            // todo }.awaitAll()
-        } finally {
-            // clear up temporary blob files
-            SystemFileSystem.list(tempDirectory).forEach(SystemFileSystem::delete)
-            SystemFileSystem.delete(tempDirectory)
-        }
-
-        // upload index
-        uploadManifest(repository, reference, uploadContainerImage.index)
-    }
-
-    override suspend fun upload(tar: Source): Digest {
-        TODO("Not yet implemented")
-    }
-
-    // Download
-
-    // todo extract tag from annotations, labels or somewhere for index, manifestJson, repositories generation
-    override suspend fun download(repository: Repository, reference: Reference): Sink =
-        when (val manifest = manifest(repository, reference)) {
-            is ManifestSingle -> {
-                val image = toImageClient(repository, reference).toImage()
-                val index = DockerArchiveHelper.createIndexForSingleImage(image)
-                val manifestJson = DockerArchiveHelper.createManifestJson(repository, reference, image)
-                val repositories = DockerArchiveHelper.createRepositories(repository, reference, image.digest)
-
-                Buffer().apply {
-                    asOutputStream().use {
-                        ImageArchiveProcessor.writeToTar(it, index, manifestJson, repositories, image)
-                    }
-                }
-            }
-
-            is ManifestList -> {
-                val images = manifest.manifests.map { listEntry ->
-                    toImageClient(repository, listEntry.digest).toImage()
-                }.toTypedArray()
-                val manifestJson = DockerArchiveHelper.createManifestJson(repository, reference, *images)
-                val digests = images.map(ContainerImage::digest)
-                val repositories =
-                    DockerArchiveHelper.createRepositories(repository, reference, *digests.toTypedArray())
-
-                Buffer().apply {
-                    asOutputStream().use {
-                        ImageArchiveProcessor.writeToTar(it, manifest, manifestJson, repositories, *images)
-                    }
-                }
-            }
-        }
 
     // To Image Client
 
