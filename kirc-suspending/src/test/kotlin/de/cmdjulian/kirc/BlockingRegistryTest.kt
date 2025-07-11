@@ -2,17 +2,14 @@ package de.cmdjulian.kirc
 
 import de.cmdjulian.kirc.client.BlockingContainerImageClientFactory
 import de.cmdjulian.kirc.client.RegistryCredentials
-import de.cmdjulian.kirc.client.SuspendingContainerImageClientFactory
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
 import io.kotest.assertions.throwables.shouldNotThrowAny
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.shouldBe
-import kotlinx.coroutines.test.runTest
-import kotlinx.io.buffered
-import kotlinx.io.files.Path
-import kotlinx.io.files.SystemFileSystem
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import java.net.URI
@@ -21,49 +18,35 @@ import kotlin.io.path.inputStream
 
 internal class BlockingRegistryTest {
     private val client =
-        BlockingContainerImageClientFactory.create(registry.address.let(URI::create), credentials)
-    private val suspendingClient =
-        SuspendingContainerImageClientFactory.create(registry.address.let(URI::create), credentials)
+        BlockingContainerImageClientFactory.create(registry.addressHttp.let(URI::create), credentials)
+
+    private val testFilePath = "src/test/resources/hello-world.tar"
+
+    init {
+        registry.login(credentials)
+        registry.loadImage(testFilePath)
+    }
 
     @Test
     fun testConnection() {
-        client.testConnection()
+        shouldNotThrowAny {
+            client.testConnection()
+        }
         client.repositories().shouldBeEmpty()
     }
 
     @Test
-    fun testSuspendingUpload() = runTest {
-        val data = SystemFileSystem.source("src/test/resources/test-image.small.tar".let(::Path)).buffered()
-        val repository = Repository("python")
-        val tag = Tag("test")
+    fun testRepositories() {
+        registry.pushImage("hello-world:latest", "test")
 
-        suspendingClient.exists(repository, tag) shouldBe false
-
-        shouldNotThrowAny {
-            suspendingClient.upload(repository, tag, data)
-        }
-
-        suspendingClient.exists(repository, tag) shouldBe true
-    }
-
-    @Test
-    fun testUploadSmall() {
-        val data = Paths.get("src/test/resources/test-image.small.tar")
-        val repository = Repository("python")
-        val tag = Tag("test")
-
-        client.exists(repository, tag) shouldBe false
-
-        shouldNotThrowAny {
-            client.upload(repository, tag, data.inputStream())
-        }
-
-        client.exists(repository, tag) shouldBe true
+        val result = client.repositories()
+        result.shouldNotBeEmpty()
+        result.shouldHaveSize(1)
     }
 
     @Test
     fun testUploadLarge() {
-        val data = Paths.get("src/test/resources/test-image-large.tar")
+        val data = Paths.get(testFilePath)
         val repository = Repository("python")
         val tag = Tag("test")
 
@@ -79,7 +62,7 @@ internal class BlockingRegistryTest {
     @Test
     fun test() {
         val localImage = "hello-world:linux"
-        val targetImage = "${registry.address}/changeIt/myfirstimage:latest"
+        val targetImage = "${registry.addressHttp}/changeIt/myfirstimage:latest"
         registry.execInContainer("pull hello-world:linux")
         registry.execInContainer("docker tag $localImage $targetImage")
         registry.execInContainer("docker push $targetImage")
@@ -89,7 +72,7 @@ internal class BlockingRegistryTest {
 
     companion object {
         private val credentials = RegistryCredentials("changeIt", "changeIt")
-        private val registry = TestRegistry().apply { start() }
+        private val registry = RegistryTestContainer().apply { start() }
 
         @AfterAll
         @JvmStatic

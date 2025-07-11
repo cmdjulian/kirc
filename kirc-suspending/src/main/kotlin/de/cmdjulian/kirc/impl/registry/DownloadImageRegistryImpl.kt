@@ -39,7 +39,7 @@ internal interface DownloadImageRegistryImpl : SuspendingContainerImageRegistryC
     override suspend fun download(repository: Repository, reference: Reference): Sink =
         Path(
             SystemTemporaryDirectory,
-            "${OffsetDateTime.now().truncatedTo(ChronoUnit.SECONDS)}--$repository--$reference",
+            "${OffsetDateTime.now().truncatedTo(ChronoUnit.SECONDS)}--$repository--$reference.tar",
         ).let(SystemFileSystem::sink).buffered().use { sink ->
 
             when (val manifest = manifest(repository, reference)) {

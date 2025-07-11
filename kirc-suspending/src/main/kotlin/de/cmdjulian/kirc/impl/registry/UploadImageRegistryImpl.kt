@@ -158,6 +158,8 @@ internal interface UploadImageRegistryImpl : SuspendingContainerImageRegistryCli
             manifest.digest to manifestSingle
         }
 
+        // todo check if there are blobs which aren't uploaded (e.g. config files)
+
         // associate manifests to their blobs and config
         return manifests.map { (digest, manifest) ->
             val layerBlobs = manifest.layers.map { layer ->
