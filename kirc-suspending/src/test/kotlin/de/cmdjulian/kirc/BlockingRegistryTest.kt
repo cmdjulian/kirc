@@ -1,6 +1,7 @@
 package de.cmdjulian.kirc
 
 import de.cmdjulian.kirc.client.BlockingContainerImageClientFactory
+import de.cmdjulian.kirc.client.BlockingContainerImageRegistryClient
 import de.cmdjulian.kirc.client.RegistryCredentials
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
@@ -11,20 +12,33 @@ import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
 import java.net.URI
 import java.nio.file.Paths
 import kotlin.io.path.inputStream
 
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 internal class BlockingRegistryTest {
-    private val client =
-        BlockingContainerImageClientFactory.create(registry.addressHttp.let(URI::create), credentials)
-
-    private val testFilePath = "src/test/resources/hello-world.tar"
+    private lateinit var client: BlockingContainerImageRegistryClient
+    private lateinit var registry: RegistryTestContainer
 
     init {
-        registry.login(credentials)
-        registry.loadImage(testFilePath)
+        DockerRegistryCliHelper.loadImage(HELLO_WORLD_IMAGE, "hello-world:latest")
+    }
+
+    @BeforeEach
+    fun startRegistry() {
+        registry = RegistryTestContainer().apply { start() }
+        client = BlockingContainerImageClientFactory.create(registry.addressHttp.let(URI::create), credentials)
+        DockerRegistryCliHelper.login(registry.addressName, credentials)
+    }
+
+    @AfterEach
+    fun stopRegistry() {
+        registry.stop()
     }
 
     @Test
@@ -37,16 +51,21 @@ internal class BlockingRegistryTest {
 
     @Test
     fun testRepositories() {
-        registry.pushImage("hello-world:latest", "test")
+        client.repositories().shouldBeEmpty()
+        DockerRegistryCliHelper.pushImage(registry.addressName, "test", "hello-world:latest")
+        client.repositories().shouldNotBeEmpty().shouldHaveSize(1)
+    }
 
-        val result = client.repositories()
-        result.shouldNotBeEmpty()
-        result.shouldHaveSize(1)
+    @Test
+    fun testRepositories2() {
+        client.repositories().shouldBeEmpty()
+        DockerRegistryCliHelper.pushImage(registry.addressName, "test", "hello-world:latest")
+        client.repositories().shouldNotBeEmpty().shouldHaveSize(1)
     }
 
     @Test
     fun testUploadLarge() {
-        val data = Paths.get(testFilePath)
+        val data = Paths.get(HELLO_WORLD_IMAGE)
         val repository = Repository("python")
         val tag = Tag("test")
 
@@ -72,12 +91,13 @@ internal class BlockingRegistryTest {
 
     companion object {
         private val credentials = RegistryCredentials("changeIt", "changeIt")
-        private val registry = RegistryTestContainer().apply { start() }
+        private const val HELLO_WORLD_IMAGE = "src/test/resources/hello-world.tar"
 
-        @AfterAll
         @JvmStatic
-        fun tearDown() {
-            registry.stop()
+        @AfterAll
+        fun cleanup() {
+            DockerRegistryCliHelper.removeAllTestImages()
+            DockerRegistryCliHelper.logoutFromAllTestRegistries()
         }
     }
 }
