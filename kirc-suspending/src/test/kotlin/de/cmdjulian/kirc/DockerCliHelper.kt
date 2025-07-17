@@ -15,8 +15,8 @@ object DockerRegistryCliHelper {
     fun loadImage(path: String, imageName: String) = runDockerCli("docker load -i $path")
         .also { images.add(imageName) }
 
-    fun pushImage(addressName: String, repository: String, image: String) {
-        val taggedImageName = "$addressName/$repository/$image"
+    fun pushImage(addressName: String, image: String) {
+        val taggedImageName = "$addressName/$image"
         runDockerCli("docker image tag $image $taggedImageName")
         runDockerCli("docker image push $taggedImageName")
         images.add(taggedImageName)

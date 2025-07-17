@@ -32,6 +32,7 @@ import de.cmdjulian.kirc.utils.SourceDeserializer
 import de.cmdjulian.kirc.utils.mapToUploadSession
 import kotlinx.io.Source
 import kotlinx.io.asInputStream
+import kotlinx.io.readByteArray
 
 private const val APPLICATION_JSON = "application/json"
 private const val APPLICATION_OCTET_STREAM = "application/octet-stream"
@@ -125,11 +126,19 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
 
     override suspend fun manifest(repository: Repository, reference: Reference): Result<ManifestSingle, FuelError> {
         val deserializable = jacksonDeserializer<ManifestSingle>()
-        return fuelManager.get("/v2/$repository/manifests/$reference")
-            .appendHeader(Headers.ACCEPT, APPLICATION_JSON, DockerManifestV2.MediaType, OciManifestV1.MediaType)
+        val result = fuelManager.get("/v2/$repository/manifests/$reference")
+            .appendHeader(
+                Headers.ACCEPT,
+                APPLICATION_JSON,
+                DockerManifestV2.MediaType,
+                OciManifestV1.MediaType,
+                DockerManifestListV1.MediaType,
+                OciManifestListV1.MediaType,
+            )
             .awaitResponseResult(deserializable)
             .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
-            .third
+
+        return result.third
     }
 
     override suspend fun uploadManifest(
@@ -250,10 +259,12 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
         size: Long,
     ): Result<UploadSession, FuelError> {
         val request = fuelManager.patch(session.location)
-            .appendHeader(Headers.CONTENT_LENGTH, size.toString())
+            .appendHeader(Headers.CONTENT_LENGTH, size)
             .appendHeader("Content-Range", "$startRange-$endRange")
             .appendHeader(Headers.CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-            .body({ source.asInputStream() }, { size })
+            .body(source.readByteArray())
+            // todo streaming doesn't work in test -> why???
+            // .body(source.asInputStream(), { size })
             .awaitResponseResult(EmptyDeserializer)
             .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
 

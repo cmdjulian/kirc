@@ -111,7 +111,7 @@ internal interface DownloadImageRegistryImpl : SuspendingContainerImageRegistryC
         manifest: ManifestSingle,
         sink: Sink,
     ): Unit = coroutineScope {
-        val config = config(repository, manifest.config.digest)
+        val config = config(repository, reference)
         val digest = (reference as? Digest) ?: manifestDigest(repository, reference)
         val tag = (reference as? Tag) ?: Tag.LATEST
 

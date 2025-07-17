@@ -92,10 +92,10 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
     override suspend fun blobStream(repository: Repository, digest: Digest): Source = api.blobStream(repository, digest)
         .getOrElse { throw it.toRegistryClientError(repository) }
 
-    override suspend fun config(repository: Repository, reference: Reference): ImageConfig =
-        api.manifest(repository, reference)
+    override suspend fun config(repository: Repository, manifestReference: Reference): ImageConfig =
+        api.manifest(repository, manifestReference)
             .map { config(repository, it) }
-            .getOrElse { throw it.toRegistryClientError(repository, reference) }
+            .getOrElse { throw it.toRegistryClientError(repository, manifestReference) }
 
     override suspend fun config(repository: Repository, manifest: ManifestSingle): ImageConfig =
         api.blob(repository, manifest.config.digest)

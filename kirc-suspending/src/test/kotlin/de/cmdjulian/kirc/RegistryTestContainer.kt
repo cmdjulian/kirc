@@ -1,12 +1,13 @@
 package de.cmdjulian.kirc
 
 import org.testcontainers.containers.GenericContainer
-import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy
+import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.utility.MountableFile.forClasspathResource
 
 class RegistryTestContainer() : GenericContainer<RegistryTestContainer>("registry:2") {
 
     private val REGISTRY_DATA_FOLDER = "/var/lib/registry"
+    private val HOST_REGISTRY_DIRECTORY = "/tmp/testcontainers/registry"
 
     init {
         //SystemFileSystem.createDirectories(HOST_REGISTRY_DIRECTORY.let(::Path))
@@ -22,12 +23,13 @@ class RegistryTestContainer() : GenericContainer<RegistryTestContainer>("registr
         withEnv("REGISTRY_HTTP_SECRET", "shared")
         withEnv("REGISTRY_STORAGE_DELETE_ENABLED", "${true}")
         withEnv("REGISTRY_HTTP_RELATIVEURLS", "${true}")
+        withEnv("REGISTRY_LOG_LEVEL", "debug")
 
         withEnv("REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY", REGISTRY_DATA_FOLDER)
-        //withFileSystemBind(HOST_REGISTRY_DIRECTORY, dockerDirectory, BindMode.READ_WRITE)
+        //withFileSystemBind(HOST_REGISTRY_DIRECTORY, REGISTRY_DATA_FOLDER, BindMode.READ_WRITE)
         withTmpFs(mapOf(REGISTRY_DATA_FOLDER to "rw"))
 
-        waitingFor(HostPortWaitStrategy().forPorts(5000))
+        waitingFor(Wait.forListeningPort())
     }
 
     val addressHttp by lazy { "http://${host}:${getMappedPort(5000)}" }
