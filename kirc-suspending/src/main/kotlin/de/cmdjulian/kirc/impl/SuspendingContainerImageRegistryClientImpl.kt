@@ -117,7 +117,7 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
         blob.use { stream ->
             var returnedSession = session
             var startRange = 0L
-            var endRange = 0L
+            var endRange: Long
 
             while (!stream.exhausted()) {
                 val buffer = Buffer()
