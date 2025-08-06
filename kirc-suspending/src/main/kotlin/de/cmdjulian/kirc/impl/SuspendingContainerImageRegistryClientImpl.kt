@@ -1,20 +1,10 @@
 package de.cmdjulian.kirc.impl
 
-import com.fasterxml.jackson.module.kotlin.readValue
-import com.github.kittinunf.fuel.core.FuelError
 import com.github.kittinunf.result.getOrElse
 import com.github.kittinunf.result.map
 import com.github.kittinunf.result.onError
 import de.cmdjulian.kirc.client.SuspendingContainerImageClient
 import de.cmdjulian.kirc.client.SuspendingContainerImageRegistryClient
-import de.cmdjulian.kirc.exception.RegistryClientException
-import de.cmdjulian.kirc.exception.RegistryClientException.ClientException.AuthenticationException
-import de.cmdjulian.kirc.exception.RegistryClientException.ClientException.AuthorizationException
-import de.cmdjulian.kirc.exception.RegistryClientException.ClientException.MethodNotAllowed
-import de.cmdjulian.kirc.exception.RegistryClientException.ClientException.NotFoundException
-import de.cmdjulian.kirc.exception.RegistryClientException.ClientException.UnexpectedErrorException
-import de.cmdjulian.kirc.exception.RegistryClientException.NetworkErrorException
-import de.cmdjulian.kirc.exception.RegistryClientException.UnknownErrorException
 import de.cmdjulian.kirc.image.ContainerImageName
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
@@ -32,9 +22,10 @@ import de.cmdjulian.kirc.spec.manifest.DockerManifestV2
 import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestV1
+import de.cmdjulian.kirc.utils.toRegistryClientError
 import kotlinx.io.Buffer
 import kotlinx.io.Source
-import kotlin.math.min
+import kotlinx.io.asInputStream
 
 internal class SuspendingContainerImageRegistryClientImpl(private val api: ContainerRegistryApi) :
     SuspendingContainerImageRegistryClient,
@@ -67,6 +58,12 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
             .map(TagList::tags)
             .getOrElse { throw it.toRegistryClientError(repository, null) }
 
+    override suspend fun tags(repository: Repository, digest: Digest): List<Tag> {
+        val allTags = tags(repository)
+        val tagDigests = allTags.associateWith { tag -> manifestDigest(repository, tag) }
+        return tagDigests.filterValues { tagDigest -> tagDigest == digest }.keys.toList()
+    }
+
     override suspend fun exists(repository: Repository, reference: Reference): Boolean =
         api.digest(repository, reference)
             .map { true }
@@ -87,10 +84,10 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
             .getOrElse { throw it.toRegistryClientError(repository, reference) }
 
     override suspend fun blob(repository: Repository, digest: Digest): ByteArray = api.blob(repository, digest)
-        .getOrElse { throw it.toRegistryClientError(repository) }
+        .getOrElse { throw it.toRegistryClientError(repository, digest) }
 
     override suspend fun blobStream(repository: Repository, digest: Digest): Source = api.blobStream(repository, digest)
-        .getOrElse { throw it.toRegistryClientError(repository) }
+        .getOrElse { throw it.toRegistryClientError(repository, digest) }
 
     override suspend fun config(repository: Repository, manifestReference: Reference): ImageConfig =
         api.manifest(repository, manifestReference)
@@ -98,7 +95,8 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
             .getOrElse { throw it.toRegistryClientError(repository, manifestReference) }
 
     override suspend fun config(repository: Repository, manifest: ManifestSingle): ImageConfig =
-        api.blob(repository, manifest.config.digest)
+        api.blobStream(repository, manifest.config.digest)
+            .map(Source::asInputStream)
             .map { config ->
                 when (manifest) {
                     is DockerManifestV2 -> jacksonDeserializer<DockerImageConfigV1>().deserialize(config)
@@ -112,42 +110,36 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
     override suspend fun initiateBlobUpload(repository: Repository): UploadSession =
         api.initiateUpload(repository).getOrElse { throw it.toRegistryClientError(repository, null) }
 
-    override suspend fun uploadBlobStream(session: UploadSession, stream: Source, size: Long): UploadSession =
-        api.uploadBlobStream(session, stream, size).getOrElse { throw it.toRegistryClientError() }
+    override suspend fun uploadBlobStream(session: UploadSession, stream: Source): UploadSession =
+        api.uploadBlobStream(session, stream).getOrElse { throw it.toRegistryClientError() }
 
-    override suspend fun uploadBlobChunks(session: UploadSession, blob: Source, size: Long): UploadSession {
-        var remaining = size
-        val buffer = Buffer()
-        var returnedSession = session
-
+    override suspend fun uploadBlobChunks(session: UploadSession, blob: Source, chunkSize: Long): UploadSession =
         blob.use { stream ->
-            while (remaining > 0) {
-                val readBytes = min(remaining, 10 * 1048576L /* 10 MiB */)
-                buffer.write(stream, readBytes)
+            var returnedSession = session
+            var startRange = 0L
+            var endRange = 0L
 
-                val startRange = size - remaining
-                val endRange = startRange + readBytes - 1
-
-                returnedSession = api.uploadBlobChunked(returnedSession, buffer, startRange, endRange, readBytes)
-                    .getOrElse { throw it.toRegistryClientError(null, null) }
-
-                remaining -= readBytes
+            while (!stream.exhausted()) {
+                val buffer = Buffer()
+                stream.readAtMostTo(buffer, chunkSize)
+                endRange = startRange + buffer.size - 1
+                returnedSession = api.uploadBlobChunked(returnedSession, buffer, startRange, endRange)
+                    .getOrElse { throw it.toRegistryClientError() }
+                startRange = endRange
             }
-        }
 
-        return returnedSession
-    }
+            returnedSession
+        }
 
     override suspend fun finishBlobUpload(session: UploadSession, digest: Digest): Digest =
         api.finishBlobUpload(session, digest)
-            .getOrElse { throw it.toRegistryClientError() }
+            .getOrElse { throw it.toRegistryClientError(null, digest) }
 
     override suspend fun uploadStatus(session: UploadSession): Pair<Long, Long> =
         api.uploadStatus(session).getOrElse { throw it.toRegistryClientError() }
 
     override suspend fun cancelBlobUpload(session: UploadSession) {
-        api.cancelBlobUpload(session)
-            .onError { throw it.toRegistryClientError() }
+        api.cancelBlobUpload(session).onError { throw it.toRegistryClientError() }
     }
 
     override suspend fun uploadManifest(
@@ -155,7 +147,7 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
         reference: Reference,
         manifest: Manifest,
     ): Digest = api.uploadManifest(repository, reference, manifest)
-        .getOrElse { throw it.toRegistryClientError(repository, null) }
+        .getOrElse { throw it.toRegistryClientError(repository, reference) }
 
     // To Image Client
 
@@ -187,30 +179,3 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
             )
         }
 }
-
-private fun FuelError.toRegistryClientError(
-    repository: Repository? = null,
-    reference: Reference? = null,
-): RegistryClientException {
-    val url = this.response.url
-    val data = response.data
-    return when (response.statusCode) {
-        // todo add missing statusCodes
-        -1 -> NetworkErrorException(url, repository, reference, this)
-
-        401 -> AuthenticationException(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, this)
-
-        403 -> AuthorizationException(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, this)
-
-        404 -> NotFoundException(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, this)
-
-        405 -> MethodNotAllowed(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, this)
-
-        in 406..499 ->
-            UnexpectedErrorException(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, this)
-
-        else -> UnknownErrorException(url, repository, reference, this)
-    }
-}
-
-private inline fun <T> tryOrNull(block: () -> T): T? = runCatching(block).getOrNull()

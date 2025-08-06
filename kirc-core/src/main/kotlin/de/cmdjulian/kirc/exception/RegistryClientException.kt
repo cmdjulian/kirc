@@ -62,6 +62,26 @@ sealed class RegistryClientException(
             override fun toString() = "ClientException.MethodNotAllowed (is registry delete enabled?) -> $message"
         }
 
+        class RangeNotSatisfiable(
+            url: URL,
+            repository: Repository?,
+            reference: Reference?,
+            error: ErrorResponse?,
+            cause: Throwable,
+        ) : ClientException(url, repository, reference, "range not satisfiable", error, cause) {
+            override fun toString() = "ClientException.RangeNotSatisfiable -> $message"
+        }
+
+        class TooManyRequests(
+            url: URL,
+            repository: Repository?,
+            reference: Reference?,
+            error: ErrorResponse?,
+            cause: Throwable,
+        ) : ClientException(url, repository, reference, "too many requests", error, cause) {
+            override fun toString() = "ClientException.TooManyRequests -> $message"
+        }
+
         class UnexpectedErrorException(
             url: URL,
             repository: Repository?,

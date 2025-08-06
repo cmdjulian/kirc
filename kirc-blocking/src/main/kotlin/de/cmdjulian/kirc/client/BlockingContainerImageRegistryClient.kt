@@ -89,15 +89,6 @@ interface BlockingContainerImageRegistryClient {
     fun upload(repository: Repository, reference: Reference, tar: InputStream): Digest
 
     /**
-     * Uploads [tar] image archive to container registry, deducting repository and reference from the archive itself.
-     *
-     * > Attention, the archive has to contain this information
-     *
-     * @return the digest of uploaded image
-     */
-    fun upload(tar: InputStream): Digest
-
-    /**
      * Downloads a docker image for certain [reference].
      *
      * For [reference] we download everything to what [reference] directs to (either [ManifestSingle] or [ManifestList])
@@ -154,9 +145,6 @@ fun SuspendingContainerImageRegistryClient.toBlockingClient() = object : Blockin
         reference: Reference,
         tar: InputStream,
     ): Digest = runBlocking { this@toBlockingClient.upload(repository, reference, tar.asSource().buffered()) }
-
-    override fun upload(tar: InputStream): Digest =
-        runBlocking { this@toBlockingClient.upload(tar.asSource().buffered()) }
 
     override fun download(
         repository: Repository,

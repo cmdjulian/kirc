@@ -38,6 +38,9 @@ interface SuspendingContainerImageRegistryClient {
      */
     suspend fun tags(repository: Repository, limit: Int? = null, last: Int? = null): List<Tag>
 
+    /** Get a list of tags containing the digest in provided repository */
+    suspend fun tags(repository: Repository, digest: Digest): List<Tag>
+
     /**
      * Check if the image with the reference exists.
      */
@@ -65,14 +68,14 @@ interface SuspendingContainerImageRegistryClient {
 
     /**
      * Get the config of an Image by its reference.
-     * This method should only be used, if you know, that the underlying image identified by [reference] is not a
+     * This method should only be used, if you know, that the underlying image identified by [manifestReference] is not a
      * ManifestList and is identified uniquely.
-     * If the [reference] points to a ManifestList, the behaviour is up to the registry. Usually the first entry of the
+     * If the [manifestReference] points to a ManifestList, the behaviour is up to the registry. Usually the first entry of the
      * list is returned.
      *
      * To be safe, it's better to use [config] instead.
      */
-    suspend fun config(repository: Repository, reference: Reference): ImageConfig
+    suspend fun config(repository: Repository, manifestReference: Reference): ImageConfig
 
     /**
      * Retrieve a Blob for an image.
@@ -95,13 +98,14 @@ interface SuspendingContainerImageRegistryClient {
 
     /**
      * Uploads a chunk of a blob
+     * [chunkSize] - Chunk Size in Bytes, defaulting to 10 MiB
      */
-    suspend fun uploadBlobChunks(session: UploadSession, blob: Source, size: Long): UploadSession
+    suspend fun uploadBlobChunks(session: UploadSession, blob: Source, chunkSize: Long = 10 * 1048576L): UploadSession
 
     /**
      * Uploads an entire blob by stream
      */
-    suspend fun uploadBlobStream(session: UploadSession, stream: Source, size: Long): UploadSession
+    suspend fun uploadBlobStream(session: UploadSession, stream: Source): UploadSession
 
     /**
      * Upload a manifest
@@ -133,15 +137,6 @@ interface SuspendingContainerImageRegistryClient {
      * @return the digest of uploaded image
      */
     suspend fun upload(repository: Repository, reference: Reference, tar: Source): Digest
-
-    /**
-     * Uploads [tar] image archive to container registry, deducting repository and reference from the archive itself.
-     *
-     * > Attention, the archive has to contain this information
-     *
-     * @return the digest of uploaded image
-     */
-    suspend fun upload(tar: Source): Digest
 
     /**
      * Downloads a docker image for certain [reference].

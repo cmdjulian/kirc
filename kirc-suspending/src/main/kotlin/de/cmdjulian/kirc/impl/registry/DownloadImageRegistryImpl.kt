@@ -1,5 +1,6 @@
 package de.cmdjulian.kirc.impl.registry
 
+import de.cmdjulian.kirc.KircInternalError
 import de.cmdjulian.kirc.client.SuspendingContainerImageRegistryClient
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
@@ -21,6 +22,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 import kotlinx.io.Sink
 import kotlinx.io.Source
 import kotlinx.io.asOutputStream
@@ -36,20 +38,24 @@ import java.time.temporal.ChronoUnit
 
 internal interface DownloadImageRegistryImpl : SuspendingContainerImageRegistryClient {
 
-    override suspend fun download(repository: Repository, reference: Reference): Sink =
-        Path(
+    override suspend fun download(repository: Repository, reference: Reference): Sink {
+        val tempDataPath = Path(
             SystemTemporaryDirectory,
             "${OffsetDateTime.now().truncatedTo(ChronoUnit.SECONDS)}--$repository--$reference.tar",
-        ).let(SystemFileSystem::sink).buffered().use { sink ->
+        )
+        val sink = withContext(Dispatchers.IO) {
+            SystemFileSystem.sink(tempDataPath).buffered()
+        }
 
+        sink.use { sink ->
             when (val manifest = manifest(repository, reference)) {
                 is ManifestSingle -> downloadSingleImage(repository, reference, manifest, sink)
-
                 is ManifestList -> downloadListImage(repository, reference, manifest, sink)
             }
-
-            sink
         }
+
+        return sink
+    }
 
     private suspend fun downloadListImage(
         repository: Repository,
@@ -58,39 +64,41 @@ internal interface DownloadImageRegistryImpl : SuspendingContainerImageRegistryC
         sink: Sink,
     ): Unit = coroutineScope {
         val manifests = index.manifests.associate { manifest ->
-            manifest.digest to async(Dispatchers.IO) {
-                manifest(repository, manifest.digest) as ManifestSingle
-            }
+            manifest.digest to async { manifest(repository, manifest.digest) as ManifestSingle }
         }
         val manifestConfig = manifests.mapValues { (_, manifest) -> async { config(repository, manifest.await()) } }
         val manifestLayers = manifests.mapValues { (_, manifest) -> async { manifest.await().layers } }
-        val tag = (reference as? Tag) ?: Tag.LATEST // todo extract tag from "org.opencontainers.image.ref.name"
+        val digest = (reference as? Digest) ?: manifestDigest(repository, reference)
+        val tags = tags(repository, digest)
 
         val manifestJson = async {
             createManifestJson(
                 repository,
-                reference,
+                tags,
                 manifestLayers.mapValues { (_, values) -> values.await() },
                 manifests.mapValues { (_, manifest) -> manifest.await().config.digest },
             )
         }
         val repositories = async {
-            createRepositories(repository, tag, *manifests.keys.toTypedArray())
+            createRepositories(repository, *manifests.keys.toTypedArray())
         }
 
-        async(Dispatchers.IO) {
+        // write data
+        async {
             sink.writeTarEntry("index.json", index)
-            sink.writeTarEntry("manifest.json", manifestJson.await())
-            sink.writeTarEntry("repositories.json", repositories.await())
+            sink.writeTarEntry("manifest.json", manifestJson)
+            sink.writeTarEntry("repositories.json", repositories)
             sink.writeTarEntry("oci-layout", OciLayout())
 
             manifests.forEach { (digest, manifest) ->
-                sink.writeTarEntry("blobs/sha256/${digest.hash}", manifest.await())
+                sink.writeTarEntry("blobs/sha256/${digest.hash}", manifest)
             }
 
             manifestConfig.map { (manifestDigest, config) ->
-                val configDigest = manifests[manifestDigest]!!.await().config.digest
-                sink.writeTarEntry("blobs/sha256/${configDigest.hash}", config.await())
+                val configDigest = manifests[manifestDigest]?.await()?.config?.digest ?: throw KircInternalError(
+                    "Could not resolve config digest for manifest '$manifestDigest' during download",
+                )
+                sink.writeTarEntry("blobs/sha256/${configDigest.hash}", config)
             }
 
             manifestLayers.forEach { (_, layers) ->
@@ -113,12 +121,11 @@ internal interface DownloadImageRegistryImpl : SuspendingContainerImageRegistryC
     ): Unit = coroutineScope {
         val config = config(repository, reference)
         val digest = (reference as? Digest) ?: manifestDigest(repository, reference)
-        val tag = (reference as? Tag) ?: Tag.LATEST
 
         // limit concurrent pull of layers to three at a time, like Docker does it
         val layerBlobs = with(Semaphore(3)) {
             manifest.layers.asSequence().associateWith { layer ->
-                async(Dispatchers.IO) {
+                async {
                     withPermit { blobStream(repository, layer.digest) }
                 }
             }
@@ -135,13 +142,13 @@ internal interface DownloadImageRegistryImpl : SuspendingContainerImageRegistryC
 
         val manifestJson = createManifestJson(
             repository,
-            reference,
+            tags(repository, digest),
             mapOf(digest to manifest.layers),
             mapOf(digest to manifest.config.digest),
         )
-        val repositories = createRepositories(repository, tag, digest)
-
-
+        val repositories = createRepositories(repository, digest)
+        
+        // write data
         async(Dispatchers.IO) {
             sink.writeTarEntry("index.json", indexManifest)
             sink.writeTarEntry("manifest.json", manifestJson)
@@ -154,56 +161,62 @@ internal interface DownloadImageRegistryImpl : SuspendingContainerImageRegistryC
         }
     }
 
-    private fun Sink.writeTarEntry(name: String, data: Any) {
-        if (data is Deferred<*>) error("Data to write shouldn't be deferred")
+    //
+    private suspend fun Sink.writeTarEntry(name: String, data: Deferred<Any>) = writeTarEntry(name, data.await())
 
+    private suspend fun Sink.writeTarEntry(name: String, data: Any) {
         TarArchiveOutputStream(asOutputStream()).also { tarStream ->
             val indexEntry = TarArchiveEntry(name)
             val indexBytes = JsonMapper.writeValueAsBytes(data)
             indexEntry.size = indexBytes.size.toLong()
-            tarStream.putArchiveEntry(indexEntry)
-            tarStream.write(indexBytes)
-            tarStream.closeArchiveEntry()
+            withContext(Dispatchers.IO) {
+                tarStream.putArchiveEntry(indexEntry)
+                tarStream.write(indexBytes)
+                tarStream.closeArchiveEntry()
+            }
         }
     }
 
-    private fun Sink.writeTarEntryFromSource(name: String, data: Source, size: Long) {
+    private suspend fun Sink.writeTarEntryFromSource(name: String, data: Source, size: Long) {
         TarArchiveOutputStream(asOutputStream()).also { tarStream ->
             val indexEntry = TarArchiveEntry(name)
             indexEntry.size = size
-            tarStream.putArchiveEntry(indexEntry)
-            data.transferTo(tarStream.asSink())
-            tarStream.closeArchiveEntry()
+            withContext(Dispatchers.IO) {
+                tarStream.putArchiveEntry(indexEntry)
+                data.transferTo(tarStream.asSink())
+                tarStream.closeArchiveEntry()
+            }
         }
     }
 
-    private fun createRepositories(repository: Repository, tag: Tag, vararg digests: Digest): Repositories {
-        val tagDigest = digests.associate { digest ->
-            tag to digest.hash
+    private suspend fun createRepositories(repository: Repository, vararg digests: Digest): Repositories {
+        val tagDigests = buildMap {
+            for (digest in digests) {
+                for (tag in tags(repository, digest)) {
+                    put(tag, digest.hash)
+                }
+            }
         }
 
-        return mapOf(repository to tagDigest)
+        return mapOf(repository to tagDigests)
     }
 
     private fun createManifestJson(
         repository: Repository,
-        reference: Reference,
+        tags: List<Tag>,
         manifestLayers: Map<Digest, List<LayerReference>>, // manifestDigest -> layers
         manifestConfig: Map<Digest, Digest>, // manifestDigest -> configDigest
     ): ManifestJson = manifestLayers.map { (manifestDigest, layers) ->
-        val layerPath = layers.map { layer -> "blobs/sha256/${layer.digest.hash}" }
+        val layerPaths = layers.map { layer -> "blobs/sha256/${layer.digest.hash}" }
         val layerSources = layers.associateBy(LayerReference::digest)
-
-        // todo
-        val tag = when (reference) {
-            is Digest -> Tag.LATEST
-            is Tag -> reference
-        }
+        val configDigest = manifestConfig[manifestDigest]?.hash ?: throw KircInternalError(
+            "Could not resolve manifest config for manifest digest '$manifestDigest' during download",
+        )
 
         ManifestJsonEntry(
-            config = "blobs/sha256/${manifestConfig[manifestDigest]!!.hash}",
-            repoTags = listOf("$repository${tag.asImagePart()}"),
-            layers = layerPath,
+            config = "blobs/sha256/$configDigest",
+            repoTags = tags.map { tag -> "$repository${tag.asImagePart()}" },
+            layers = layerPaths,
             layerSources = layerSources,
         )
     }
