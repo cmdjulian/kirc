@@ -114,10 +114,10 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
             .appendHeader(
                 Headers.ACCEPT,
                 APPLICATION_JSON,
-                DockerManifestV2.MediaType,
-                DockerManifestListV1.MediaType,
                 OciManifestV1.MediaType,
                 OciManifestListV1.MediaType,
+                DockerManifestV2.MediaType,
+                DockerManifestListV1.MediaType,
             )
             .awaitResponseResult(deserializable)
             .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
@@ -127,7 +127,7 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
     override suspend fun manifest(repository: Repository, reference: Reference): Result<ManifestSingle, FuelError> {
         val deserializable = jacksonDeserializer<ManifestSingle>()
         return fuelManager.get("/v2/$repository/manifests/$reference")
-            .appendHeader(Headers.ACCEPT, APPLICATION_JSON, DockerManifestV2.MediaType, OciManifestV1.MediaType)
+            .appendHeader(Headers.ACCEPT, APPLICATION_JSON, OciManifestV1.MediaType, DockerManifestV2.MediaType)
             .awaitResponseResult(deserializable)
             .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
             .third

@@ -9,7 +9,8 @@ import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import kotlinx.coroutines.runBlocking
-import kotlinx.io.asOutputStream
+import kotlinx.io.asInputStream
+import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
 import java.io.InputStream
@@ -93,7 +94,9 @@ interface BlockingContainerImageRegistryClient {
      *
      * For [reference] we download everything to what [reference] directs to (either [ManifestSingle] or [ManifestList])
      */
-    fun download(repository: Repository, reference: Reference): OutputStream
+    fun download(repository: Repository, reference: Reference): InputStream
+
+    fun download(repository: Repository, reference: Reference, destination: OutputStream)
 }
 
 fun SuspendingContainerImageRegistryClient.toBlockingClient() = object : BlockingContainerImageRegistryClient {
@@ -149,5 +152,9 @@ fun SuspendingContainerImageRegistryClient.toBlockingClient() = object : Blockin
     override fun download(
         repository: Repository,
         reference: Reference,
-    ): OutputStream = runBlocking { this@toBlockingClient.download(repository, reference).asOutputStream() }
+    ): InputStream = runBlocking { this@toBlockingClient.download(repository, reference).asInputStream() }
+
+    override fun download(repository: Repository, reference: Reference, destination: OutputStream) = runBlocking {
+        this@toBlockingClient.download(repository, reference, destination.asSink().buffered())
+    }
 }

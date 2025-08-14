@@ -169,7 +169,7 @@ internal class BlockingRegistryTest {
         val tag = Tag("latest")
 
         DockerRegistryCliHelper.pushImage(registry.addressName, "$repository:$tag")
-
+        
         shouldNotThrowAny {
             client.download(repository, tag)
         }

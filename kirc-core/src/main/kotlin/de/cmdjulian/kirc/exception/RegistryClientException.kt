@@ -22,6 +22,16 @@ sealed class RegistryClientException(
         cause: Throwable,
     ) : RegistryClientException(url, repository, reference, message, cause) {
 
+        class BadRequestException(
+            url: URL,
+            repository: Repository?,
+            reference: Reference?,
+            error: ErrorResponse?,
+            cause: Throwable,
+        ) : ClientException(url, repository, reference, "bad request", error, cause) {
+            override fun toString(): String = "DistributionClientException.BadRequestError -> $message"
+        }
+
         class AuthenticationException(
             url: URL,
             repository: Repository?,

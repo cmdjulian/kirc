@@ -7,6 +7,8 @@ import de.cmdjulian.kirc.impl.SuspendingContainerImageClientImpl
 import de.cmdjulian.kirc.impl.SuspendingContainerImageRegistryClientImpl
 import de.cmdjulian.kirc.utils.InsecureSSLSocketFactory
 import de.cmdjulian.kirc.utils.NoopHostnameVerifier
+import kotlinx.io.files.Path
+import kotlinx.io.files.SystemTemporaryDirectory
 import java.net.Proxy
 import java.net.URI
 import java.security.KeyStore
@@ -28,6 +30,7 @@ object SuspendingContainerImageClientFactory {
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
         timeout: Duration = Duration.ofSeconds(5),
+        tmpPath: Path = SystemTemporaryDirectory,
     ): SuspendingContainerImageRegistryClient {
         require(keystore == null || !skipTlsVerify) { "can not skip tls verify if a keystore is set" }
         require(timeout.toMillis() in Int.MIN_VALUE..Int.MAX_VALUE) { "timeout in ms has to be a valid int" }
@@ -56,7 +59,7 @@ object SuspendingContainerImageClientFactory {
             }
         }
 
-        return SuspendingContainerImageRegistryClientImpl(ContainerRegistryApiImpl(fuel, credentials))
+        return SuspendingContainerImageRegistryClientImpl(ContainerRegistryApiImpl(fuel, credentials), tmpPath)
     }
 
     @JvmStatic
@@ -68,9 +71,10 @@ object SuspendingContainerImageClientFactory {
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
         timeout: Duration = Duration.ofSeconds(5),
+        tmpPath: Path = SystemTemporaryDirectory,
     ): SuspendingContainerImageClient {
         val url = "${if (insecure) "http://" else "https://"}${image.registry}"
-        val client = create(URI(url), credentials, proxy, skipTlsVerify, keystore, timeout)
+        val client = create(URI(url), credentials, proxy, skipTlsVerify, keystore, timeout, tmpPath)
 
         return SuspendingContainerImageClientImpl(client, image)
     }

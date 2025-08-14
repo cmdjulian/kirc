@@ -1,6 +1,5 @@
-package de.cmdjulian.kirc.impl.registry
+package de.cmdjulian.kirc.impl.delegate
 
-import de.cmdjulian.kirc.KircInternalError
 import de.cmdjulian.kirc.KircUploadException
 import de.cmdjulian.kirc.client.SuspendingContainerImageRegistryClient
 import de.cmdjulian.kirc.image.Digest
@@ -26,22 +25,21 @@ import kotlinx.io.asSource
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
-import kotlinx.io.files.SystemTemporaryDirectory
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import java.time.OffsetDateTime
 import java.time.temporal.ChronoUnit
 
-internal interface UploadImageRegistryImpl : SuspendingContainerImageRegistryClient {
+internal class ImageUploader(private val client: SuspendingContainerImageRegistryClient, private val tmpPath: Path) {
 
-    override suspend fun upload(
+    suspend fun upload(
         repository: Repository,
         reference: Reference,
         tar: Source,
     ): Digest = coroutineScope {
         // store data temporarily
         val tempDirectory = Path(
-            SystemTemporaryDirectory,
+            tmpPath,
             "${OffsetDateTime.now().truncatedTo(ChronoUnit.SECONDS)}--$repository--$reference",
         )
         withContext(Dispatchers.IO) {
@@ -55,20 +53,20 @@ internal interface UploadImageRegistryImpl : SuspendingContainerImageRegistryCli
         try {
             for ((manifest, manifestDigest, blobs) in uploadContainerImage.images) {
                 for (blob in blobs) {
-                    if (!existsBlob(repository, blob.digest)) {
-                        val session = initiateBlobUpload(repository)
+                    if (!client.existsBlob(repository, blob.digest)) {
+                        val session = client.initiateBlobUpload(repository)
 
                         val source = withContext(Dispatchers.IO) {
                             SystemFileSystem.source(blob.path).buffered()
                         }
 
-                        val endSession = uploadBlobChunks(session, source)
+                        val endSession = client.uploadBlobChunks(session, source)
 
-                        finishBlobUpload(endSession, blob.digest)
+                        client.finishBlobUpload(endSession, blob.digest)
                     }
                 }
 
-                uploadManifest(repository, manifestDigest, manifest)
+                client.uploadManifest(repository, manifestDigest, manifest)
             }
         } finally {
             // clear up temporary blob files
@@ -79,7 +77,7 @@ internal interface UploadImageRegistryImpl : SuspendingContainerImageRegistryCli
         }
 
         // upload index
-        uploadManifest(repository, reference, uploadContainerImage.index)
+        client.uploadManifest(repository, reference, uploadContainerImage.index)
     }
 
     private suspend fun readFromTar(tarSource: Source, tempDirectory: Path) = tarSource.use { source ->
@@ -191,10 +189,9 @@ internal interface UploadImageRegistryImpl : SuspendingContainerImageRegistryCli
         val manifestPath = resolveBlobPath(blobs, manifestDigest.hash)
         val size = withContext(Dispatchers.IO) {
             SystemFileSystem.metadataOrNull(manifestPath)?.size
-                ?: throw KircUploadException("Could not determine file metadata for manifest '$manifestDigest'")
-        }
+        } ?: throw KircUploadException("Could not determine file metadata for manifest '$manifestDigest'")
         val mediaType = manifest.mediaType
-            ?: throw KircInternalError("Could not determine media type of manifest $manifestDigest")
+            ?: throw KircUploadException("Could not determine media type of manifest $manifestDigest")
         return UploadBlobPath(manifestDigest, mediaType, manifestPath, size)
     }
 }

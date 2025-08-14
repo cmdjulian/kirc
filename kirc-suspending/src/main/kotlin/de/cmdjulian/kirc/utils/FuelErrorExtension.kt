@@ -5,6 +5,7 @@ import com.github.kittinunf.fuel.core.FuelError
 import de.cmdjulian.kirc.exception.RegistryClientException
 import de.cmdjulian.kirc.exception.RegistryClientException.ClientException.AuthenticationException
 import de.cmdjulian.kirc.exception.RegistryClientException.ClientException.AuthorizationException
+import de.cmdjulian.kirc.exception.RegistryClientException.ClientException.BadRequestException
 import de.cmdjulian.kirc.exception.RegistryClientException.ClientException.MethodNotAllowed
 import de.cmdjulian.kirc.exception.RegistryClientException.ClientException.NotFoundException
 import de.cmdjulian.kirc.exception.RegistryClientException.ClientException.RangeNotSatisfiable
@@ -24,6 +25,8 @@ internal fun FuelError.toRegistryClientError(
     val data = response.data
     return when (response.statusCode) {
         -1 -> NetworkErrorException(url, repository, reference, this)
+
+        400 -> BadRequestException(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, this)
 
         401 -> AuthenticationException(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, this)
 

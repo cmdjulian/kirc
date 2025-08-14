@@ -2,6 +2,8 @@ package de.cmdjulian.kirc.client
 
 import de.cmdjulian.kirc.image.ContainerImageName
 import kotlinx.coroutines.runBlocking
+import kotlinx.io.files.Path
+import kotlinx.io.files.SystemTemporaryDirectory
 import java.net.Proxy
 import java.net.URI
 import java.security.KeyStore
@@ -25,8 +27,9 @@ object ReactiveContainerImageClientFactory {
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
         timeout: Duration = Duration.ofSeconds(5),
+        tmpPath: Path = SystemTemporaryDirectory,
     ): ReactiveContainerImageRegistryClient =
-        SuspendingContainerImageClientFactory.create(url, credentials, proxy, skipTlsVerify, keystore, timeout)
+        SuspendingContainerImageClientFactory.create(url, credentials, proxy, skipTlsVerify, keystore, timeout, tmpPath)
             .toReactiveClient()
 
     @JvmStatic

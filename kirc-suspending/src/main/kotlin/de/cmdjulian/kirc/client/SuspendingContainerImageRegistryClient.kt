@@ -78,16 +78,18 @@ interface SuspendingContainerImageRegistryClient {
     suspend fun config(repository: Repository, manifestReference: Reference): ImageConfig
 
     /**
-     * Retrieve a Blob for an image.
+     * Retrieve a Blob for an image as [ByteArray]
+     *
+     * Loads data into memory
      */
     suspend fun blob(repository: Repository, digest: Digest): ByteArray
 
-    suspend fun blobStream(repository: Repository, digest: Digest): Source
-
     /**
-     * Convert general Client to DockerImageClient.
+     *  Retrieve a Blob for an image as [Source] data stream
+     *
+     *  Data not directly loaded into memory
      */
-    suspend fun toImageClient(repository: Repository, reference: Reference): SuspendingContainerImageClient
+    suspend fun blobStream(repository: Repository, digest: Digest): Source
 
     /**
      * Initiate data upload
@@ -97,7 +99,8 @@ interface SuspendingContainerImageRegistryClient {
     suspend fun initiateBlobUpload(repository: Repository): UploadSession
 
     /**
-     * Uploads a chunk of a blob
+     * Uploads an entire blob chunk-wise for reduced memory load
+     *
      * [chunkSize] - Chunk Size in Bytes, defaulting to 10 MiB
      */
     suspend fun uploadBlobChunks(session: UploadSession, blob: Source, chunkSize: Long = 10 * 1048576L): UploadSession
@@ -115,21 +118,15 @@ interface SuspendingContainerImageRegistryClient {
     /** Finishes blob upload session */
     suspend fun finishBlobUpload(session: UploadSession, digest: Digest): Digest
 
+    /**
+     * Returns the provided [session] current upload status from start (inclusive) to end (exclusive) in bytes
+     */
     suspend fun uploadStatus(session: UploadSession): Pair<Long, Long>
 
     /**
      * Cancels the ongoing upload of blobs for certain session id
      */
     suspend fun cancelBlobUpload(session: UploadSession)
-
-    /**
-     * Convert general Client to DockerImageClient.
-     */
-    fun toImageClient(
-        repository: Repository,
-        reference: Reference,
-        manifest: ManifestSingle,
-    ): SuspendingContainerImageClient
 
     /**
      * Uploads [tar] image archive to container registry at [repository] with [reference]
@@ -141,7 +138,29 @@ interface SuspendingContainerImageRegistryClient {
     /**
      * Downloads a docker image for certain [reference].
      *
+     * Downloads from registry and temporarily stores data in temp directory
+     *
      * For [reference] we download everything to what [reference] directs to (either [ManifestSingle] or [ManifestList])
      */
-    suspend fun download(repository: Repository, reference: Reference): Sink
+    suspend fun download(repository: Repository, reference: Reference): Source
+
+    /**
+     * Downloads a docker image for certain [reference]
+     *
+     * Downloads from registry and writes directly to [destination]
+     *
+     * For [reference] we download everything to what [reference] directs to (either [ManifestSingle] or [ManifestList])
+     */
+    suspend fun download(repository: Repository, reference: Reference, destination: Sink)
+
+    /**
+     * Convert general Client to DockerImageClient.
+     */
+    suspend fun toImageClient(repository: Repository, reference: Reference): SuspendingContainerImageClient
+
+    /**
+     * Convert general Client to DockerImageClient.
+     */
+    fun toImageClient(repository: Repository, reference: Reference, manifest: ManifestSingle):
+        SuspendingContainerImageClient
 }

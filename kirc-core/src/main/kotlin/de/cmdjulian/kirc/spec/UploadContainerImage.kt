@@ -3,7 +3,6 @@ package de.cmdjulian.kirc.spec
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
-import io.goodforgod.graalvm.hint.annotation.ReflectionHint
 import kotlinx.io.files.Path
 
 /**
@@ -15,7 +14,6 @@ import kotlinx.io.files.Path
  * @param repositories content of OPTIONAL repositories file
  * @param layout content of oci-layout file
  */
-@ReflectionHint
 data class UploadContainerImage(
     val index: ManifestList,
     val images: List<UploadSingleImage>,
@@ -33,10 +31,8 @@ data class UploadContainerImage(
  * @param digest digest of platform image manifest
  * @param blobs layer blobs + config blob ready for upload
  */
-@ReflectionHint
 data class UploadSingleImage(val manifest: ManifestSingle, val digest: Digest, val blobs: List<UploadBlobPath>)
 
-@ReflectionHint
 class UploadBlobPath(val digest: Digest, val mediaType: String, val path: Path, val size: Long) {
     override fun equals(other: Any?): Boolean = when {
         this === other -> true

@@ -10,8 +10,8 @@ import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
-import de.cmdjulian.kirc.impl.registry.DownloadImageRegistryImpl
-import de.cmdjulian.kirc.impl.registry.UploadImageRegistryImpl
+import de.cmdjulian.kirc.impl.delegate.ImageDownloader
+import de.cmdjulian.kirc.impl.delegate.ImageUploader
 import de.cmdjulian.kirc.impl.response.Catalog
 import de.cmdjulian.kirc.impl.response.TagList
 import de.cmdjulian.kirc.impl.response.UploadSession
@@ -24,13 +24,16 @@ import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestV1
 import de.cmdjulian.kirc.utils.toRegistryClientError
 import kotlinx.io.Buffer
+import kotlinx.io.Sink
 import kotlinx.io.Source
 import kotlinx.io.asInputStream
+import kotlinx.io.files.Path
 
-internal class SuspendingContainerImageRegistryClientImpl(private val api: ContainerRegistryApi) :
-    SuspendingContainerImageRegistryClient,
-    DownloadImageRegistryImpl,
-    UploadImageRegistryImpl {
+internal class SuspendingContainerImageRegistryClientImpl(private val api: ContainerRegistryApi, tmpPath: Path) :
+    SuspendingContainerImageRegistryClient {
+
+    private val downloader = ImageDownloader(this, tmpPath)
+    private val uploader = ImageUploader(this, tmpPath)
 
     override suspend fun testConnection() {
         api.ping().onError {
@@ -49,9 +52,10 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
                 }
             }
 
-    override suspend fun repositories(limit: Int?, last: Int?): List<Repository> = api.repositories(limit, last)
-        .map(Catalog::repositories)
-        .getOrElse { throw it.toRegistryClientError() }
+    override suspend fun repositories(limit: Int?, last: Int?): List<Repository> =
+        api.repositories(limit, last)
+            .map(Catalog::repositories)
+            .getOrElse { throw it.toRegistryClientError() }
 
     override suspend fun tags(repository: Repository, limit: Int?, last: Int?): List<Tag> =
         api.tags(repository, limit, last)
@@ -83,11 +87,13 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
         api.digest(repository, reference)
             .getOrElse { throw it.toRegistryClientError(repository, reference) }
 
-    override suspend fun blob(repository: Repository, digest: Digest): ByteArray = api.blob(repository, digest)
-        .getOrElse { throw it.toRegistryClientError(repository, digest) }
+    override suspend fun blob(repository: Repository, digest: Digest): ByteArray =
+        api.blob(repository, digest)
+            .getOrElse { throw it.toRegistryClientError(repository, digest) }
 
-    override suspend fun blobStream(repository: Repository, digest: Digest): Source = api.blobStream(repository, digest)
-        .getOrElse { throw it.toRegistryClientError(repository, digest) }
+    override suspend fun blobStream(repository: Repository, digest: Digest): Source =
+        api.blobStream(repository, digest)
+            .getOrElse { throw it.toRegistryClientError(repository, digest) }
 
     override suspend fun config(repository: Repository, manifestReference: Reference): ImageConfig =
         api.manifest(repository, manifestReference)
@@ -142,12 +148,18 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
         api.cancelBlobUpload(session).onError { throw it.toRegistryClientError() }
     }
 
-    override suspend fun uploadManifest(
-        repository: Repository,
-        reference: Reference,
-        manifest: Manifest,
-    ): Digest = api.uploadManifest(repository, reference, manifest)
-        .getOrElse { throw it.toRegistryClientError(repository, reference) }
+    override suspend fun uploadManifest(repository: Repository, reference: Reference, manifest: Manifest): Digest =
+        api.uploadManifest(repository, reference, manifest)
+            .getOrElse { throw it.toRegistryClientError(repository, reference) }
+
+    override suspend fun upload(repository: Repository, reference: Reference, tar: Source): Digest =
+        uploader.upload(repository, reference, tar)
+
+    override suspend fun download(repository: Repository, reference: Reference): Source =
+        downloader.download(repository, reference)
+
+    override suspend fun download(repository: Repository, reference: Reference, destination: Sink) =
+        downloader.download(repository, reference, destination)
 
     // To Image Client
 

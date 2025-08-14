@@ -1,8 +1,10 @@
 package de.cmdjulian.kirc.impl.response
 
-import io.goodforgod.graalvm.hint.annotation.ReflectionHint
-
-// todo remove reflection hint: only for mapping necessary
-@ReflectionHint
-//@ConsistentCopyVisibility
-data class UploadSession /*internal constructor*/(val sessionId: String, val location: String)
+/**
+ * Represents an upload session for uploading a data blob
+ *
+ * [sessionId] - to identify current session for finishing upload, resuming upload, etc.
+ * [location] - the location to store data to. Used to construct the api request url.
+ */
+// constructed by hand not in serialization / deserialization
+class UploadSession internal constructor(val sessionId: String, val location: String)
