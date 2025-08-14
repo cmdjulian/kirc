@@ -6,6 +6,7 @@ import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.impl.response.Catalog
+import de.cmdjulian.kirc.impl.response.ResultSource
 import de.cmdjulian.kirc.impl.response.TagList
 import de.cmdjulian.kirc.impl.response.UploadSession
 import de.cmdjulian.kirc.spec.manifest.Manifest
@@ -36,8 +37,14 @@ internal interface ContainerRegistryApi {
     /** Retrieve certain (single) image manfiest */
     suspend fun manifest(repository: Repository, reference: Reference): Result<ManifestSingle, FuelError>
 
-    /** Retrieve any image manifest matching reference */
+    /** Retrieve any image manifest matching [reference] */
     suspend fun manifests(repository: Repository, reference: Reference): Result<Manifest, FuelError>
+
+    /**
+     * Retrieve any image manifest matching [reference] as data stream
+     */
+    suspend fun manifestStream(repository: Repository, reference: Reference): Result<ResultSource, FuelError>
+
     suspend fun uploadManifest(
         repository: Repository,
         reference: Reference,

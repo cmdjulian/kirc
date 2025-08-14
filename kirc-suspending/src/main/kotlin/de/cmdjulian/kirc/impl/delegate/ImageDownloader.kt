@@ -68,6 +68,9 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
         val manifests = index.manifests.associate { manifest ->
             manifest.digest to client.manifest(repository, manifest.digest) as ManifestSingle
         }
+        val manifestSize = index.manifests.associate { manifest ->
+            manifest.digest to manifest.size
+        }
         val manifestConfig =
             manifests.mapValues { (_, manifest) -> client.blobStream(repository, manifest.config.digest) }
         val manifestLayers = manifests.mapValues { (_, manifest) -> manifest.layers }
@@ -88,8 +91,9 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
         sink.writeTarEntry("repositories.json", repositories)
         sink.writeTarEntry("oci-layout", OciLayout())
 
-        manifests.forEach { (digest, manifest) ->
-            sink.writeTarEntry("blobs/sha256/${digest.hash}", manifest)
+        manifestSize.forEach { (digest, size) ->
+            val manifestStream = client.manifestStream(repository, digest)
+            sink.writeTarEntryFromSource("blobs/sha256/${digest.hash}", manifestStream.source, size)
         }
 
         manifestConfig.forEach { (manifestDigest, configBlob) ->
@@ -121,6 +125,7 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
         val config = client.config(repository, reference)
         val configBlob = client.blobStream(repository, manifest.config.digest)
         val digest = (reference as? Digest) ?: client.manifestDigest(repository, reference)
+        val manifestStream = client.manifestStream(repository, digest)
 
         // limit concurrent pull of layers to three at a time, like Docker does it
         val layerBlobs = with(Semaphore(3)) {
@@ -155,7 +160,7 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
         sink.writeTarEntry("repositories.json", repositories)
         sink.writeTarEntry("oci-layout", OciLayout())
 
-        sink.writeTarEntry("blobs/sha256/${digest.hash}", manifest)
+        sink.writeTarEntryFromSource("blobs/sha256/${digest.hash}", manifestStream.source, manifestStream.size)
         sink.writeTarEntryFromSource("blobs/sha256/${manifest.config.digest.hash}", configBlob, manifest.config.size)
         layerBlobs.forEach { (layer, blobSource) ->
             sink.writeTarEntryFromSource("blobs/sha256/${layer.digest.hash}", blobSource.await(), layer.size)

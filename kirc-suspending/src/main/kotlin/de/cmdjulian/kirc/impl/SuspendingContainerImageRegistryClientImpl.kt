@@ -13,6 +13,7 @@ import de.cmdjulian.kirc.image.Tag
 import de.cmdjulian.kirc.impl.delegate.ImageDownloader
 import de.cmdjulian.kirc.impl.delegate.ImageUploader
 import de.cmdjulian.kirc.impl.response.Catalog
+import de.cmdjulian.kirc.impl.response.ResultSource
 import de.cmdjulian.kirc.impl.response.TagList
 import de.cmdjulian.kirc.impl.response.UploadSession
 import de.cmdjulian.kirc.spec.image.DockerImageConfigV1
@@ -77,6 +78,10 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
 
     override suspend fun manifest(repository: Repository, reference: Reference): Manifest =
         api.manifests(repository, reference)
+            .getOrElse { throw it.toRegistryClientError(repository, reference) }
+
+    override suspend fun manifestStream(repository: Repository, reference: Reference): ResultSource =
+        api.manifestStream(repository, reference)
             .getOrElse { throw it.toRegistryClientError(repository, reference) }
 
     override suspend fun manifestDelete(repository: Repository, reference: Reference): Digest =

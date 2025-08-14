@@ -4,6 +4,7 @@ import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
+import de.cmdjulian.kirc.impl.response.ResultSource
 import de.cmdjulian.kirc.impl.response.UploadSession
 import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.manifest.Manifest
@@ -50,6 +51,11 @@ interface SuspendingContainerImageRegistryClient {
      * Retrieve a manifest.
      */
     suspend fun manifest(repository: Repository, reference: Reference): Manifest
+
+    /**
+     * Retrieve manifest as stream
+     */
+    suspend fun manifestStream(repository: Repository, reference: Reference): ResultSource
 
     /**
      * Get the digest of the manifest for the provided tag.

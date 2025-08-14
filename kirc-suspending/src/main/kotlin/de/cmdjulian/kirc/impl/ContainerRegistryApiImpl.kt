@@ -16,6 +16,7 @@ import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
 import de.cmdjulian.kirc.impl.response.Catalog
+import de.cmdjulian.kirc.impl.response.ResultSource
 import de.cmdjulian.kirc.impl.response.TagList
 import de.cmdjulian.kirc.impl.response.UploadSession
 import de.cmdjulian.kirc.spec.blob.DockerBlobMediaType
@@ -31,6 +32,7 @@ import de.cmdjulian.kirc.spec.manifest.OciManifestV1
 import de.cmdjulian.kirc.utils.SourceDeserializer
 import de.cmdjulian.kirc.utils.mapToDigest
 import de.cmdjulian.kirc.utils.mapToRange
+import de.cmdjulian.kirc.utils.mapToResultSource
 import de.cmdjulian.kirc.utils.mapToUploadSession
 import kotlinx.io.Buffer
 import kotlinx.io.Source
@@ -122,6 +124,22 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
             .awaitResponseResult(deserializable)
             .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
             .third
+    }
+
+    override suspend fun manifestStream(repository: Repository, reference: Reference): Result<ResultSource, FuelError> {
+        val deserializable = SourceDeserializer()
+        return fuelManager.get("/v2/$repository/manifests/$reference")
+            .appendHeader(
+                Headers.ACCEPT,
+                APPLICATION_JSON,
+                OciManifestV1.MediaType,
+                OciManifestListV1.MediaType,
+                DockerManifestV2.MediaType,
+                DockerManifestListV1.MediaType,
+            )
+            .awaitResponseResult(deserializable)
+            .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
+            .mapToResultSource()
     }
 
     override suspend fun manifest(repository: Repository, reference: Reference): Result<ManifestSingle, FuelError> {
