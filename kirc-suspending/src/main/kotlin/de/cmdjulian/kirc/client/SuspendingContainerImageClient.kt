@@ -5,7 +5,6 @@ import de.cmdjulian.kirc.spec.ContainerImage
 import de.cmdjulian.kirc.spec.LayerBlob
 import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
-import java.io.OutputStream
 
 /**
  * Provides access to certain registry to allow handling docker images.
@@ -40,9 +39,4 @@ interface SuspendingContainerImageClient {
      * Retrieve a completed Container Image.
      */
     suspend fun toImage(): ContainerImage
-
-    /**
-     * Download a Container Image in gzip format
-     */
-    suspend fun download(): OutputStream
 }

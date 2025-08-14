@@ -14,7 +14,6 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import java.io.OutputStream
 
 internal class SuspendingContainerImageClientImpl(
     private val client: SuspendingContainerImageRegistryClient,
@@ -59,9 +58,5 @@ internal class SuspendingContainerImageClientImpl(
         val digest = async { image.digest ?: client.manifestDigest(image.repository, image.reference) }
 
         ContainerImage(manifest, digest.await(), config.await(), blobs.await())
-    }
-
-    override suspend fun download(): OutputStream {
-        TODO()
     }
 }
