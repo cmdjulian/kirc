@@ -172,6 +172,7 @@ internal class BlockingRegistryTest {
 
         val result = client.download(repository, tag)
         shouldNotThrowAny {
+            // check if upload of downloaded data possible
             client.upload(Repository("test"), Tag("upload"), result)
         }
     }
