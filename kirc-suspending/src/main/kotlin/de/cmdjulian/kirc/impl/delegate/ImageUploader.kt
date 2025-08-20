@@ -140,7 +140,7 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
         val tempPath = Path.of(tempDirectory.pathString, blobDigest)
         withContext(Dispatchers.IO) {
             SystemFileSystem.sink(tempPath.toKotlinPath()).buffered().also { path ->
-                path.write(this@processBlobEntry.asSource(), entry.realSize)
+                path.write(this@processBlobEntry.asSource(), entry.size)
                 path.flush()
             }
         }
