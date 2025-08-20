@@ -30,6 +30,6 @@ object DockerRegistryCliHelper {
         .forEach { runDockerCli("docker image rm -f $it") }
         .also { images.clear() }
 
-    private fun runDockerCli(command: String) =
-        ProcessBuilder(command.split(" ")).inheritIO().start().waitFor(5, TimeUnit.SECONDS)
+    private fun runDockerCli(command: String, timeOut: Long = 5L) =
+        ProcessBuilder(command.split(" ")).inheritIO().start().waitFor(timeOut, TimeUnit.SECONDS)
 }

@@ -26,10 +26,11 @@ internal fun ResponseResultOf<Unit>.mapToDigest() = third.map {
 }
 
 internal fun ResponseResultOf<Unit>.mapToRange() = third.map {
-    val range = second["Range"].singleOrNull()?.split("-")
-        ?: throw KircApiException("Range", first.url, first.method)
-    val from = range.getOrNull(0)?.toLong() ?: throw KircApiException("Range[0]", first.url, first.method)
-    val end = range.getOrNull(1)?.toLong() ?: throw KircApiException("Range[1]", first.url, first.method)
+    val rangeHeader = second["Range"].singleOrNull() ?: throw KircApiException("Range", first.url, first.method)
+    val rangeValue = if (rangeHeader.startsWith("bytes=")) rangeHeader.removePrefix("bytes=") else rangeHeader
+    val rangeParts = rangeValue.split("-")
+    val from = rangeParts.getOrNull(0)?.toLongOrNull() ?: throw KircApiException("Range[0]", first.url, first.method)
+    val end = rangeParts.getOrNull(1)?.toLongOrNull() ?: throw KircApiException("Range[1]", first.url, first.method)
 
     from to end
 }

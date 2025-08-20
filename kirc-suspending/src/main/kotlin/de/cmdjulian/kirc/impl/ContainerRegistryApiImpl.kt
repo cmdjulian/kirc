@@ -261,12 +261,12 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
         .appendHeader(Headers.CONTENT_LENGTH, buffer.size)
         .appendHeader("Content-Range", "$startRange-$endRange")
         .appendHeader(Headers.CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-        // .body({ buffer.asInputStream() }) currently not working as intended
         .body(buffer.readByteArray())
         .awaitResponseResult(EmptyDeserializer)
         .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
         .mapToUploadSession()
 
+    // Currently not working as intended, because internal fuel buffer has an overflow
     override suspend fun uploadBlobStream(session: UploadSession, source: Source): Result<UploadSession, FuelError> =
         fuelManager.patch(session.location)
             .appendHeader(Headers.CONTENT_TYPE, APPLICATION_OCTET_STREAM)

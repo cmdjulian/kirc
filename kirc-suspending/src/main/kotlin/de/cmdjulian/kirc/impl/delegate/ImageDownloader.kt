@@ -16,6 +16,7 @@ import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestListEntry
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestListV1
+import de.cmdjulian.kirc.utils.toKotlinPath
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -27,12 +28,13 @@ import kotlinx.io.Source
 import kotlinx.io.asOutputStream
 import kotlinx.io.asSink
 import kotlinx.io.buffered
-import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
+import java.nio.file.Path
 import java.time.OffsetDateTime
 import java.time.temporal.ChronoUnit
+import kotlin.io.path.pathString
 
 internal class ImageDownloader(private val client: SuspendingContainerImageRegistryClient, private val tmpPath: Path) {
 
@@ -46,17 +48,17 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
     }
 
     suspend fun download(repository: Repository, reference: Reference): Source {
-        val tempDataPath = Path(
-            tmpPath,
+        val tempDataPath = Path.of(
+            tmpPath.pathString,
             "${OffsetDateTime.now().truncatedTo(ChronoUnit.SECONDS)}--$repository--$reference.tar",
         )
         val sink = withContext(Dispatchers.IO) {
-            SystemFileSystem.sink(tempDataPath).buffered()
+            SystemFileSystem.sink(tempDataPath.toKotlinPath()).buffered()
         }
 
         download(repository, reference, sink)
 
-        return withContext(Dispatchers.IO) { SystemFileSystem.source(tempDataPath).buffered() }
+        return withContext(Dispatchers.IO) { SystemFileSystem.source(tempDataPath.toKotlinPath()).buffered() }
     }
 
     private suspend fun downloadListImage(
@@ -139,7 +141,7 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
         val indexManifest = ManifestListEntry(
             mediaType = OciManifestListV1.MediaType,
             digest = digest,
-            size = manifest.layers.sumOf(LayerReference::size),
+            size = manifestStream.size,
             platform = ManifestListEntry.Platform(config.os, config.architecture, emptyList()),
         ).let {
             OciManifestListV1(2, OciManifestListV1.MediaType, listOf(it), mapOf())

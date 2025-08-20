@@ -5,7 +5,10 @@ import kotlinx.io.Buffer
 import kotlinx.io.Source
 import kotlinx.io.readByteArray
 import java.security.MessageDigest
+import kotlin.io.path.pathString
 import kotlin.math.min
+import kotlinx.io.files.Path as KotlinPath
+import java.nio.file.Path as JavaPath
 
 internal fun sha256Digest(source: Source, size: Long): Digest {
     val md = MessageDigest.getInstance("SHA-256")
@@ -19,3 +22,7 @@ internal fun sha256Digest(source: Source, size: Long): Digest {
     }
     return ("sha256:" + md.digest().joinToString("") { "%02x".format(it) }).let(::Digest)
 }
+
+internal fun KotlinPath.toJavaPath(): JavaPath = JavaPath.of(name)
+
+internal fun JavaPath.toKotlinPath(): KotlinPath = KotlinPath(pathString)

@@ -30,10 +30,8 @@ object BlockingContainerImageClientFactory {
         timeout: Duration = Duration.ofSeconds(5),
         tmpPath: Path = Path(SystemTemporaryDirectory.toString()),
     ): BlockingContainerImageRegistryClient {
-        val basePath = kotlinx.io.files.Path(tmpPath.toString())
-
         return SuspendingContainerImageClientFactory
-            .create(url, credentials, proxy, skipTlsVerify, keystore, timeout, basePath)
+            .create(url, credentials, proxy, skipTlsVerify, keystore, timeout, tmpPath)
             .toBlockingClient()
     }
 
@@ -49,9 +47,8 @@ object BlockingContainerImageClientFactory {
         timeout: Duration = Duration.ofSeconds(5),
         tmpPath: Path = Path(SystemTemporaryDirectory.toString()),
     ): BlockingContainerImageClient = runBlocking {
-        val basePath = kotlinx.io.files.Path(tmpPath.toString())
         SuspendingContainerImageClientFactory
-            .create(image, credentials, proxy, insecure, skipTlsVerify, keystore, timeout, basePath)
+            .create(image, credentials, proxy, insecure, skipTlsVerify, keystore, timeout, tmpPath)
             .toBlockingClient()
     }
 }

@@ -3,7 +3,7 @@ package de.cmdjulian.kirc.spec
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
-import kotlinx.io.files.Path
+import java.nio.file.Path
 
 /**
  * Represents the whole content of uploaded image

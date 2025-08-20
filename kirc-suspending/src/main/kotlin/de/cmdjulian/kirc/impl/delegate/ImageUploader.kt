@@ -16,6 +16,7 @@ import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestListEntry
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
+import de.cmdjulian.kirc.utils.toKotlinPath
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
@@ -23,27 +24,30 @@ import kotlinx.io.Source
 import kotlinx.io.asInputStream
 import kotlinx.io.asSource
 import kotlinx.io.buffered
-import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
+import java.nio.file.Path
 import java.time.OffsetDateTime
 import java.time.temporal.ChronoUnit
+import kotlin.io.path.ExperimentalPathApi
+import kotlin.io.path.pathString
 
 internal class ImageUploader(private val client: SuspendingContainerImageRegistryClient, private val tmpPath: Path) {
 
+    @OptIn(ExperimentalPathApi::class)
     suspend fun upload(
         repository: Repository,
         reference: Reference,
         tar: Source,
     ): Digest = coroutineScope {
         // store data temporarily
-        val tempDirectory = Path(
-            tmpPath,
+        val tempDirectory = Path.of(
+            tmpPath.pathString,
             "${OffsetDateTime.now().truncatedTo(ChronoUnit.SECONDS)}--$repository--$reference",
         )
         withContext(Dispatchers.IO) {
-            SystemFileSystem.createDirectories(tempDirectory)
+            SystemFileSystem.createDirectories(tempDirectory.toKotlinPath())
         }
 
         // read from temp file and deserialize
@@ -57,7 +61,7 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
                         val session = client.initiateBlobUpload(repository)
 
                         val source = withContext(Dispatchers.IO) {
-                            SystemFileSystem.source(blob.path).buffered()
+                            SystemFileSystem.source(blob.path.toKotlinPath()).buffered()
                         }
 
                         val endSession = client.uploadBlobChunks(session, source)
@@ -71,8 +75,8 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
         } finally {
             // clear up temporary blob files
             withContext(Dispatchers.IO) {
-                SystemFileSystem.list(tempDirectory).forEach(SystemFileSystem::delete)
-                SystemFileSystem.delete(tempDirectory)
+                SystemFileSystem.list(tempDirectory.toKotlinPath()).forEach(SystemFileSystem::delete)
+                SystemFileSystem.delete(tempDirectory.toKotlinPath())
             }
         }
 
@@ -132,9 +136,10 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
 
     private suspend fun TarArchiveInputStream.processBlobEntry(entry: TarArchiveEntry, tempDirectory: Path): Path {
         val blobDigest = entry.name.removePrefix("blobs/sha256/")
-        val tempPath = Path(tempDirectory, blobDigest)
+        tempDirectory + blobDigest
+        val tempPath = Path.of(tempDirectory.pathString, blobDigest)
         withContext(Dispatchers.IO) {
-            SystemFileSystem.sink(tempPath).buffered().also { path ->
+            SystemFileSystem.sink(tempPath.toKotlinPath()).buffered().also { path ->
                 path.write(this@processBlobEntry.asSource(), entry.realSize)
                 path.flush()
             }
@@ -150,7 +155,7 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
         val blobPath = resolveBlobPath(blobs, "blobs/sha256/${manifestEntry.digest.hash}")
 
         val manifestStream = withContext(Dispatchers.IO) {
-            SystemFileSystem.source(blobPath).buffered().asInputStream()
+            SystemFileSystem.source(blobPath.toKotlinPath()).buffered().asInputStream()
         }
         return jacksonDeserializer<ManifestSingle>().deserialize(manifestStream)
     }
@@ -188,7 +193,7 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
     ): UploadBlobPath {
         val manifestPath = resolveBlobPath(blobs, manifestDigest.hash)
         val size = withContext(Dispatchers.IO) {
-            SystemFileSystem.metadataOrNull(manifestPath)?.size
+            SystemFileSystem.metadataOrNull(manifestPath.toKotlinPath())?.size
         } ?: throw KircUploadException("Could not determine file metadata for manifest '$manifestDigest'")
         val mediaType = manifest.mediaType
             ?: throw KircUploadException("Could not determine media type of manifest $manifestDigest")

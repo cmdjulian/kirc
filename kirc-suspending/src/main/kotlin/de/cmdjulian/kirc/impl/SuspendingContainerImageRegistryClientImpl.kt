@@ -28,7 +28,7 @@ import kotlinx.io.Buffer
 import kotlinx.io.Sink
 import kotlinx.io.Source
 import kotlinx.io.asInputStream
-import kotlinx.io.files.Path
+import java.nio.file.Path
 
 internal class SuspendingContainerImageRegistryClientImpl(private val api: ContainerRegistryApi, tmpPath: Path) :
     SuspendingContainerImageRegistryClient {
