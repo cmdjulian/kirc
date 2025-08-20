@@ -29,5 +29,4 @@ class RegistryTestContainer() : GenericContainer<RegistryTestContainer>("registr
     }
 
     val addressHttp by lazy { "http://${host}:${getMappedPort(5000)}" }
-    val addressName by lazy { "$host:${getMappedPort(5000)}" }
 }

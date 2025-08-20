@@ -1,35 +1,37 @@
 package de.cmdjulian.kirc
 
+import de.cmdjulian.kirc.client.BlockingContainerImageClientFactory
+import de.cmdjulian.kirc.client.BlockingContainerImageRegistryClient
 import de.cmdjulian.kirc.client.RegistryCredentials
-import java.util.concurrent.TimeUnit
+import de.cmdjulian.kirc.image.Digest
+import de.cmdjulian.kirc.image.Reference
+import de.cmdjulian.kirc.image.Repository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import kotlinx.io.asInputStream
+import kotlinx.io.buffered
+import kotlinx.io.files.Path
+import kotlinx.io.files.SystemFileSystem
+import java.net.URI
 
-class DockerRegistryCliHelper {
+class DockerRegistryCliHelper(addressName: String, credentials: RegistryCredentials) {
 
-    private val images = mutableListOf<String>()
-    private val loggedInRegistry = mutableListOf<String>()
+    private data class UploadReference(val repository: Repository, val reference: Reference)
 
-    fun login(addressName: String, credentials: RegistryCredentials) =
-        runDockerCli("docker login $addressName -u ${credentials.username} -p ${credentials.password}")
-            .also { loggedInRegistry.add(addressName) }
+    private var client: BlockingContainerImageRegistryClient =
+        BlockingContainerImageClientFactory.create(url = URI.create(addressName), credentials = credentials)
+    private val images = mutableListOf<UploadReference>()
 
-    fun loadImage(path: String, imageName: String) = runDockerCli("docker load -i $path")
-        .also { images.add(imageName) }
-
-    fun pushImage(addressName: String, image: String) {
-        val taggedImageName = "$addressName/$image"
-        runDockerCli("docker image tag $image $taggedImageName")
-        runDockerCli("docker image push $taggedImageName")
-        images.add(taggedImageName)
+    fun pushImage(repository: Repository, reference: Reference, path: String): Digest {
+        images.add(UploadReference(repository, reference))
+        val source = runBlocking(Dispatchers.IO) { SystemFileSystem.source(Path(path)) }
+        return client.upload(repository, reference, source.buffered().asInputStream())
     }
 
-    fun logoutFromAllTestRegistries() = loggedInRegistry
-        .forEach { registry -> runDockerCli("docker logout $registry") }
-        .also { loggedInRegistry.clear() }
-
-    fun removeAllTestImages() = images
-        .forEach { runDockerCli("docker image rm -f $it") }
-        .also { images.clear() }
-
-    private fun runDockerCli(command: String, timeOut: Long = 5L) =
-        ProcessBuilder(command.split(" ")).inheritIO().start().waitFor(timeOut, TimeUnit.SECONDS)
+    fun deleteAll() = images.forEach { (repository, reference) ->
+        try {
+            client.manifestDelete(repository, reference)
+        } catch (ex: Exception) {
+        }
+    }
 }

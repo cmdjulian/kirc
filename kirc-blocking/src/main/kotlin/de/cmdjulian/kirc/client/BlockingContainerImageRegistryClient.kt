@@ -64,7 +64,7 @@ interface BlockingContainerImageRegistryClient {
      * If the [reference] points to a ManifestList, the behaviour is up to the registry. Usually the first entry of the
      * list is returned.
      *
-     * To be safe, it's better to use [config] instead.
+     * To be safe, it's better to use [Digest] or config([Repository], [ManifestSingle]) instead.
      */
     fun config(repository: Repository, reference: Reference): ImageConfig
 
