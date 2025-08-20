@@ -7,11 +7,8 @@ import org.testcontainers.utility.MountableFile.forClasspathResource
 class RegistryTestContainer() : GenericContainer<RegistryTestContainer>("registry:2") {
 
     private val REGISTRY_DATA_FOLDER = "/var/lib/registry"
-    private val HOST_REGISTRY_DIRECTORY = "/tmp/testcontainers/registry"
 
     init {
-        //SystemFileSystem.createDirectories(HOST_REGISTRY_DIRECTORY.let(::Path))
-
         withNetworkAliases("localhost")
         withExposedPorts(5000)
         withCopyFileToContainer(forClasspathResource("htpasswd"), "/auth/htpasswd")
@@ -26,7 +23,6 @@ class RegistryTestContainer() : GenericContainer<RegistryTestContainer>("registr
         withEnv("REGISTRY_LOG_LEVEL", "debug")
 
         withEnv("REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY", REGISTRY_DATA_FOLDER)
-        //withFileSystemBind(HOST_REGISTRY_DIRECTORY, REGISTRY_DATA_FOLDER, BindMode.READ_WRITE)
         withTmpFs(mapOf(REGISTRY_DATA_FOLDER to "rw"))
 
         waitingFor(Wait.forListeningPort())

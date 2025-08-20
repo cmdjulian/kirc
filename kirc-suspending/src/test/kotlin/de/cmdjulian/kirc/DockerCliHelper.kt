@@ -3,7 +3,7 @@ package de.cmdjulian.kirc
 import de.cmdjulian.kirc.client.RegistryCredentials
 import java.util.concurrent.TimeUnit
 
-object DockerRegistryCliHelper {
+class DockerRegistryCliHelper {
 
     private val images = mutableListOf<String>()
     private val loggedInRegistry = mutableListOf<String>()

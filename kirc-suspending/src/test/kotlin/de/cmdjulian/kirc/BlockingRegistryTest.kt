@@ -37,14 +37,14 @@ internal class BlockingRegistryTest {
     private val digestImage = Digest("sha256:7565f2c7034d87673c5ddc3b1b8e97f8da794c31d9aa73ed26afffa1c8194889")
 
     init {
-        DockerRegistryCliHelper.loadImage(HELLO_WORLD_IMAGE, "hello-world:latest")
+        cliHelper.loadImage(HELLO_WORLD_IMAGE, "hello-world:latest")
     }
 
     @BeforeEach
     fun startRegistry() {
         registry = RegistryTestContainer().apply { start() }
         client = BlockingContainerImageClientFactory.create(registry.addressHttp.let(URI::create), credentials)
-        DockerRegistryCliHelper.login(registry.addressName, credentials)
+        cliHelper.login(registry.addressName, credentials)
     }
 
     @AfterEach
@@ -64,7 +64,7 @@ internal class BlockingRegistryTest {
     fun `repositories - returns correct amount of repos`() {
         client.repositories().shouldBeEmpty()
 
-        DockerRegistryCliHelper.pushImage(registry.addressName, "hello-world:latest")
+        cliHelper.pushImage(registry.addressName, "hello-world:latest")
 
         val result = client.repositories().shouldNotBeEmpty().shouldHaveSize(1)
         result.first() shouldBe Repository("hello-world")
@@ -75,7 +75,7 @@ internal class BlockingRegistryTest {
         val repository = Repository("hello-world")
         val tag = Tag("latest")
 
-        DockerRegistryCliHelper.pushImage(registry.addressName, "$repository:$tag")
+        cliHelper.pushImage(registry.addressName, "$repository:$tag")
 
         shouldNotThrowAny {
             client.config(repository, tag)
@@ -87,7 +87,7 @@ internal class BlockingRegistryTest {
         val repository = Repository("hello-world")
         val tag = Tag("latest")
 
-        DockerRegistryCliHelper.pushImage(registry.addressName, "$repository:$tag")
+        cliHelper.pushImage(registry.addressName, "$repository:$tag")
 
         client.tags(repository).shouldHaveSize(1).first() shouldBe tag
     }
@@ -97,7 +97,7 @@ internal class BlockingRegistryTest {
         val repository = Repository("hello-world")
         val tag = Tag("latest")
 
-        DockerRegistryCliHelper.pushImage(registry.addressName, "$repository:$tag")
+        cliHelper.pushImage(registry.addressName, "$repository:$tag")
 
         client.exists(repository, tag) shouldBe true
     }
@@ -108,7 +108,7 @@ internal class BlockingRegistryTest {
         val tag = Tag("latest")
         val digest = Digest("sha256:7565f2c7034d87673c5ddc3b1b8e97f8da794c31d9aa73ed26afffa1c8194889")
 
-        DockerRegistryCliHelper.pushImage(registry.addressName, "$repository:$tag")
+        cliHelper.pushImage(registry.addressName, "$repository:$tag")
 
         client.manifestDigest(repository, tag) shouldBe digest
     }
@@ -118,7 +118,7 @@ internal class BlockingRegistryTest {
         val repository = Repository("hello-world")
         val tag = Tag("latest")
 
-        DockerRegistryCliHelper.pushImage(registry.addressName, "$repository:$tag")
+        cliHelper.pushImage(registry.addressName, "$repository:$tag")
 
         client.manifestDelete(repository, digestImage) shouldBe digestImage
         client.tags(repository).shouldBeEmpty()
@@ -129,7 +129,7 @@ internal class BlockingRegistryTest {
         val repository = Repository("hello-world")
         val tag = Tag("latest")
 
-        DockerRegistryCliHelper.pushImage(registry.addressName, "$repository:$tag")
+        cliHelper.pushImage(registry.addressName, "$repository:$tag")
 
         val result = client.manifest(repository, tag).shouldBeInstanceOf<ManifestSingle>()
         result.layers.shouldNotBeEmpty()
@@ -141,7 +141,7 @@ internal class BlockingRegistryTest {
         val tag = Tag("latest")
         val blobDigests = listOf(digestManifest, digestConfig, digestLayer, digestDontKnow)
 
-        DockerRegistryCliHelper.pushImage(registry.addressName, "$repository:$tag")
+        cliHelper.pushImage(registry.addressName, "$repository:$tag")
 
         blobDigests.forEach { digest ->
             client.exists(repository, digest).shouldBeTrue()
@@ -168,7 +168,7 @@ internal class BlockingRegistryTest {
         val repository = Repository("hello-world")
         val tag = Tag("latest")
 
-        DockerRegistryCliHelper.pushImage(registry.addressName, "$repository:$tag")
+        cliHelper.pushImage(registry.addressName, "$repository:$tag")
 
         val result = client.download(repository, tag)
         shouldNotThrowAny {
@@ -179,13 +179,14 @@ internal class BlockingRegistryTest {
 
     companion object {
         private val credentials = RegistryCredentials("changeIt", "changeIt")
+        private val cliHelper = DockerRegistryCliHelper()
         private const val HELLO_WORLD_IMAGE = "src/test/resources/hello-world.tar"
 
         @JvmStatic
         @AfterAll
         fun cleanup() {
-            DockerRegistryCliHelper.removeAllTestImages()
-            DockerRegistryCliHelper.logoutFromAllTestRegistries()
+            cliHelper.removeAllTestImages()
+            cliHelper.logoutFromAllTestRegistries()
         }
     }
 }
