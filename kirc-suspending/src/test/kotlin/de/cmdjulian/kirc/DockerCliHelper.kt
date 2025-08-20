@@ -28,10 +28,13 @@ class DockerRegistryCliHelper(addressName: String, credentials: RegistryCredenti
         return client.upload(repository, reference, source.buffered().asInputStream())
     }
 
-    fun deleteAll() = images.forEach { (repository, reference) ->
-        try {
-            client.manifestDelete(repository, reference)
-        } catch (_: Exception) {
+    fun deleteAll() {
+        images.forEach { (repository, reference) ->
+            try {
+                client.manifestDelete(repository, reference)
+            } catch (_: Exception) {
+            }
         }
+        images.clear()
     }
 }
