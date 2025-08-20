@@ -31,7 +31,7 @@ class DockerRegistryCliHelper(addressName: String, credentials: RegistryCredenti
     fun deleteAll() = images.forEach { (repository, reference) ->
         try {
             client.manifestDelete(repository, reference)
-        } catch (ex: Exception) {
+        } catch (_: Exception) {
         }
     }
 }
