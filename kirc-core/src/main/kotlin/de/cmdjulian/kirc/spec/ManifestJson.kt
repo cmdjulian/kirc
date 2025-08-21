@@ -14,9 +14,10 @@ typealias ManifestJson = List<ManifestJsonEntry>
  *
  * NOT PART OF the OFFICIAL OCI STANDARD!
  */
-@ReflectionHint(types = [PropertyNamingStrategies.UpperCamelCaseStrategy::class])
+@ReflectionHint
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonNaming(PropertyNamingStrategies.UpperCamelCaseStrategy::class)
+@ReflectionHint(types = [PropertyNamingStrategies.UpperCamelCaseStrategy::class])
 data class ManifestJsonEntry(
     val config: String,
     val repoTags: List<String>,
