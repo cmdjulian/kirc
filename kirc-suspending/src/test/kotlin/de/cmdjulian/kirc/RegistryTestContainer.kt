@@ -6,7 +6,7 @@ import org.testcontainers.utility.MountableFile.forClasspathResource
 
 class RegistryTestContainer() : GenericContainer<RegistryTestContainer>("registry:2") {
 
-    private val REGISTRY_DATA_FOLDER = "/var/lib/registry"
+    private val registryDataFolder = "/var/lib/registry"
 
     init {
         withNetworkAliases("localhost")
@@ -22,11 +22,11 @@ class RegistryTestContainer() : GenericContainer<RegistryTestContainer>("registr
         withEnv("REGISTRY_HTTP_RELATIVEURLS", "${true}")
         withEnv("REGISTRY_LOG_LEVEL", "debug")
 
-        withEnv("REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY", REGISTRY_DATA_FOLDER)
-        withTmpFs(mapOf(REGISTRY_DATA_FOLDER to "rw"))
+        withEnv("REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY", registryDataFolder)
+        withTmpFs(mapOf(registryDataFolder to "rw"))
 
         waitingFor(Wait.forListeningPort())
     }
 
-    val addressHttp by lazy { "http://${host}:${getMappedPort(5000)}" }
+    val addressHttp by lazy { "http://$host:${getMappedPort(5000)}" }
 }

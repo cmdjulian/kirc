@@ -143,16 +143,11 @@ fun SuspendingContainerImageRegistryClient.toBlockingClient() = object : Blockin
         return client.toBlockingClient()
     }
 
-    override fun upload(
-        repository: Repository,
-        reference: Reference,
-        tar: InputStream,
-    ): Digest = runBlocking { this@toBlockingClient.upload(repository, reference, tar.asSource().buffered()) }
+    override fun upload(repository: Repository, reference: Reference, tar: InputStream): Digest =
+        runBlocking { this@toBlockingClient.upload(repository, reference, tar.asSource().buffered()) }
 
-    override fun download(
-        repository: Repository,
-        reference: Reference,
-    ): InputStream = runBlocking { this@toBlockingClient.download(repository, reference).asInputStream() }
+    override fun download(repository: Repository, reference: Reference): InputStream =
+        runBlocking { this@toBlockingClient.download(repository, reference).asInputStream() }
 
     override fun download(repository: Repository, reference: Reference, destination: OutputStream) = runBlocking {
         this@toBlockingClient.download(repository, reference, destination.asSink().buffered())

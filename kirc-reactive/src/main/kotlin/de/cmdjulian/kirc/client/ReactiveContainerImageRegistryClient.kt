@@ -142,7 +142,6 @@ fun SuspendingContainerImageRegistryClient.toReactiveClient() = object : Reactiv
     }
 
     override fun upload(repository: Repository, reference: Reference, tar: Flux<Byte>): Mono<Digest> = mono {
-
         val buffer = Buffer().also { buffer -> tar.collect(buffer::writeByte) }
         this@toReactiveClient.upload(repository, reference, buffer)
     }

@@ -36,11 +36,7 @@ import kotlin.io.path.pathString
 internal class ImageUploader(private val client: SuspendingContainerImageRegistryClient, private val tmpPath: Path) {
 
     @OptIn(ExperimentalPathApi::class)
-    suspend fun upload(
-        repository: Repository,
-        reference: Reference,
-        tar: Source,
-    ): Digest = coroutineScope {
+    suspend fun upload(repository: Repository, reference: Reference, tar: Source): Digest = coroutineScope {
         // store data temporarily
         val tempDirectory = Path.of(
             tmpPath.pathString,
@@ -136,7 +132,6 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
 
     private suspend fun TarArchiveInputStream.processBlobEntry(entry: TarArchiveEntry, tempDirectory: Path): Path {
         val blobDigest = entry.name.removePrefix("blobs/sha256/")
-        tempDirectory + blobDigest
         val tempPath = Path.of(tempDirectory.pathString, blobDigest)
         withContext(Dispatchers.IO) {
             SystemFileSystem.sink(tempPath.toKotlinPath()).buffered().also { path ->

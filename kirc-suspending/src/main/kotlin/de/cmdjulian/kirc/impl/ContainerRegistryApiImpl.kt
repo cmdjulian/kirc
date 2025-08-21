@@ -240,10 +240,7 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
             .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
             .mapToUploadSession()
 
-    override suspend fun finishBlobUpload(
-        session: UploadSession,
-        digest: Digest,
-    ): Result<Digest, FuelError> {
+    override suspend fun finishBlobUpload(session: UploadSession, digest: Digest): Result<Digest, FuelError> {
         val parameters = listOf("digest" to digest)
 
         return fuelManager.put(session.location, parameters)

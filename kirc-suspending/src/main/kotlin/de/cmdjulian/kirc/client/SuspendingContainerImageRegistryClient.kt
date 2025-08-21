@@ -167,6 +167,9 @@ interface SuspendingContainerImageRegistryClient {
     /**
      * Convert general Client to DockerImageClient.
      */
-    fun toImageClient(repository: Repository, reference: Reference, manifest: ManifestSingle):
-        SuspendingContainerImageClient
+    fun toImageClient(
+        repository: Repository,
+        reference: Reference,
+        manifest: ManifestSingle,
+    ): SuspendingContainerImageClient
 }
