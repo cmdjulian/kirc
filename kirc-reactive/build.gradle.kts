@@ -8,9 +8,8 @@ dependencies {
     api(project(":kirc-image"))
     implementation(project(":kirc-suspending"))
 
-    implementation(platform(coroutines.kotlinx.bom))
-    implementation(coroutines.kotlinx.io)
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
+    implementation(libs.kotlinx.io)
+    implementation(libs.coroutines.reactor)
 }
 
 tasks.jar {

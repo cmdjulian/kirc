@@ -10,8 +10,8 @@ dependencies {
 
     // kotlin
     implementation(kotlin("stdlib"))
-    implementation(platform(coroutines.kotlinx.bom))
-    implementation(coroutines.bundles.kotlinx)
+    implementation(libs.coroutines)
+    api(libs.kotlinx.io)
 
     // graal reflect config
     kapt(graalHints.processor)
