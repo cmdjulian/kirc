@@ -15,8 +15,11 @@ pluginManagement {
 
 dependencyResolutionManagement {
     versionCatalogs {
-        create("coroutines") {
-            library("bom", "org.jetbrains.kotlinx:kotlinx-coroutines-bom:1.8.1")
+        create("libs") {
+            version("coroutines", "1.10.2")
+            library("kotlinx-io", "org.jetbrains.kotlinx", "kotlinx-io-core").version("0.7.0")
+            library("coroutines", "org.jetbrains.kotlinx", "kotlinx-coroutines-core").versionRef("coroutines")
+            library("coroutines-reactor", "org.jetbrains.kotlinx", "kotlinx-coroutines-reactor").versionRef("coroutines")
         }
         create("jackson") {
             library("bom", "com.fasterxml.jackson:jackson-bom:2.17.1")

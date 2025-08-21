@@ -4,6 +4,7 @@ import de.cmdjulian.kirc.image.ContainerImageName
 import kotlinx.coroutines.runBlocking
 import java.net.Proxy
 import java.net.URI
+import java.nio.file.Path
 import java.security.KeyStore
 import java.time.Duration
 
@@ -25,8 +26,9 @@ object ReactiveContainerImageClientFactory {
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
         timeout: Duration = Duration.ofSeconds(5),
+        tmpPath: Path,
     ): ReactiveContainerImageRegistryClient =
-        SuspendingContainerImageClientFactory.create(url, credentials, proxy, skipTlsVerify, keystore, timeout)
+        SuspendingContainerImageClientFactory.create(url, credentials, proxy, skipTlsVerify, keystore, timeout, tmpPath)
             .toReactiveClient()
 
     @JvmStatic
@@ -39,9 +41,10 @@ object ReactiveContainerImageClientFactory {
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
         timeout: Duration = Duration.ofSeconds(5),
+        tmpPath: Path,
     ): ReactiveContainerImageClient = runBlocking {
         SuspendingContainerImageClientFactory
-            .create(image, credentials, proxy, insecure, skipTlsVerify, keystore, timeout)
+            .create(image, credentials, proxy, insecure, skipTlsVerify, keystore, timeout, tmpPath)
             .toReactiveClient()
     }
 }

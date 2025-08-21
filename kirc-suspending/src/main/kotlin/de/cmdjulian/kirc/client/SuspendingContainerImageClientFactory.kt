@@ -9,8 +9,10 @@ import de.cmdjulian.kirc.utils.InsecureSSLSocketFactory
 import de.cmdjulian.kirc.utils.NoopHostnameVerifier
 import java.net.Proxy
 import java.net.URI
+import java.nio.file.Path
 import java.security.KeyStore
 import java.time.Duration
+import kotlin.io.path.Path
 
 object SuspendingContainerImageClientFactory {
 
@@ -28,6 +30,7 @@ object SuspendingContainerImageClientFactory {
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
         timeout: Duration = Duration.ofSeconds(5),
+        tmpPath: Path = Path(System.getProperty("java.io.tmpdir")),
     ): SuspendingContainerImageRegistryClient {
         require(keystore == null || !skipTlsVerify) { "can not skip tls verify if a keystore is set" }
         require(timeout.toMillis() in Int.MIN_VALUE..Int.MAX_VALUE) { "timeout in ms has to be a valid int" }
@@ -38,6 +41,17 @@ object SuspendingContainerImageClientFactory {
             this.keystore = keystore
             this.timeoutInMillisecond = timeout.toMillis().toInt()
             this.timeoutReadInMillisecond = timeout.toMillis().toInt()
+            /*
+             * From the official fuel library documentation it is stated:
+             *
+             * The default client is HttpClient which is a thin wrapper over java.net.HttpUrlConnection.
+             * java.net.HttpUrlConnection does not support a PATCH method.
+             * HttpClient converts PATCH requests to a POST request and adds a X-HTTP-Method-Override: PATCH header.
+             * While this is a semi-standard industry practice not all APIs are configured to accept this header by default.
+             *
+             * Therefore we have to set this flag
+             */
+            this.forceMethods = true
 
             if (skipTlsVerify) {
                 hostnameVerifier = NoopHostnameVerifier
@@ -45,7 +59,7 @@ object SuspendingContainerImageClientFactory {
             }
         }
 
-        return SuspendingContainerImageRegistryClientImpl(ContainerRegistryApiImpl(fuel, credentials))
+        return SuspendingContainerImageRegistryClientImpl(ContainerRegistryApiImpl(fuel, credentials), tmpPath)
     }
 
     @JvmStatic
@@ -57,9 +71,10 @@ object SuspendingContainerImageClientFactory {
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
         timeout: Duration = Duration.ofSeconds(5),
+        tmpPath: Path = Path(System.getProperty("java.io.tmpdir")),
     ): SuspendingContainerImageClient {
         val url = "${if (insecure) "http://" else "https://"}${image.registry}"
-        val client = create(URI(url), credentials, proxy, skipTlsVerify, keystore, timeout)
+        val client = create(URI(url), credentials, proxy, skipTlsVerify, keystore, timeout, tmpPath)
 
         return SuspendingContainerImageClientImpl(client, image)
     }

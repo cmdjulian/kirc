@@ -10,8 +10,8 @@ dependencies {
 
     // kotlin
     implementation(kotlin("stdlib"))
-    implementation(platform(coroutines.bom))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
+    implementation(libs.coroutines)
+    api(libs.kotlinx.io)
 
     // graal reflect config
     kapt(graalHints.processor)
@@ -36,7 +36,12 @@ dependencies {
     // insecure connections
     implementation("io.github.hakky54:sslcontext-kickstart:8.3.5")
 
+    // tar file handling
+    implementation("org.apache.commons:commons-compress:1.26.1")
+
     // tests
+    testImplementation(project(":kirc-blocking"))
+
     testImplementation(platform(tests.junit.bom))
     testImplementation(tests.bundles.junit)
     testImplementation(tests.bundles.kotest)
@@ -46,6 +51,9 @@ dependencies {
 
     // resource injection
     testImplementation("io.hosuaby:inject-resources-junit-jupiter:0.3.3")
+
+    // test container
+    testImplementation("org.testcontainers:testcontainers:1.21.3")
 }
 
 tasks.jar {

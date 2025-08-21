@@ -6,8 +6,15 @@ import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
 import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.manifest.Manifest
+import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import kotlinx.coroutines.runBlocking
+import kotlinx.io.asInputStream
+import kotlinx.io.asSink
+import kotlinx.io.asSource
+import kotlinx.io.buffered
+import java.io.InputStream
+import java.io.OutputStream
 
 interface BlockingContainerImageRegistryClient {
     /**
@@ -57,7 +64,7 @@ interface BlockingContainerImageRegistryClient {
      * If the [reference] points to a ManifestList, the behaviour is up to the registry. Usually the first entry of the
      * list is returned.
      *
-     * To be safe, it's better to use [config] instead.
+     * To be safe, it's better to use [Digest] or config([Repository], [ManifestSingle]) instead.
      */
     fun config(repository: Repository, reference: Reference): ImageConfig
 
@@ -74,6 +81,22 @@ interface BlockingContainerImageRegistryClient {
         reference: Reference,
         manifest: ManifestSingle? = null,
     ): BlockingContainerImageClient
+
+    /**
+     * Uploads [tar] image archive to container registry at [repository] with [reference]
+     *
+     * @return the digest of uploaded image
+     */
+    fun upload(repository: Repository, reference: Reference, tar: InputStream): Digest
+
+    /**
+     * Downloads a docker image for certain [reference].
+     *
+     * For [reference] we download everything to what [reference] directs to (either [ManifestSingle] or [ManifestList])
+     */
+    fun download(repository: Repository, reference: Reference): InputStream
+
+    fun download(repository: Repository, reference: Reference, destination: OutputStream)
 }
 
 fun SuspendingContainerImageRegistryClient.toBlockingClient() = object : BlockingContainerImageRegistryClient {
@@ -118,5 +141,15 @@ fun SuspendingContainerImageRegistryClient.toBlockingClient() = object : Blockin
         }
 
         return client.toBlockingClient()
+    }
+
+    override fun upload(repository: Repository, reference: Reference, tar: InputStream): Digest =
+        runBlocking { this@toBlockingClient.upload(repository, reference, tar.asSource().buffered()) }
+
+    override fun download(repository: Repository, reference: Reference): InputStream =
+        runBlocking { this@toBlockingClient.download(repository, reference).asInputStream() }
+
+    override fun download(repository: Repository, reference: Reference, destination: OutputStream) = runBlocking {
+        this@toBlockingClient.download(repository, reference, destination.asSink().buffered())
     }
 }

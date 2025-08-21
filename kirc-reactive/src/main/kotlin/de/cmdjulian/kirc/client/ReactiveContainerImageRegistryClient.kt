@@ -6,10 +6,15 @@ import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
 import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.manifest.Manifest
+import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.reactive.collect
 import kotlinx.coroutines.reactor.flux
 import kotlinx.coroutines.reactor.mono
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
+import kotlinx.io.Buffer
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -78,6 +83,20 @@ interface ReactiveContainerImageRegistryClient {
         reference: Reference,
         manifest: ManifestSingle? = null,
     ): Mono<ReactiveContainerImageClient>
+
+    /**
+     * Uploads [tar] image archive to container registry at [repository] with [reference]
+     *
+     * @return the digest of uploaded image
+     */
+    fun upload(repository: Repository, reference: Reference, tar: Flux<Byte>): Mono<Digest>
+
+    /**
+     * Downloads a docker image for certain [reference].
+     *
+     * For [reference] we download everything to what [reference] directs to (either [ManifestSingle] or [ManifestList])
+     */
+    fun download(repository: Repository, reference: Reference): Flux<Byte>
 }
 
 fun SuspendingContainerImageRegistryClient.toReactiveClient() = object : ReactiveContainerImageRegistryClient {
@@ -119,6 +138,21 @@ fun SuspendingContainerImageRegistryClient.toReactiveClient() = object : Reactiv
             mono { this@toReactiveClient.toImageClient(repository, reference).toReactiveClient() }
         } else {
             Mono.just(this@toReactiveClient.toImageClient(repository, reference, manifest).toReactiveClient())
+        }
+    }
+
+    override fun upload(repository: Repository, reference: Reference, tar: Flux<Byte>): Mono<Digest> = mono {
+        val buffer = Buffer().also { buffer -> tar.collect(buffer::writeByte) }
+        this@toReactiveClient.upload(repository, reference, buffer)
+    }
+
+    override fun download(repository: Repository, reference: Reference): Flux<Byte> = flux {
+        this@toReactiveClient.download(repository, reference).use { result ->
+            withContext(Dispatchers.IO) {
+                while (!result.exhausted()) {
+                    send(result.readByte())
+                }
+            }
         }
     }
 }

@@ -2,10 +2,13 @@ package de.cmdjulian.kirc.client
 
 import de.cmdjulian.kirc.image.ContainerImageName
 import kotlinx.coroutines.runBlocking
+import kotlinx.io.files.SystemTemporaryDirectory
 import java.net.Proxy
 import java.net.URI
+import java.nio.file.Path
 import java.security.KeyStore
 import java.time.Duration
+import kotlin.io.path.Path
 
 object BlockingContainerImageClientFactory {
 
@@ -25,9 +28,12 @@ object BlockingContainerImageClientFactory {
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
         timeout: Duration = Duration.ofSeconds(5),
-    ): BlockingContainerImageRegistryClient =
-        SuspendingContainerImageClientFactory.create(url, credentials, proxy, skipTlsVerify, keystore, timeout)
+        tmpPath: Path = Path(SystemTemporaryDirectory.toString()),
+    ): BlockingContainerImageRegistryClient {
+        return SuspendingContainerImageClientFactory
+            .create(url, credentials, proxy, skipTlsVerify, keystore, timeout, tmpPath)
             .toBlockingClient()
+    }
 
     @JvmStatic
     @JvmOverloads
@@ -39,9 +45,10 @@ object BlockingContainerImageClientFactory {
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
         timeout: Duration = Duration.ofSeconds(5),
+        tmpPath: Path = Path(SystemTemporaryDirectory.toString()),
     ): BlockingContainerImageClient = runBlocking {
         SuspendingContainerImageClientFactory
-            .create(image, credentials, proxy, insecure, skipTlsVerify, keystore, timeout)
+            .create(image, credentials, proxy, insecure, skipTlsVerify, keystore, timeout, tmpPath)
             .toBlockingClient()
     }
 }
