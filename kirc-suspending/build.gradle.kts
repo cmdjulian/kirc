@@ -31,7 +31,7 @@ dependencies {
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 
     // logging
-    implementation("io.github.oshai:kotlin-logging-jvm:6.0.9")
+    implementation("io.github.oshai:kotlin-logging-jvm:7.0.13")
 
     // insecure connections
     implementation("io.github.hakky54:sslcontext-kickstart:8.3.7")
