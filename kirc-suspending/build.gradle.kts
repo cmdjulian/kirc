@@ -34,7 +34,7 @@ dependencies {
     implementation("io.github.oshai:kotlin-logging-jvm:6.0.9")
 
     // insecure connections
-    implementation("io.github.hakky54:sslcontext-kickstart:8.3.5")
+    implementation("io.github.hakky54:sslcontext-kickstart:8.3.7")
 
     // tar file handling
     implementation("org.apache.commons:commons-compress:1.26.1")
