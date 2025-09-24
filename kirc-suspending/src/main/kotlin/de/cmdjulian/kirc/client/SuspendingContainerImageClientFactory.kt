@@ -1,17 +1,27 @@
 package de.cmdjulian.kirc.client
 
-import com.github.kittinunf.fuel.core.FuelManager
 import de.cmdjulian.kirc.image.ContainerImageName
 import de.cmdjulian.kirc.impl.ContainerRegistryApiImpl
 import de.cmdjulian.kirc.impl.SuspendingContainerImageClientImpl
 import de.cmdjulian.kirc.impl.SuspendingContainerImageRegistryClientImpl
-import de.cmdjulian.kirc.utils.InsecureSSLSocketFactory
-import de.cmdjulian.kirc.utils.NoopHostnameVerifier
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.ProxyBuilder
+import io.ktor.client.engine.cio.CIO
+import io.ktor.client.engine.http
+import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.defaultRequest
+import io.ktor.client.plugins.logging.LogLevel
+import io.ktor.client.plugins.logging.Logging
+import io.ktor.serialization.jackson.jackson
 import java.net.Proxy
 import java.net.URI
 import java.nio.file.Path
 import java.security.KeyStore
+import java.security.cert.X509Certificate
 import java.time.Duration
+import javax.net.ssl.TrustManagerFactory
+import javax.net.ssl.X509TrustManager
 import kotlin.io.path.Path
 
 object SuspendingContainerImageClientFactory {
@@ -35,31 +45,51 @@ object SuspendingContainerImageClientFactory {
         require(keystore == null || !skipTlsVerify) { "can not skip tls verify if a keystore is set" }
         require(timeout.toMillis() in Int.MIN_VALUE..Int.MAX_VALUE) { "timeout in ms has to be a valid int" }
 
-        val fuel = FuelManager().apply {
-            this.basePath = url.toString()
-            this.proxy = proxy
-            this.keystore = keystore
-            this.timeoutInMillisecond = timeout.toMillis().toInt()
-            this.timeoutReadInMillisecond = timeout.toMillis().toInt()
-            /*
-             * From the official fuel library documentation it is stated:
-             *
-             * The default client is HttpClient which is a thin wrapper over java.net.HttpUrlConnection.
-             * java.net.HttpUrlConnection does not support a PATCH method.
-             * HttpClient converts PATCH requests to a POST request and adds a X-HTTP-Method-Override: PATCH header.
-             * While this is a semi-standard industry practice not all APIs are configured to accept this header by default.
-             *
-             * Therefore we have to set this flag
-             */
-            this.forceMethods = true
+        val client = HttpClient(CIO) {
+            engine {
+                requestTimeout = timeout.toMillis()
+                if (proxy != null) {
+                    val address = proxy.address()
+                    if (address is java.net.InetSocketAddress) {
+                        this.proxy = ProxyBuilder.http("http://${address.hostString}:${address.port}")
+                    }
+                }
+                if (skipTlsVerify) {
+                    https {
+                        trustManager = object : X509TrustManager {
+                            override fun checkClientTrusted(chain: Array<X509Certificate>?, authType: String?) {}
 
-            if (skipTlsVerify) {
-                hostnameVerifier = NoopHostnameVerifier
-                socketFactory = InsecureSSLSocketFactory
+                            override fun checkServerTrusted(chain: Array<X509Certificate>?, authType: String?) {}
+
+                            override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
+                        }
+                    }
+                } else if (keystore != null) {
+                    https {
+                        val tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+                        tmf.init(keystore)
+                        trustManager = tmf.trustManagers.filterIsInstance<X509TrustManager>().first()
+                    }
+                }
+            }
+            install(HttpTimeout) {
+                requestTimeoutMillis = timeout.toMillis()
+                connectTimeoutMillis = timeout.toMillis()
+                socketTimeoutMillis = timeout.toMillis()
+            }
+            install(ContentNegotiation) {
+                jackson()
+            }
+            install(Logging) {
+                level = LogLevel.INFO
+            }
+            defaultRequest {
+                url(url.toString())
             }
         }
 
-        return SuspendingContainerImageRegistryClientImpl(ContainerRegistryApiImpl(fuel, credentials), tmpPath)
+        val api = ContainerRegistryApiImpl(client, credentials, url)
+        return SuspendingContainerImageRegistryClientImpl(api, tmpPath)
     }
 
     @JvmStatic

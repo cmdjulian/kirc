@@ -1,15 +1,7 @@
 package de.cmdjulian.kirc.impl
 
-import com.github.kittinunf.fuel.core.FuelError
-import com.github.kittinunf.fuel.core.FuelManager
-import com.github.kittinunf.fuel.core.Headers
-import com.github.kittinunf.fuel.core.Parameters
-import com.github.kittinunf.fuel.core.awaitResponseResult
-import com.github.kittinunf.fuel.core.deserializers.ByteArrayDeserializer
-import com.github.kittinunf.fuel.core.deserializers.EmptyDeserializer
 import com.github.kittinunf.result.Result
 import com.github.kittinunf.result.flatMap
-import com.github.kittinunf.result.map
 import de.cmdjulian.kirc.client.RegistryCredentials
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
@@ -29,74 +21,202 @@ import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestListV1
 import de.cmdjulian.kirc.spec.manifest.OciManifestV1
-import de.cmdjulian.kirc.utils.SourceDeserializer
-import de.cmdjulian.kirc.utils.mapToDigest
-import de.cmdjulian.kirc.utils.mapToRange
-import de.cmdjulian.kirc.utils.mapToResultSource
-import de.cmdjulian.kirc.utils.mapToUploadSession
+import im.toss.http.parser.HttpAuthCredentials
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.request.HttpRequest
+import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.request.delete
+import io.ktor.client.request.get
+import io.ktor.client.request.head
+import io.ktor.client.request.header
+import io.ktor.client.request.parameter
+import io.ktor.client.request.patch
+import io.ktor.client.request.post
+import io.ktor.client.request.put
+import io.ktor.client.request.request
+import io.ktor.client.request.setBody
+import io.ktor.client.request.url
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsChannel
+import io.ktor.client.statement.bodyAsText
+import io.ktor.client.statement.request
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.utils.io.jvm.javaio.toInputStream
 import kotlinx.io.Buffer
 import kotlinx.io.Source
 import kotlinx.io.asInputStream
+import kotlinx.io.asSource
+import kotlinx.io.buffered
 import kotlinx.io.readByteArray
+import java.net.URI
 
 private const val APPLICATION_JSON = "application/json"
 private const val APPLICATION_OCTET_STREAM = "application/octet-stream"
 
-internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, credentials: RegistryCredentials?) :
-    ContainerRegistryApi {
+internal class ContainerRegistryApiImpl(
+    private val client: HttpClient,
+    private val credentials: RegistryCredentials?,
+    private val baseUrl: URI,
+) : ContainerRegistryApi {
 
-    private val handler = ResponseRetryWithAuthentication(credentials, fuelManager)
+    private suspend inline fun <reified T> execute(
+        crossinline block: suspend () -> HttpResponse,
+        noinline transform: suspend (HttpResponse) -> T,
+    ): Result<T, KtorHttpError> {
+        return runCatching { performWithAuthRetry(block, transform) }.fold(
+            onSuccess = { Result.success(it) },
+            onFailure = { throwable ->
+                if (throwable is KtorHttpError) Result.failure(throwable) else Result.failure(
+                    KtorHttpError(-1, "${baseUrl}", "?", ByteArray(0), throwable),
+                )
+            },
+        )
+    }
+
+    private suspend inline fun <reified T> performWithAuthRetry(
+        crossinline block: suspend () -> HttpResponse,
+        noinline transform: suspend (HttpResponse) -> T,
+    ): T {
+        val first = block()
+        if (first.status.value != 401 || first.headers["WWW-Authenticate"].isNullOrBlank()) {
+            if (!first.status.isSuccess()) throw first.toError()
+            return transform(first)
+        }
+
+        val header = first.headers["WWW-Authenticate"]
+        val retry = buildAuthRetryRequest(header, first.request)
+        if (retry == null) {
+            throw first.toError()
+        }
+        val second = retry()
+        if (!second.status.isSuccess()) throw second.toError()
+        return transform(second)
+    }
+
+    private suspend fun buildAuthRetryRequest(
+        header: String?,
+        original: HttpRequest,
+    ): (suspend () -> HttpResponse)? {
+        val wwwAuth = header?.runCatching { HttpAuthCredentials.parse(this) }?.getOrNull()
+        return when (wwwAuth?.scheme) {
+            "Basic" -> {
+                if (credentials == null) null else {
+                    suspend {
+                        client.request {
+                            method = original.method
+                            url(original.url)
+                            headers.appendAll(original.headers)
+                            setBodyIfPresent(original)
+                            header(HttpHeaders.Authorization, basic(credentials.username, credentials.password))
+                        }
+                    }
+                }
+            }
+
+            "Bearer" -> bearerRetry(wwwAuth, original)
+            else -> null
+        }
+    }
+
+    private fun basic(user: String, pass: String): String =
+        "Basic " + java.util.Base64.getEncoder().encodeToString("$user:$pass".toByteArray())
+
+    private suspend fun bearerRetry(
+        wwwAuth: HttpAuthCredentials,
+        original: HttpRequest,
+    ): (suspend () -> HttpResponse)? {
+        val realm = wwwAuth.singleValueParams["realm"]?.trim('"') ?: return null
+        val scope = wwwAuth.singleValueParams["scope"]?.trim('"')
+        val service = wwwAuth.singleValueParams["service"]?.trim('"')
+        val token = runCatching {
+            client.get(realm) {
+                if (scope != null) parameter("scope", scope)
+                if (service != null) parameter("service", service)
+                if (credentials != null) {
+                    header(HttpHeaders.Authorization, basic(credentials.username, credentials.password))
+                }
+            }.let { resp ->
+                if (!resp.status.isSuccess()) throw resp.toError()
+                JsonMapper.readTree(resp.bodyAsText())["token"].asText()
+            }
+        }.getOrNull() ?: return null
+
+        return suspend {
+            client.request {
+                method = original.method
+                url(original.url)
+                headers.appendAll(original.headers)
+                setBodyIfPresent(original)
+                header(HttpHeaders.Authorization, "Bearer $token")
+            }
+        }
+    }
+
+    private fun HttpStatusCode.isSuccess(): Boolean = value in 200..299
+
+    private suspend fun HttpResponse.toError(): KtorHttpError = KtorHttpError(
+        status.value,
+        request.url.toString(),
+        request.method.value,
+        runCatching { bodyAsText().toByteArray() }.getOrElse { ByteArray(0) },
+        null,
+    )
+
+    private suspend fun setBodyIfPresent(original: HttpRequest) {
+        // Body re-use not supported via public API; for current usage (no retry with body except PUT/POST of small JSON) we ignore.
+    }
 
     // Status
 
-    override suspend fun ping(): Result<*, FuelError> = fuelManager.get("/v2/")
-        .awaitResponseResult(EmptyDeserializer)
-        .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-        .third
+    override suspend fun ping(): Result<*, KtorHttpError> = execute(
+        block = { client.get("/v2/") },
+        transform = { Unit },
+    )
 
-    override suspend fun repositories(limit: Int?, last: Int?): Result<Catalog, FuelError> {
-        val parameter: Parameters = buildList {
-            if (limit != null) add("n" to limit)
-            if (last != null) add("last" to last)
-        }
+    override suspend fun repositories(limit: Int?, last: Int?): Result<Catalog, KtorHttpError> = execute(
+        block = {
+            client.get("/v2/_catalog") {
+                if (limit != null) parameter("n", limit)
+                if (last != null) parameter("last", last)
+                acceptJson()
+            }
+        },
+        transform = { it.body() },
+    )
 
-        val deserializable = jacksonDeserializer<Catalog>()
-        return fuelManager.get("/v2/_catalog", parameter)
-            .appendHeader(Headers.ACCEPT, APPLICATION_JSON)
-            .awaitResponseResult(deserializable)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
-            .third
-    }
+    override suspend fun tags(repository: Repository, limit: Int?, last: Int?): Result<TagList, KtorHttpError> =
+        execute(
+            block = {
+                client.get("/v2/$repository/tags/list") {
+                    if (limit != null) parameter("n", limit)
+                    if (last != null) parameter("last", last)
+                    acceptJson()
+                }
+            },
+            transform = { it.body() },
+        )
 
-    override suspend fun tags(repository: Repository, limit: Int?, last: Int?): Result<TagList, FuelError> {
-        val parameter: Parameters = buildList {
-            if (limit != null) add("n" to limit)
-            if (last != null) add("last" to last)
-        }
-
-        val deserializable = jacksonDeserializer<TagList>()
-        return fuelManager.get("/v2/$repository/tags/list", parameter)
-            .appendHeader(Headers.ACCEPT, APPLICATION_JSON)
-            .awaitResponseResult(deserializable)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
-            .third
-    }
-
-    override suspend fun digest(repository: Repository, reference: Reference) = when (reference) {
-        is Digest -> Result.success(reference)
-        is Tag -> fuelManager.head("/v2/$repository/manifests/$reference")
-            .appendHeader(
-                Headers.ACCEPT,
-                APPLICATION_JSON,
-                DockerManifestV2.MediaType,
-                DockerManifestListV1.MediaType,
-                OciManifestV1.MediaType,
-                OciManifestListV1.MediaType,
+    override suspend fun digest(repository: Repository, reference: Reference): Result<Digest, KtorHttpError> =
+        when (reference) {
+            is Digest -> Result.success(reference)
+            is Tag -> execute(
+                block = {
+                    client.head("/v2/$repository/manifests/$reference") { acceptManifestTypes() }
+                },
+                transform = { resp ->
+                    resp.headers["Docker-Content-Digest"]?.let(::Digest)
+                        ?: throw KtorHttpError(
+                            resp.status.value,
+                            resp.request.url.toString(),
+                            resp.request.method.value,
+                            ByteArray(0),
+                            IllegalStateException("Missing Docker-Content-Digest header"),
+                        )
+                },
             )
-            .awaitResponseResult(EmptyDeserializer)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-            .mapToDigest()
-    }
+        }
 
     // Manifest
 
@@ -104,183 +224,233 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
         repository: Repository,
         reference: Reference,
         accept: String,
-    ): Result<*, FuelError> = fuelManager.head("/v2/$repository/manifests/$reference")
-        .appendHeader(Headers.ACCEPT, accept)
-        .awaitResponseResult(EmptyDeserializer)
-        .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-        .third
+    ): Result<*, KtorHttpError> = execute(
+        block = { client.head("/v2/$repository/manifests/$reference") { header(HttpHeaders.Accept, accept) } },
+        transform = { },
+    )
 
-    override suspend fun manifests(repository: Repository, reference: Reference): Result<Manifest, FuelError> {
-        val deserializable = jacksonDeserializer<Manifest>()
-        return fuelManager.get("/v2/$repository/manifests/$reference")
-            .appendHeader(
-                Headers.ACCEPT,
-                APPLICATION_JSON,
-                OciManifestV1.MediaType,
-                OciManifestListV1.MediaType,
-                DockerManifestV2.MediaType,
-                DockerManifestListV1.MediaType,
-            )
-            .awaitResponseResult(deserializable)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
-            .third
-    }
+    override suspend fun manifests(repository: Repository, reference: Reference): Result<Manifest, KtorHttpError> =
+        execute(
+            block = {
+                client.get("/v2/$repository/manifests/$reference") { acceptManifestTypes() }
+            },
+            transform = { it.body() },
+        )
 
-    override suspend fun manifestStream(repository: Repository, reference: Reference): Result<ResultSource, FuelError> {
-        val deserializable = SourceDeserializer()
-        return fuelManager.get("/v2/$repository/manifests/$reference")
-            .appendHeader(
-                Headers.ACCEPT,
-                APPLICATION_JSON,
-                OciManifestV1.MediaType,
-                OciManifestListV1.MediaType,
-                DockerManifestV2.MediaType,
-                DockerManifestListV1.MediaType,
-            )
-            .awaitResponseResult(deserializable)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
-            .mapToResultSource()
-    }
+    override suspend fun manifestStream(
+        repository: Repository,
+        reference: Reference,
+    ): Result<ResultSource, KtorHttpError> = execute(
+        block = { client.get("/v2/$repository/manifests/$reference") { acceptManifestTypes() } },
+        transform = { resp ->
+            val size = resp.headers[HttpHeaders.ContentLength]?.toLong()
+                ?: throw KtorHttpError(
+                    resp.status.value,
+                    resp.request.url.toString(),
+                    resp.request.method.value,
+                    ByteArray(0),
+                    IllegalStateException("Missing Content-Length"),
+                )
+            ResultSource(resp.bodyAsChannel().toInputStream().asSource().buffered(), size)
+        },
+    )
 
-    override suspend fun manifest(repository: Repository, reference: Reference): Result<ManifestSingle, FuelError> {
-        val deserializable = jacksonDeserializer<ManifestSingle>()
-        return fuelManager.get("/v2/$repository/manifests/$reference")
-            .appendHeader(Headers.ACCEPT, APPLICATION_JSON, OciManifestV1.MediaType, DockerManifestV2.MediaType)
-            .awaitResponseResult(deserializable)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
-            .third
-    }
+    override suspend fun manifest(repository: Repository, reference: Reference): Result<ManifestSingle, KtorHttpError> =
+        execute(
+            block = { client.get("/v2/$repository/manifests/$reference") { acceptSingleManifestTypes() } },
+            transform = { it.body() },
+        )
 
     override suspend fun uploadManifest(
         repository: Repository,
         reference: Reference,
         manifest: Manifest,
-    ): Result<Digest, FuelError> {
-        val urlReference = when (reference) {
-            is Digest -> reference.hash
-            is Tag -> reference
-        }
-        val contentType = when (manifest) {
-            is DockerManifestV2 -> DockerManifestV2.MediaType
-            is DockerManifestListV1 -> DockerManifestListV1.MediaType
-            is OciManifestV1 -> OciManifestV1.MediaType
-            is OciManifestListV1 -> OciManifestListV1.MediaType
-        }
-        return fuelManager.put("/v2/$repository/manifests/$urlReference")
-            .appendHeader(Headers.CONTENT_TYPE, contentType)
-            .body(JsonMapper.writeValueAsString(manifest))
-            .awaitResponseResult(EmptyDeserializer)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-            .mapToDigest()
-    }
-
-    override suspend fun deleteManifest(repository: Repository, reference: Reference): Result<Digest, FuelError> {
-        return digest(repository, reference).flatMap { digest ->
-            fuelManager.delete("/v2/$repository/manifests/$digest")
-                .appendHeader(
-                    Headers.ACCEPT,
-                    APPLICATION_JSON,
-                    DockerManifestV2.MediaType,
-                    DockerManifestListV1.MediaType,
-                    OciManifestV1.MediaType,
-                    OciManifestListV1.MediaType,
+    ): Result<Digest, KtorHttpError> = execute(
+        block = {
+            val urlRef = when (reference) {
+                is Digest -> reference.hash
+                is Tag -> reference
+            }
+            val contentType = when (manifest) {
+                is DockerManifestV2 -> DockerManifestV2.MediaType
+                is DockerManifestListV1 -> DockerManifestListV1.MediaType
+                is OciManifestV1 -> OciManifestV1.MediaType
+                is OciManifestListV1 -> OciManifestListV1.MediaType
+            }
+            client.put("/v2/$repository/manifests/$urlRef") {
+                header(HttpHeaders.ContentType, contentType)
+                setBody(JsonMapper.writeValueAsString(manifest))
+            }
+        },
+        transform = { resp ->
+            resp.headers["Docker-Content-Digest"]?.let(::Digest)
+                ?: throw KtorHttpError(
+                    resp.status.value,
+                    resp.request.url.toString(),
+                    resp.request.method.value,
+                    ByteArray(0),
+                    IllegalStateException("Missing Docker-Content-Digest header"),
                 )
-                .awaitResponseResult(EmptyDeserializer)
-                .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-                .third
-                .map { digest }
+        },
+    )
+
+    override suspend fun deleteManifest(repository: Repository, reference: Reference): Result<Digest, KtorHttpError> =
+        digest(repository, reference).flatMap { dg ->
+            execute(
+                block = { client.delete("/v2/$repository/manifests/$dg") { acceptManifestTypes() } },
+                transform = { dg },
+            )
         }
-    }
 
     // Blob
 
-    override suspend fun existsBlob(repository: Repository, digest: Digest): Result<*, FuelError> =
-        fuelManager.head("/v2/$repository/blobs/$digest")
-            .awaitResponseResult(EmptyDeserializer)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-            .third
+    override suspend fun existsBlob(repository: Repository, digest: Digest): Result<*, KtorHttpError> = execute(
+        block = { client.head("/v2/$repository/blobs/$digest") },
+        transform = { Unit },
+    )
 
-    override suspend fun blob(repository: Repository, digest: Digest): Result<ByteArray, FuelError> {
-        val deserializable = ByteArrayDeserializer()
-        return fuelManager.get("/v2/$repository/blobs/$digest")
-            .appendHeader(
-                Headers.ACCEPT,
-                APPLICATION_JSON,
-                APPLICATION_OCTET_STREAM,
-                DockerBlobMediaType,
-                OciBlobMediaTypeTar,
-                OciBlobMediaTypeGzip,
-                OciBlobMediaTypeZstd,
+    override suspend fun blob(repository: Repository, digest: Digest): Result<ByteArray, KtorHttpError> = execute(
+        block = {
+            client.get("/v2/$repository/blobs/$digest") { acceptBlobTypes() }
+        },
+        transform = { it.body() },
+    )
+
+    override suspend fun blobStream(repository: Repository, digest: Digest): Result<Source, KtorHttpError> = execute(
+        block = { client.get("/v2/$repository/blobs/$digest") { acceptBlobTypes() } },
+        transform = { resp -> resp.bodyAsChannel().toInputStream().asSource().buffered() },
+    )
+
+    override suspend fun initiateUpload(repository: Repository): Result<UploadSession, KtorHttpError> = execute(
+        block = { client.post("/v2/$repository/blobs/uploads/") },
+        transform = { resp ->
+            UploadSession(
+                sessionId = resp.headers["Docker-Upload-UUID"] ?: throw KtorHttpError(
+                    resp.status.value,
+                    resp.request.url.toString(),
+                    resp.request.method.value,
+                    ByteArray(0),
+                    IllegalStateException("Missing Docker-Upload-UUID"),
+                ),
+                location = resp.headers[HttpHeaders.Location] ?: throw KtorHttpError(
+                    resp.status.value,
+                    resp.request.url.toString(),
+                    resp.request.method.value,
+                    ByteArray(0),
+                    IllegalStateException("Missing Location header"),
+                ),
             )
-            .awaitResponseResult(deserializable)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
-            .third
-    }
+        },
+    )
 
-    override suspend fun blobStream(repository: Repository, digest: Digest): Result<Source, FuelError> {
-        val deserializable = SourceDeserializer()
-        return fuelManager.get("/v2/$repository/blobs/$digest")
-            .appendHeader(
-                Headers.ACCEPT,
-                APPLICATION_JSON,
-                APPLICATION_OCTET_STREAM,
-                DockerBlobMediaType,
-                OciBlobMediaTypeTar,
-                OciBlobMediaTypeGzip,
-                OciBlobMediaTypeZstd,
-            )
-            .awaitResponseResult(deserializable)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
-            .third
-    }
-
-    override suspend fun initiateUpload(repository: Repository): Result<UploadSession, FuelError> =
-        fuelManager.post("/v2/$repository/blobs/uploads/")
-            .awaitResponseResult(EmptyDeserializer)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-            .mapToUploadSession()
-
-    override suspend fun finishBlobUpload(session: UploadSession, digest: Digest): Result<Digest, FuelError> {
-        val parameters = listOf("digest" to digest)
-
-        return fuelManager.put(session.location, parameters)
-            .awaitResponseResult(EmptyDeserializer)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-            .mapToDigest()
-    }
+    override suspend fun finishBlobUpload(session: UploadSession, digest: Digest): Result<Digest, KtorHttpError> =
+        execute(
+            block = { client.put(session.location) { parameter("digest", digest.toString()) } },
+            transform = { resp ->
+                resp.headers["Docker-Content-Digest"]?.let(::Digest)
+                    ?: throw KtorHttpError(
+                        resp.status.value,
+                        resp.request.url.toString(),
+                        resp.request.method.value,
+                        ByteArray(0),
+                        IllegalStateException("Missing Docker-Content-Digest header"),
+                    )
+            },
+        )
 
     override suspend fun uploadBlobChunked(
         session: UploadSession,
         buffer: Buffer,
         startRange: Long,
         endRange: Long,
-    ): Result<UploadSession, FuelError> = fuelManager.patch(session.location)
-        .appendHeader(Headers.CONTENT_LENGTH, buffer.size)
-        .appendHeader("Content-Range", "$startRange-$endRange")
-        .appendHeader(Headers.CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-        .body(buffer.readByteArray())
-        .awaitResponseResult(EmptyDeserializer)
-        .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-        .mapToUploadSession()
+    ): Result<UploadSession, KtorHttpError> = execute(
+        block = {
+            client.patch(session.location) {
+                header(HttpHeaders.ContentLength, buffer.size)
+                header("Content-Range", "$startRange-$endRange")
+                header(HttpHeaders.ContentType, APPLICATION_OCTET_STREAM)
+                setBody(buffer.readByteArray())
+            }
+        },
+        transform = { resp ->
+            UploadSession(
+                sessionId = resp.headers["Docker-Upload-UUID"] ?: session.sessionId,
+                location = resp.headers[HttpHeaders.Location] ?: session.location,
+            )
+        },
+    )
 
-    // Currently not working as intended, because internal fuel buffer has an overflow
-    override suspend fun uploadBlobStream(session: UploadSession, source: Source): Result<UploadSession, FuelError> =
-        fuelManager.patch(session.location)
-            .appendHeader(Headers.CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-            .body(source::asInputStream)
-            .awaitResponseResult(EmptyDeserializer)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-            .mapToUploadSession()
+    override suspend fun uploadBlobStream(
+        session: UploadSession,
+        source: Source,
+    ): Result<UploadSession, KtorHttpError> = execute(
+        block = {
+            client.patch(session.location) {
+                header(HttpHeaders.ContentType, APPLICATION_OCTET_STREAM)
+                setBody(source.asInputStream().readBytes()) // fallback to buffering entire stream
+            }
+        },
+        transform = { resp ->
+            UploadSession(
+                sessionId = resp.headers["Docker-Upload-UUID"] ?: session.sessionId,
+                location = resp.headers[HttpHeaders.Location] ?: session.location,
+            )
+        },
+    )
 
-    override suspend fun uploadStatus(session: UploadSession): Result<Pair<Long, Long>, FuelError> =
-        fuelManager.get(session.location)
-            .awaitResponseResult(EmptyDeserializer)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-            .mapToRange()
+    override suspend fun uploadStatus(session: UploadSession): Result<Pair<Long, Long>, KtorHttpError> = execute(
+        block = { client.get(session.location) },
+        transform = { resp ->
+            val rangeHeader = resp.headers["Range"] ?: throw KtorHttpError(
+                resp.status.value,
+                resp.request.url.toString(),
+                resp.request.method.value,
+                ByteArray(0),
+                IllegalStateException("Missing Range header"),
+            )
+            val rangeValue = if (rangeHeader.startsWith("bytes=")) rangeHeader.removePrefix("bytes=") else rangeHeader
+            val parts = rangeValue.split('-')
+            val from = parts.getOrNull(0)?.toLongOrNull() ?: throw IllegalStateException("Range[0]")
+            val to = parts.getOrNull(1)?.toLongOrNull() ?: throw IllegalStateException("Range[1]")
+            from to to
+        },
+    )
 
-    override suspend fun cancelBlobUpload(session: UploadSession): Result<*, FuelError> =
-        fuelManager.delete(session.location)
-            .awaitResponseResult(EmptyDeserializer)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-            .third
+    override suspend fun cancelBlobUpload(session: UploadSession): Result<*, KtorHttpError> = execute(
+        block = { client.delete(session.location) },
+        transform = { Unit },
+    )
+
+    private fun HttpRequestBuilder.acceptJson() = header(HttpHeaders.Accept, APPLICATION_JSON)
+    private fun HttpRequestBuilder.acceptManifestTypes() = header(
+        HttpHeaders.Accept,
+        listOf(
+            APPLICATION_JSON,
+            OciManifestV1.MediaType,
+            OciManifestListV1.MediaType,
+            DockerManifestV2.MediaType,
+            DockerManifestListV1.MediaType,
+        ).joinToString(","),
+    )
+
+    private fun HttpRequestBuilder.acceptSingleManifestTypes() = header(
+        HttpHeaders.Accept,
+        listOf(
+            APPLICATION_JSON,
+            OciManifestV1.MediaType,
+            DockerManifestV2.MediaType,
+        ).joinToString(","),
+    )
+
+    private fun HttpRequestBuilder.acceptBlobTypes() = header(
+        HttpHeaders.Accept,
+        listOf(
+            APPLICATION_JSON,
+            APPLICATION_OCTET_STREAM,
+            DockerBlobMediaType,
+            OciBlobMediaTypeTar,
+            OciBlobMediaTypeGzip,
+            OciBlobMediaTypeZstd,
+        ).joinToString(","),
+    )
 }

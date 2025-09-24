@@ -1,7 +1,6 @@
 package de.cmdjulian.kirc.utils
 
 import com.fasterxml.jackson.module.kotlin.readValue
-import com.github.kittinunf.fuel.core.FuelError
 import de.cmdjulian.kirc.exception.RegistryClientException
 import de.cmdjulian.kirc.exception.RegistryClientException.ClientException.AuthenticationException
 import de.cmdjulian.kirc.exception.RegistryClientException.ClientException.AuthorizationException
@@ -16,34 +15,31 @@ import de.cmdjulian.kirc.exception.RegistryClientException.UnknownErrorException
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.impl.JsonMapper
+import de.cmdjulian.kirc.impl.KtorHttpError
 
-internal fun FuelError.toRegistryClientError(
+internal fun KtorHttpError.toRegistryClientError(
     repository: Repository? = null,
     reference: Reference? = null,
 ): RegistryClientException {
-    val url = this.response.url
-    val data = response.data
-    return when (response.statusCode) {
-        -1 -> NetworkErrorException(url, repository, reference, this)
+    val data = body
+    return when (statusCode) {
+        -1 -> NetworkErrorException(url, repository, reference, cause)
+        400 -> BadRequestException(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, cause)
+        401 -> AuthenticationException(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, cause)
+        403 -> AuthorizationException(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, cause)
+        404 -> NotFoundException(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, cause)
+        405 -> MethodNotAllowed(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, cause)
+        416 -> RangeNotSatisfiable(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, cause)
+        429 -> TooManyRequests(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, cause)
+        in 406..499 -> UnexpectedErrorException(
+            url,
+            repository,
+            reference,
+            tryOrNull { JsonMapper.readValue(data) },
+            cause,
+        )
 
-        400 -> BadRequestException(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, this)
-
-        401 -> AuthenticationException(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, this)
-
-        403 -> AuthorizationException(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, this)
-
-        404 -> NotFoundException(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, this)
-
-        405 -> MethodNotAllowed(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, this)
-
-        416 -> RangeNotSatisfiable(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, this)
-
-        429 -> TooManyRequests(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, this)
-
-        in 406..499 ->
-            UnexpectedErrorException(url, repository, reference, tryOrNull { JsonMapper.readValue(data) }, this)
-
-        else -> UnknownErrorException(url, repository, reference, this)
+        else -> UnknownErrorException(url, repository, reference, cause)
     }
 }
 

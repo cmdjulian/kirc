@@ -19,7 +19,7 @@ sealed class RegistryClientException(
         reference: Reference?,
         message: String,
         val error: ErrorResponse?,
-        cause: Throwable,
+        cause: Throwable?,
     ) : RegistryClientException(url, repository, reference, message, cause) {
 
         class BadRequestException(
@@ -27,7 +27,7 @@ sealed class RegistryClientException(
             repository: Repository?,
             reference: Reference?,
             error: ErrorResponse?,
-            cause: Throwable,
+            cause: Throwable?,
         ) : ClientException(url, repository, reference, "bad request", error, cause) {
             override fun toString(): String = "DistributionClientException.BadRequestError -> $message"
         }
@@ -37,7 +37,7 @@ sealed class RegistryClientException(
             repository: Repository?,
             reference: Reference?,
             error: ErrorResponse?,
-            cause: Throwable,
+            cause: Throwable?,
         ) : ClientException(url, repository, reference, "authentication required", error, cause) {
             override fun toString(): String = "DistributionClientException.AuthenticationError -> $message"
         }
@@ -47,7 +47,7 @@ sealed class RegistryClientException(
             repository: Repository?,
             reference: Reference?,
             error: ErrorResponse?,
-            cause: Throwable,
+            cause: Throwable?,
         ) : ClientException(url, repository, reference, "authorization required", error, cause) {
             override fun toString(): String = "DistributionClientException.AuthorizationError -> $message"
         }
@@ -57,7 +57,7 @@ sealed class RegistryClientException(
             repository: Repository?,
             reference: Reference?,
             error: ErrorResponse?,
-            cause: Throwable,
+            cause: Throwable?,
         ) : ClientException(url, repository, reference, "not found", error, cause) {
             override fun toString(): String = "DistributionClientException.NotFoundException -> $message"
         }
@@ -67,7 +67,7 @@ sealed class RegistryClientException(
             repository: Repository?,
             reference: Reference?,
             error: ErrorResponse?,
-            cause: Throwable,
+            cause: Throwable?,
         ) : ClientException(url, repository, reference, "method not allowed", error, cause) {
             override fun toString() = "ClientException.MethodNotAllowed (is registry delete enabled?) -> $message"
         }
@@ -77,7 +77,7 @@ sealed class RegistryClientException(
             repository: Repository?,
             reference: Reference?,
             error: ErrorResponse?,
-            cause: Throwable,
+            cause: Throwable?,
         ) : ClientException(url, repository, reference, "range not satisfiable", error, cause) {
             override fun toString() = "ClientException.RangeNotSatisfiable -> $message"
         }
@@ -87,7 +87,7 @@ sealed class RegistryClientException(
             repository: Repository?,
             reference: Reference?,
             error: ErrorResponse?,
-            cause: Throwable,
+            cause: Throwable?,
         ) : ClientException(url, repository, reference, "too many requests", error, cause) {
             override fun toString() = "ClientException.TooManyRequests -> $message"
         }
@@ -97,19 +97,19 @@ sealed class RegistryClientException(
             repository: Repository?,
             reference: Reference?,
             error: ErrorResponse?,
-            cause: Throwable,
+            cause: Throwable?,
         ) : ClientException(url, repository, reference, "unknown error returned by server", error, cause) {
             override fun toString(): String = "DistributionClientException.UnexpectedErrorException -> $message"
         }
     }
 
-    class NetworkErrorException(url: URL, repository: Repository?, reference: Reference?, t: Throwable) :
+    class NetworkErrorException(url: URL, repository: Repository?, reference: Reference?, t: Throwable?) :
         RegistryClientException(url, repository, reference, "Network error on registry connect", t) {
 
         override fun toString(): String = "DistributionClientException.NetworkError -> $message"
     }
 
-    class UnknownErrorException(url: URL, repository: Repository?, reference: Reference?, t: Throwable) :
+    class UnknownErrorException(url: URL, repository: Repository?, reference: Reference?, t: Throwable?) :
         RegistryClientException(url, repository, reference, "An unknown error occurred", t) {
 
         override fun toString(): String = "DistributionClientException.UnknownError -> $message"
