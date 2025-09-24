@@ -224,5 +224,5 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
             layers = layerPaths,
             layerSources = layerSources,
         )
-    }
+    }.toTypedArray()
 }

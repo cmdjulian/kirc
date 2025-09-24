@@ -7,7 +7,8 @@ import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.spec.manifest.LayerReference
 import io.goodforgod.graalvm.hint.annotation.ReflectionHint
 
-typealias ManifestJson = List<ManifestJsonEntry>
+// We use an array, otherwise deserialization doesn't work as intended
+typealias ManifestJson = Array<ManifestJsonEntry>
 
 /**
  * Represents the `manifest.json` file inside a docker archive.
