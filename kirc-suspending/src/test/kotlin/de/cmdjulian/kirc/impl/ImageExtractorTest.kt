@@ -11,7 +11,8 @@ import kotlin.io.path.Path
 
 internal class ImageExtractorTest {
 
-    private val extractor = ImageExtractor(Path("src/test/resources/hello-world.tar"))
+    private val resource = javaClass.getResource("/hello-world.tar") ?: error("Resource not found")
+    private val extractor = ImageExtractor(Path(resource.path))
 
     @Test
     fun `extract index`() {
