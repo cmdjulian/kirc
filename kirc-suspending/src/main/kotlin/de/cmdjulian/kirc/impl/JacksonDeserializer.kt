@@ -3,8 +3,9 @@ package de.cmdjulian.kirc.impl
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.io.InputStream
 
+private val logger = KotlinLogging.logger { }
+
 internal class JacksonDeserializer<T : Any>(private val clazz: Class<T>) {
-    private val logger = KotlinLogging.logger { }
 
     fun deserialize(content: String): T = try {
         JsonMapper.readValue(content, clazz)
@@ -21,7 +22,7 @@ internal class JacksonDeserializer<T : Any>(private val clazz: Class<T>) {
     }
 
     fun deserialize(inputStream: InputStream): T = try {
-        JsonMapper.readValue<T>(inputStream, clazz)
+        JsonMapper.readValue(inputStream, clazz)
     } catch (e: Exception) {
         logger.error(e) { "unexpected error on json stream deserialization" }
         throw e

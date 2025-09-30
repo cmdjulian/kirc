@@ -2,6 +2,7 @@ package de.cmdjulian.kirc.client
 
 import de.cmdjulian.kirc.image.ContainerImageName
 import de.cmdjulian.kirc.impl.ContainerRegistryApiImpl
+import de.cmdjulian.kirc.impl.JsonMapper
 import de.cmdjulian.kirc.impl.SuspendingContainerImageClientImpl
 import de.cmdjulian.kirc.impl.SuspendingContainerImageRegistryClientImpl
 import io.ktor.client.HttpClient
@@ -13,7 +14,8 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logging
-import io.ktor.serialization.jackson.jackson
+import io.ktor.http.ContentType
+import io.ktor.serialization.jackson.JacksonConverter
 import java.net.Proxy
 import java.net.URI
 import java.nio.file.Path
@@ -78,7 +80,8 @@ object SuspendingContainerImageClientFactory {
                 socketTimeoutMillis = timeout.toMillis()
             }
             install(ContentNegotiation) {
-                jackson()
+                // re-use existing ObjectMapper instance
+                register(ContentType.Application.Json, JacksonConverter(JsonMapper))
             }
             install(Logging) {
                 level = LogLevel.INFO
