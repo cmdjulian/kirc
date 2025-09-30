@@ -31,9 +31,19 @@ internal class ResponseRetryWithAuthentication(
         runCatching { performWithAuthRetry(block) }.fold(
             onSuccess = { Result.success(it) },
             onFailure = { throwable ->
-                if (throwable is KtorHttpError) Result.failure(throwable) else Result.failure(
-                    KtorHttpError(-1, Url(baseUrl), HttpMethod("?"), ByteArray(0), throwable),
-                )
+                if (throwable is KtorHttpError) {
+                    Result.failure(throwable)
+                } else {
+                    Result.failure(
+                        KtorHttpError(
+                            statusCode = -1,
+                            url = Url(baseUrl),
+                            method = HttpMethod("?"),
+                            body = ByteArray(0),
+                            cause = throwable,
+                        ),
+                    )
+                }
             },
         )
 

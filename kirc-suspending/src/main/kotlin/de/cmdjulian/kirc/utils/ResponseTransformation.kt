@@ -79,15 +79,16 @@ internal fun HttpResponse.toRange(): Pair<Long, Long> {
     return Pair(from, end)
 }
 
-suspend inline fun <T, U, reified E : Throwable> Result<T, E>.mapSuspending(crossinline transform: suspend (T) -> U): Result<U, E> =
-    try {
-        when (this) {
-            is Result.Success -> Result.success(transform(value))
-            is Result.Failure -> Result.failure(error)
-        }
-    } catch (ex: Exception) {
-        when (ex) {
-            is E -> Result.failure(ex)
-            else -> throw ex
-        }
+suspend inline fun <T, U, reified E : Throwable> Result<T, E>.mapSuspending(
+    crossinline transform: suspend (T) -> U,
+): Result<U, E> = try {
+    when (this) {
+        is Result.Success -> Result.success(transform(value))
+        is Result.Failure -> Result.failure(error)
     }
+} catch (ex: Exception) {
+    when (ex) {
+        is E -> Result.failure(ex)
+        else -> throw ex
+    }
+}

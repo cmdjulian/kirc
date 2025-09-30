@@ -14,4 +14,3 @@ class KtorHttpError(
 ) : Exception("HTTP $statusCode $method $url", cause) {
     val url = URL(url.toString())
 }
-
