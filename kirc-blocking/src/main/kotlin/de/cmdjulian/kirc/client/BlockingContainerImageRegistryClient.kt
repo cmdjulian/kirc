@@ -8,6 +8,7 @@ import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.io.asInputStream
 import kotlinx.io.asSink
@@ -100,34 +101,34 @@ interface BlockingContainerImageRegistryClient {
 }
 
 fun SuspendingContainerImageRegistryClient.toBlockingClient() = object : BlockingContainerImageRegistryClient {
-    override fun testConnection(): Unit = runBlocking { this@toBlockingClient.testConnection() }
+    override fun testConnection(): Unit = runBlocking(Dispatchers.Default) { this@toBlockingClient.testConnection() }
 
     override fun repositories(limit: Int?, last: Int?): List<Repository> =
-        runBlocking { this@toBlockingClient.repositories(limit, last) }
+        runBlocking(Dispatchers.Default) { this@toBlockingClient.repositories(limit, last) }
 
     override fun tags(repository: Repository, limit: Int?, last: Int?): List<Tag> =
-        runBlocking { this@toBlockingClient.tags(repository, limit, last) }
+        runBlocking(Dispatchers.Default) { this@toBlockingClient.tags(repository, limit, last) }
 
     override fun exists(repository: Repository, reference: Reference): Boolean =
-        runBlocking { this@toBlockingClient.exists(repository, reference) }
+        runBlocking(Dispatchers.Default) { this@toBlockingClient.exists(repository, reference) }
 
     override fun manifest(repository: Repository, reference: Reference): Manifest =
-        runBlocking { this@toBlockingClient.manifest(repository, reference) }
+        runBlocking(Dispatchers.Default) { this@toBlockingClient.manifest(repository, reference) }
 
     override fun manifestDigest(repository: Repository, reference: Reference): Digest =
-        runBlocking { this@toBlockingClient.manifestDigest(repository, reference) }
+        runBlocking(Dispatchers.Default) { this@toBlockingClient.manifestDigest(repository, reference) }
 
     override fun manifestDelete(repository: Repository, reference: Reference): Digest =
-        runBlocking { this@toBlockingClient.manifestDelete(repository, reference) }
+        runBlocking(Dispatchers.Default) { this@toBlockingClient.manifestDelete(repository, reference) }
 
     override fun config(repository: Repository, manifest: ManifestSingle): ImageConfig =
-        runBlocking { this@toBlockingClient.config(repository, manifest) }
+        runBlocking(Dispatchers.Default) { this@toBlockingClient.config(repository, manifest) }
 
     override fun config(repository: Repository, reference: Reference): ImageConfig =
-        runBlocking { this@toBlockingClient.config(repository, reference) }
+        runBlocking(Dispatchers.Default) { this@toBlockingClient.config(repository, reference) }
 
     override fun blob(repository: Repository, digest: Digest): ByteArray =
-        runBlocking { this@toBlockingClient.blob(repository, digest) }
+        runBlocking(Dispatchers.Default) { this@toBlockingClient.blob(repository, digest) }
 
     override fun toImageClient(
         repository: Repository,
@@ -135,7 +136,7 @@ fun SuspendingContainerImageRegistryClient.toBlockingClient() = object : Blockin
         manifest: ManifestSingle?,
     ): BlockingContainerImageClient {
         val client = if (manifest == null) {
-            runBlocking { this@toBlockingClient.toImageClient(repository, reference) }
+            runBlocking(Dispatchers.Default) { this@toBlockingClient.toImageClient(repository, reference) }
         } else {
             this@toBlockingClient.toImageClient(repository, reference, manifest)
         }
@@ -144,12 +145,19 @@ fun SuspendingContainerImageRegistryClient.toBlockingClient() = object : Blockin
     }
 
     override fun upload(repository: Repository, reference: Reference, tar: InputStream): Digest =
-        runBlocking { this@toBlockingClient.upload(repository, reference, tar.asSource().buffered()) }
+        runBlocking(Dispatchers.Default) {
+            this@toBlockingClient.upload(
+                repository,
+                reference,
+                tar.asSource().buffered(),
+            )
+        }
 
     override fun download(repository: Repository, reference: Reference): InputStream =
-        runBlocking { this@toBlockingClient.download(repository, reference).asInputStream() }
+        runBlocking(Dispatchers.Default) { this@toBlockingClient.download(repository, reference).asInputStream() }
 
-    override fun download(repository: Repository, reference: Reference, destination: OutputStream) = runBlocking {
-        this@toBlockingClient.download(repository, reference, destination.asSink().buffered())
-    }
+    override fun download(repository: Repository, reference: Reference, destination: OutputStream) =
+        runBlocking(Dispatchers.Default) {
+            this@toBlockingClient.download(repository, reference, destination.asSink().buffered())
+        }
 }
