@@ -32,6 +32,7 @@ internal class BlockingRegistryTest {
     private lateinit var registry: RegistryTestContainer
     private lateinit var cliHelper: DockerRegistryCliHelper
 
+    private val helloWorldImage = javaClass.getResource("/hello-world.tar") ?: error("Resource not found")
     private val digestManifest = Digest("sha256:26c9f8a26a5f87d187957cf2d77efc7cf4d797e7fc55eee65316a0b62ae43034")
     private val digestConfig = Digest("sha256:74cc54e27dc41bb10dc4b2226072d469509f2f22f1a3ce74f4a59661a1d44602")
     private val digestLayer = Digest("sha256:63a41026379f4391a306242eb0b9f26dc3550d863b7fdbb97d899f6eb89efe72")
@@ -63,7 +64,7 @@ internal class BlockingRegistryTest {
         client.repositories().shouldBeEmpty()
         val repository = Repository("hello-world")
 
-        cliHelper.pushImage(repository, Tag("latest"), HELLO_WORLD_IMAGE)
+        cliHelper.pushImage(repository, Tag("latest"), helloWorldImage)
 
         val result = client.repositories().shouldNotBeEmpty().shouldHaveSize(1)
         result.first() shouldBe repository
@@ -74,7 +75,7 @@ internal class BlockingRegistryTest {
         val repository = Repository("hello-world")
         val tag = Tag("latest")
 
-        cliHelper.pushImage(repository, tag, HELLO_WORLD_IMAGE)
+        cliHelper.pushImage(repository, tag, helloWorldImage)
 
         shouldNotThrowAny {
             client.config(repository, digestManifest)
@@ -86,7 +87,7 @@ internal class BlockingRegistryTest {
         val repository = Repository("hello-world")
         val tag = Tag("latest")
 
-        cliHelper.pushImage(repository, tag, HELLO_WORLD_IMAGE)
+        cliHelper.pushImage(repository, tag, helloWorldImage)
 
         // contains tag and tag derived from manifest single digest
         client.tags(repository).shouldContain(tag)
@@ -98,7 +99,7 @@ internal class BlockingRegistryTest {
         val repository = Repository("hello-world")
         val tag = Tag("latest")
 
-        cliHelper.pushImage(repository, tag, HELLO_WORLD_IMAGE)
+        cliHelper.pushImage(repository, tag, helloWorldImage)
 
         client.exists(repository, tag) shouldBe true
     }
@@ -108,7 +109,7 @@ internal class BlockingRegistryTest {
         val repository = Repository("hello-world")
         val tag = Tag("latest")
 
-        val digest = cliHelper.pushImage(repository, tag, HELLO_WORLD_IMAGE)
+        val digest = cliHelper.pushImage(repository, tag, helloWorldImage)
 
         client.manifestDigest(repository, tag) shouldBe digest
     }
@@ -118,7 +119,7 @@ internal class BlockingRegistryTest {
         val repository = Repository("hello-world")
         val tag = Tag("latest")
 
-        val digest = cliHelper.pushImage(repository, tag, HELLO_WORLD_IMAGE)
+        val digest = cliHelper.pushImage(repository, tag, helloWorldImage)
 
         client.tags(repository).shouldContain(tag)
         client.manifestDelete(repository, digest) shouldBe digest
@@ -130,7 +131,7 @@ internal class BlockingRegistryTest {
         val repository = Repository("hello-world")
         val tag = Tag("latest")
 
-        cliHelper.pushImage(repository, tag, HELLO_WORLD_IMAGE)
+        cliHelper.pushImage(repository, tag, helloWorldImage)
 
         val result = client.manifest(repository, tag).shouldBeInstanceOf<ManifestList>()
         result.manifests.shouldHaveSize(1)
@@ -142,7 +143,7 @@ internal class BlockingRegistryTest {
         val tag = Tag("latest")
         val blobDigests = listOf(digestManifest, digestConfig, digestLayer, digestDontKnow)
 
-        cliHelper.pushImage(repository, tag, HELLO_WORLD_IMAGE)
+        cliHelper.pushImage(repository, tag, helloWorldImage)
 
         blobDigests.forEach { digest ->
             client.exists(repository, digest).shouldBeTrue()
@@ -151,7 +152,7 @@ internal class BlockingRegistryTest {
 
     @Test
     fun `upload - to registry`() {
-        val data = SystemFileSystem.source(Path(HELLO_WORLD_IMAGE))
+        val data = SystemFileSystem.source(Path(helloWorldImage.path))
         val repository = Repository("python")
         val tag = Tag("test")
 
@@ -169,7 +170,7 @@ internal class BlockingRegistryTest {
         val repository = Repository("hello-world")
         val tag = Tag("latest")
 
-        cliHelper.pushImage(repository, tag, HELLO_WORLD_IMAGE)
+        cliHelper.pushImage(repository, tag, helloWorldImage)
 
         val result = client.download(repository, tag)
         shouldNotThrowAny {
@@ -180,6 +181,5 @@ internal class BlockingRegistryTest {
 
     companion object {
         private val credentials = RegistryCredentials("changeIt", "changeIt")
-        private const val HELLO_WORLD_IMAGE = "src/test/resources/hello-world.tar"
     }
 }

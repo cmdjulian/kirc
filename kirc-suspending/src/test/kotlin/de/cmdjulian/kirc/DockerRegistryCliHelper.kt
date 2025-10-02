@@ -13,6 +13,7 @@ import kotlinx.io.buffered
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
 import java.net.URI
+import java.net.URL
 
 class DockerRegistryCliHelper(addressName: String, credentials: RegistryCredentials) {
 
@@ -22,9 +23,9 @@ class DockerRegistryCliHelper(addressName: String, credentials: RegistryCredenti
         BlockingContainerImageClientFactory.create(url = URI.create(addressName), credentials = credentials)
     private val images = mutableListOf<UploadReference>()
 
-    fun pushImage(repository: Repository, reference: Reference, path: String): Digest {
+    fun pushImage(repository: Repository, reference: Reference, url: URL): Digest {
         images.add(UploadReference(repository, reference))
-        val source = runBlocking(Dispatchers.IO) { SystemFileSystem.source(Path(path)) }
+        val source = runBlocking(Dispatchers.IO) { SystemFileSystem.source(Path(url.path)) }
         return client.upload(repository, reference, source.buffered().asInputStream())
     }
 
