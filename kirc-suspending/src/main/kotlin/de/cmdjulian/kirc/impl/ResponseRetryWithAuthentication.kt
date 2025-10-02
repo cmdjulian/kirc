@@ -1,83 +1,152 @@
 package de.cmdjulian.kirc.impl
 
-import com.github.kittinunf.fuel.core.Deserializable
-import com.github.kittinunf.fuel.core.Encoding
-import com.github.kittinunf.fuel.core.FuelManager
-import com.github.kittinunf.fuel.core.Headers
-import com.github.kittinunf.fuel.core.Request
-import com.github.kittinunf.fuel.core.ResponseResultOf
-import com.github.kittinunf.fuel.core.awaitResponseResult
-import com.github.kittinunf.fuel.core.extensions.AuthenticatedRequest
-import com.github.kittinunf.result.getOrNull
-import com.github.kittinunf.result.map
+import com.github.kittinunf.result.Result
 import de.cmdjulian.kirc.client.RegistryCredentials
-import de.cmdjulian.kirc.utils.CaseInsensitiveMap
 import im.toss.http.parser.HttpAuthCredentials
 import io.goodforgod.graalvm.hint.annotation.ReflectionHint
+import io.ktor.client.HttpClient
+import io.ktor.client.request.HttpRequest
+import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.parameter
+import io.ktor.client.request.request
+import io.ktor.client.request.setBody
+import io.ktor.client.request.url
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
+import io.ktor.client.statement.request
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.Url
+import java.net.URI
 
 internal class ResponseRetryWithAuthentication(
     private val credentials: RegistryCredentials?,
-    private val fuelManager: FuelManager,
+    private val client: HttpClient,
+    private val baseUrl: URI,
 ) {
-    suspend fun <T : Any> retryOnUnauthorized(
-        responseResult: ResponseResultOf<T>,
-        deserializer: Deserializable<T>,
-    ): ResponseResultOf<T> {
-        val (request, response, _) = responseResult
-        val headers = CaseInsensitiveMap(response.headers)
+    suspend inline fun execute(crossinline block: suspend () -> HttpResponse): Result<HttpResponse, KtorHttpError> =
+        runCatching { performWithAuthRetry(block) }.fold(
+            onSuccess = { Result.success(it) },
+            onFailure = { throwable ->
+                if (throwable is KtorHttpError) {
+                    Result.failure(throwable)
+                } else {
+                    Result.failure(
+                        KtorHttpError(
+                            statusCode = -1,
+                            url = Url(baseUrl),
+                            method = HttpMethod("?"),
+                            body = ByteArray(0),
+                            cause = throwable,
+                        ),
+                    )
+                }
+            },
+        )
 
-        if (response.statusCode == 401 && "www-authenticate" in headers) {
-            val retryableRequest = retryRequest(headers["www-authenticate"]?.first(), request)
-            retryableRequest?.let { return it.awaitResponseResult(deserializer) }
+    private suspend inline fun performWithAuthRetry(crossinline block: suspend () -> HttpResponse): HttpResponse {
+        val first = block()
+        val wwwAuth = HttpHeaders.WWWAuthenticate
+        val authHeader =
+            if (first.headers.caseInsensitiveName) first.headers[wwwAuth.lowercase()] else first.headers[wwwAuth]
+
+        // Returns result if there's no error and is authenticated
+        if (first.status.value != 401 || authHeader == null) {
+            if (first.status.isError()) throw first.toError()
+            return first
         }
 
-        return responseResult
+        // Retry with authentication
+        val retry = buildAuthRetryRequest(authHeader, first.request) ?: throw first.toError()
+        return retry().let { second ->
+            if (second.status.isError()) throw second.toError()
+            second
+        }
     }
 
-    private suspend fun retryRequest(header: String?, request: Request): Request? {
+    private suspend fun buildAuthRetryRequest(header: String?, original: HttpRequest): (suspend () -> HttpResponse)? {
         val wwwAuth = header?.runCatching { HttpAuthCredentials.parse(this) }?.getOrNull()
-
         return when (wwwAuth?.scheme) {
-            "Basic" -> resolveBasicAuth(request)
-            "Bearer" -> resolveTokenAuth(wwwAuth, request)
+            "Basic" -> basicRetry(original)
+            "Bearer" -> bearerRetry(wwwAuth, original)
             else -> null
         }
     }
 
-    private fun resolveBasicAuth(request: Request): Request? {
+    // BASIC AUTH
+
+    private fun basicRetry(original: HttpRequest): (suspend () -> HttpResponse)? {
+        // if no credentials are available, we cannot retry (because first attempt ran into auth error)
         if (credentials == null) return null
 
-        return AuthenticatedRequest(request.clone(fuelManager)).basic(credentials.username, credentials.password)
+        return suspend {
+            client.request {
+                clone(original)
+                header(HttpHeaders.Authorization, basicAuth(credentials.username, credentials.password))
+            }
+        }
+    }
+
+    private fun basicAuth(user: String, pass: String): String =
+        "Basic " + java.util.Base64.getEncoder().encodeToString("$user:$pass".toByteArray())
+
+    // BEARER AUTH
+
+    private suspend fun bearerRetry(
+        wwwAuth: HttpAuthCredentials,
+        original: HttpRequest,
+    ): (suspend () -> HttpResponse)? {
+        val token = bearer(wwwAuth) ?: return null
+
+        return suspend {
+            client.request {
+                clone(original)
+                header(HttpHeaders.Authorization, "Bearer $token")
+            }
+        }
     }
 
     @ReflectionHint
     private class TokenResponse(val token: String)
 
-    private suspend fun resolveTokenAuth(wwwAuth: HttpAuthCredentials, request: Request): Request? {
-        val realm = wwwAuth.singleValueParams["realm"]!!.replace("\"", "")
-        val scope = wwwAuth.singleValueParams["scope"]?.replace("\"", "")
-        val service = wwwAuth.singleValueParams["service"]?.replace("\"", "")
+    private suspend fun bearer(wwwAuth: HttpAuthCredentials): String? {
+        val realm = wwwAuth.singleValueParams["realm"]?.trim('"') ?: return null
+        val scope = wwwAuth.singleValueParams["scope"]?.trim('"')
+        val service = wwwAuth.singleValueParams["service"]?.trim('"')
 
-        val parameters = buildList {
-            if (scope != null) add("scope" to scope)
-            if (service != null) add("service" to service)
-        }
-        val token = fuelManager.get(realm, parameters)
-            .let { credentials?.run { AuthenticatedRequest(it).basic(username, password) } ?: it }
-            .awaitResponseResult(jacksonDeserializer<TokenResponse>())
-            .third
-            .map(TokenResponse::token)
-            .getOrNull()
-
-        return token?.let { AuthenticatedRequest(request.clone(FuelManager.instance)).bearer(token) }
+        // request token via credentials if available
+        return runCatching {
+            val response = client.get(realm) {
+                if (scope != null) parameter("scope", scope)
+                if (service != null) parameter("service", service)
+                if (credentials != null) {
+                    header(HttpHeaders.Authorization, basicAuth(credentials.username, credentials.password))
+                }
+            }
+            if (response.status.isError()) throw response.toError()
+            jacksonDeserializer<TokenResponse>().deserialize(response.bodyAsText()).token
+        }.getOrNull()
     }
-}
 
-private fun Request.clone(fuelManager: FuelManager): Request {
-    val encoding = Encoding(httpMethod = method, urlString = url.toString())
-    return fuelManager.request(encoding)
-        .header(Headers.from(request.headers))
-        .requestProgress(request.executionOptions.requestProgress)
-        .responseProgress(request.executionOptions.responseProgress)
-        .let { if (!body.isEmpty() && !body.isConsumed()) it.body(request.body) else it }
+    // HELPER
+
+    private fun HttpStatusCode.isError(): Boolean = value !in 200..299
+
+    private fun HttpRequestBuilder.clone(original: HttpRequest) {
+        method = original.method
+        url(original.url)
+        headers.appendAll(original.headers)
+        setBody(original.content)
+    }
+
+    private suspend fun HttpResponse.toError(): KtorHttpError = KtorHttpError(
+        status.value,
+        request.url,
+        request.method,
+        runCatching { bodyAsText().toByteArray() }.getOrElse { ByteArray(0) },
+        null,
+    )
 }

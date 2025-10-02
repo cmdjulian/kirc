@@ -1,6 +1,5 @@
 package de.cmdjulian.kirc.impl
 
-import com.github.kittinunf.fuel.core.FuelError
 import com.github.kittinunf.result.Result
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
@@ -25,49 +24,49 @@ internal interface ContainerRegistryApi {
 
     // Status
 
-    suspend fun ping(): Result<*, FuelError>
-    suspend fun repositories(limit: Int?, last: Int?): Result<Catalog, FuelError>
-    suspend fun tags(repository: Repository, limit: Int?, last: Int?): Result<TagList, FuelError>
-    suspend fun digest(repository: Repository, reference: Reference): Result<Digest, FuelError>
+    suspend fun ping(): Result<*, KtorHttpError>
+    suspend fun repositories(limit: Int?, last: Int?): Result<Catalog, KtorHttpError>
+    suspend fun tags(repository: Repository, limit: Int?, last: Int?): Result<TagList, KtorHttpError>
+    suspend fun digest(repository: Repository, reference: Reference): Result<Digest, KtorHttpError>
 
     // Manifest
 
-    suspend fun existsManifest(repository: Repository, reference: Reference, accept: String): Result<*, FuelError>
+    suspend fun existsManifest(repository: Repository, reference: Reference, accept: String): Result<*, KtorHttpError>
 
     /** Retrieve certain (single) image manfiest */
-    suspend fun manifest(repository: Repository, reference: Reference): Result<ManifestSingle, FuelError>
+    suspend fun manifest(repository: Repository, reference: Reference): Result<ManifestSingle, KtorHttpError>
 
     /** Retrieve any image manifest matching [reference] */
-    suspend fun manifests(repository: Repository, reference: Reference): Result<Manifest, FuelError>
+    suspend fun manifests(repository: Repository, reference: Reference): Result<Manifest, KtorHttpError>
 
     /**
      * Retrieve any image manifest matching [reference] as data stream
      */
-    suspend fun manifestStream(repository: Repository, reference: Reference): Result<ResultSource, FuelError>
+    suspend fun manifestStream(repository: Repository, reference: Reference): Result<ResultSource, KtorHttpError>
 
     suspend fun uploadManifest(
         repository: Repository,
         reference: Reference,
         manifest: Manifest,
-    ): Result<Digest, FuelError>
+    ): Result<Digest, KtorHttpError>
 
-    suspend fun deleteManifest(repository: Repository, reference: Reference): Result<Digest, FuelError>
+    suspend fun deleteManifest(repository: Repository, reference: Reference): Result<Digest, KtorHttpError>
 
     // Blob
 
-    suspend fun existsBlob(repository: Repository, digest: Digest): Result<*, FuelError>
+    suspend fun existsBlob(repository: Repository, digest: Digest): Result<*, KtorHttpError>
 
     /** Retrieve blob data as [ByteArray] (loaded into memory) */
-    suspend fun blob(repository: Repository, digest: Digest): Result<ByteArray, FuelError>
+    suspend fun blob(repository: Repository, digest: Digest): Result<ByteArray, KtorHttpError>
 
     /** Retrieve blob data as [Source] stream (postponing data being loaded) */
-    suspend fun blobStream(repository: Repository, digest: Digest): Result<Source, FuelError>
+    suspend fun blobStream(repository: Repository, digest: Digest): Result<Source, KtorHttpError>
 
     /** Initiates an upload session, returning the [UploadSession] containing a session id and upload location */
-    suspend fun initiateUpload(repository: Repository): Result<UploadSession, FuelError>
+    suspend fun initiateUpload(repository: Repository): Result<UploadSession, KtorHttpError>
 
     /** Finalize upload session. Registry will validate uploaded data against provided [Digest] */
-    suspend fun finishBlobUpload(session: UploadSession, digest: Digest): Result<Digest, FuelError>
+    suspend fun finishBlobUpload(session: UploadSession, digest: Digest): Result<Digest, KtorHttpError>
 
     /** Uploads a blob chunk (a part of the blob), containing bytes [startRange] to [endRange] (inclusive) */
     suspend fun uploadBlobChunked(
@@ -75,13 +74,13 @@ internal interface ContainerRegistryApi {
         buffer: Buffer,
         startRange: Long,
         endRange: Long,
-    ): Result<UploadSession, FuelError>
+    ): Result<UploadSession, KtorHttpError>
 
     /** Uploads the whole blob data [Source] as stream */
-    suspend fun uploadBlobStream(session: UploadSession, source: Source): Result<UploadSession, FuelError>
+    suspend fun uploadBlobStream(session: UploadSession, source: Source): Result<UploadSession, KtorHttpError>
 
     /** Retrieve the status of provided [session], returning the range of already uploaded data (start, end) */
-    suspend fun uploadStatus(session: UploadSession): Result<Pair<Long, Long>, FuelError>
+    suspend fun uploadStatus(session: UploadSession): Result<Pair<Long, Long>, KtorHttpError>
 
-    suspend fun cancelBlobUpload(session: UploadSession): Result<*, FuelError>
+    suspend fun cancelBlobUpload(session: UploadSession): Result<*, KtorHttpError>
 }

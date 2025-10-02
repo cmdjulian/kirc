@@ -1,6 +1,5 @@
 package de.cmdjulian.kirc
 
-import com.github.kittinunf.fuel.core.Method
 import java.net.URL
 
 /**
@@ -16,7 +15,7 @@ sealed class KircRuntimeException(message: String, throwable: Throwable? = null)
  *
  * Appears while manually extracting fields from responses (no deserialization)
  */
-class KircApiException(field: String, url: URL, method: Method) :
+class KircApiException(field: String, url: URL, method: String) :
     KircRuntimeException("Could not determine '$field' from response $method=$url")
 
 /**
