@@ -44,52 +44,48 @@ private val logger = KotlinLogging.logger {}
 internal class ImageUploader(private val client: SuspendingContainerImageRegistryClient, private val tmpPath: Path) {
 
     @OptIn(ExperimentalPathApi::class, ExperimentalCoroutinesApi::class)
-    suspend fun upload(
-        repository: Repository,
-        reference: Reference,
-        tar: Source,
-        mode: BlobUploadMode = BlobUploadMode.Stream,
-    ): Digest = coroutineScope {
-        // store data temporarily
-        val tempDirectory = Path.of(
-            tmpPath.pathString,
-            "${OffsetDateTime.now().truncatedTo(ChronoUnit.SECONDS)}--$repository--$reference",
-        )
-        withContext(Dispatchers.IO) {
-            SystemFileSystem.createDirectories(tempDirectory.toKotlinPath())
-        }
+    suspend fun upload(repository: Repository, reference: Reference, tar: Source, mode: BlobUploadMode): Digest =
+        coroutineScope {
+            // store data temporarily
+            val tempDirectory = Path.of(
+                tmpPath.pathString,
+                "${OffsetDateTime.now().truncatedTo(ChronoUnit.SECONDS)}--$repository--$reference",
+            )
+            withContext(Dispatchers.IO) {
+                SystemFileSystem.createDirectories(tempDirectory.toKotlinPath())
+            }
 
-        // read from temp file and deserialize
-        val uploadContainerImage = readFromTar(tar, tempDirectory)
+            // read from temp file and deserialize
+            val uploadContainerImage = readFromTar(tar, tempDirectory)
 
-        // upload max three layers in parallel at most
-        val blobUploadDispatcher = Dispatchers.Default.limitedParallelism(3)
-        // upload architecture images
-        try {
-            for ((manifest, manifestDigest, blobs) in uploadContainerImage.images) {
-                // upload blobs in parallel, but only up to three at once to mimic how Docker does it
-                coroutineScope {
-                    withContext(blobUploadDispatcher) {
-                        for (blob in blobs.distinctBy(UploadBlobPath::digest)) {
-                            launch {
-                                uploadBlob(repository, blob, mode)
+            // upload max three layers in parallel at most
+            val blobUploadDispatcher = Dispatchers.Default.limitedParallelism(3)
+            // upload architecture images
+            try {
+                for ((manifest, manifestDigest, blobs) in uploadContainerImage.images) {
+                    // upload blobs in parallel, but only up to three at once to mimic how Docker does it
+                    coroutineScope {
+                        withContext(blobUploadDispatcher) {
+                            for (blob in blobs.distinctBy(UploadBlobPath::digest)) {
+                                launch {
+                                    uploadBlob(repository, blob, mode)
+                                }
                             }
                         }
                     }
+
+                    client.uploadManifest(repository, manifestDigest, manifest)
                 }
-
-                client.uploadManifest(repository, manifestDigest, manifest)
+            } catch (e: Exception) {
+                handleError(e)
+            } finally {
+                // clear up temporary blob files
+                cleanupTempDirectory(tempDirectory)
             }
-        } catch (e: Exception) {
-            handleError(e)
-        } finally {
-            // clear up temporary blob files
-            cleanupTempDirectory(tempDirectory)
-        }
 
-        // upload index
-        client.uploadManifest(repository, reference, uploadContainerImage.index)
-    }
+            // upload index
+            client.uploadManifest(repository, reference, uploadContainerImage.index)
+        }
 
     private suspend fun uploadBlob(repository: Repository, blob: UploadBlobPath, mode: BlobUploadMode) {
         if (!client.existsBlob(repository, blob.digest)) {

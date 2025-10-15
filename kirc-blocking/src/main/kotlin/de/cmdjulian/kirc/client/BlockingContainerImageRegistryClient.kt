@@ -90,7 +90,12 @@ interface BlockingContainerImageRegistryClient {
      *
      * @return the digest of uploaded image
      */
-    fun upload(repository: Repository, reference: Reference, tar: InputStream, uploadMode: BlobUploadMode): Digest
+    fun upload(
+        repository: Repository,
+        reference: Reference,
+        tar: InputStream,
+        uploadMode: BlobUploadMode = BlobUploadMode.Stream,
+    ): Digest
 
     /**
      * Downloads a docker image for certain [reference].
