@@ -86,9 +86,11 @@ interface BlockingContainerImageRegistryClient {
     /**
      * Uploads [tar] image archive to container registry at [repository] with [reference]
      *
+     * [uploadMode] defines whether blobs are uploaded chunked or streamed directly
+     *
      * @return the digest of uploaded image
      */
-    fun upload(repository: Repository, reference: Reference, tar: InputStream): Digest
+    fun upload(repository: Repository, reference: Reference, tar: InputStream, uploadMode: BlobUploadMode): Digest
 
     /**
      * Downloads a docker image for certain [reference].
@@ -144,14 +146,14 @@ fun SuspendingContainerImageRegistryClient.toBlockingClient() = object : Blockin
         return client.toBlockingClient()
     }
 
-    override fun upload(repository: Repository, reference: Reference, tar: InputStream): Digest =
-        runBlocking(Dispatchers.Default) {
-            this@toBlockingClient.upload(
-                repository,
-                reference,
-                tar.asSource().buffered(),
-            )
-        }
+    override fun upload(
+        repository: Repository,
+        reference: Reference,
+        tar: InputStream,
+        uploadMode: BlobUploadMode,
+    ): Digest = runBlocking(Dispatchers.Default) {
+        this@toBlockingClient.upload(repository, reference, tar.asSource().buffered(), uploadMode)
+    }
 
     override fun download(repository: Repository, reference: Reference): InputStream =
         runBlocking(Dispatchers.Default) { this@toBlockingClient.download(repository, reference).asInputStream() }
