@@ -35,17 +35,16 @@ internal class ResponseRetryWithAuthentication(
     suspend inline fun execute(
         body: RequestBodyType = RequestBodyType.Binary,
         crossinline block: suspend () -> HttpResponse,
-    ): Result<HttpResponse, KircApiError> =
-        runCatching { performWithAuthRetry(body, block) }.fold(
-            onSuccess = { Result.success(it) },
-            onFailure = { throwable ->
-                if (throwable is KircApiError) {
-                    Result.failure(throwable)
-                } else {
-                    Result.failure(KircApiError.Network(Url(baseUrl), HttpMethod("?"), throwable))
-                }
-            },
-        )
+    ): Result<HttpResponse, KircApiError> = runCatching { performWithAuthRetry(body, block) }.fold(
+        onSuccess = { Result.success(it) },
+        onFailure = { throwable ->
+            if (throwable is KircApiError) {
+                Result.failure(throwable)
+            } else {
+                Result.failure(KircApiError.Network(Url(baseUrl), HttpMethod("?"), throwable))
+            }
+        },
+    )
 
     private suspend inline fun performWithAuthRetry(
         body: RequestBodyType,
@@ -96,8 +95,7 @@ internal class ResponseRetryWithAuthentication(
     }
 
     @OptIn(ExperimentalEncodingApi::class)
-    private fun basicAuth(user: String, pass: String): String =
-        "Basic " + Base64.encode("$user:$pass".toByteArray())
+    private fun basicAuth(user: String, pass: String): String = "Basic " + Base64.encode("$user:$pass".toByteArray())
 
     // BEARER AUTH
 

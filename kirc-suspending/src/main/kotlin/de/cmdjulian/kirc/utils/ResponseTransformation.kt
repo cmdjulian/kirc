@@ -57,8 +57,7 @@ internal fun HttpResponse.toRange(): Pair<Long, Long> {
         request.url,
         request.method,
         "Missing Range header, part 'from' is missing in \"bytes=<from>-<end>\"",
-
-        )
+    )
     val end = parts.getOrNull(1)?.toLongOrNull() ?: throw KircApiError.Header(
         status.value,
         request.url,
