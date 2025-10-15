@@ -1,7 +1,7 @@
 package de.cmdjulian.kirc.impl.delegate
 
-import de.cmdjulian.kirc.KircDownloadException
 import de.cmdjulian.kirc.client.SuspendingContainerImageRegistryClient
+import de.cmdjulian.kirc.exception.KircException
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
@@ -99,7 +99,7 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
         }
 
         manifestConfig.forEach { (manifestDigest, configBlob) ->
-            val manifest = manifests[manifestDigest] ?: throw KircDownloadException(
+            val manifest = manifests[manifestDigest] ?: throw KircException.InvalidState(
                 "Could not resolve config digest for manifest '$manifestDigest' during download",
             )
             val digestHash = manifest.config.digest.hash
@@ -214,7 +214,7 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
     ): ManifestJson = manifestLayers.map { (manifestDigest, layers) ->
         val layerPaths = layers.map { layer -> "blobs/sha256/${layer.digest.hash}" }
         val layerSources = layers.associateBy(LayerReference::digest)
-        val configDigest = manifestConfig[manifestDigest]?.hash ?: throw KircDownloadException(
+        val configDigest = manifestConfig[manifestDigest]?.hash ?: throw KircException.InvalidState(
             "Could not resolve manifest config for manifest digest '$manifestDigest' during download",
         )
 

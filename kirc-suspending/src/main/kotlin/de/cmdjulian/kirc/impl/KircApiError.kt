@@ -46,7 +46,13 @@ internal sealed class KircApiError(
         override fun toString(): String = "KircApiError.Network -> ${this@Network.message}"
     }
 
-    /** Error caused by missing headers in the response. */
+    /**
+     * Thrown when extracting fields in responses from api calls was unsuccessful.
+     *
+     * This can either mean that the docker registry api changed or the request wasn't executed properly.
+     *
+     * Appears while manually extracting fields from responses (no deserialization)
+     */
     class Header(
         statusCode: Int,
         url: Url,

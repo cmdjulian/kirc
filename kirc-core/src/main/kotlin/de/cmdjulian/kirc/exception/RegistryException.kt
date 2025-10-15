@@ -8,7 +8,7 @@ import java.net.URL
 /**
  * Base exception for all errors that can occur when interacting with a container registry via Api.
  */
-sealed class RegistryClientException(
+sealed class RegistryException(
     val url: URL,
     val repository: Repository?,
     val reference: Reference?,
@@ -18,7 +18,7 @@ sealed class RegistryClientException(
 
     /** Exception for network related errors, e.g. no connection, timeout, etc. */
     class NetworkErrorException(url: URL, repository: Repository?, reference: Reference?, cause: Throwable) :
-        RegistryClientException(
+        RegistryException(
             url,
             repository,
             reference,
@@ -26,14 +26,14 @@ sealed class RegistryClientException(
             cause,
         ) {
 
-        override fun toString() = "RegistryClientException.NetworkError -> $message"
+        override fun toString() = "RegistryException.NetworkError -> $message"
     }
 
     /** Exception for missing headers in the response which are necessary, e.g. digest, byte range. */
     class HeaderMissingException(url: URL, repository: Repository?, reference: Reference?, message: String) :
-        RegistryClientException(url, repository, reference, "Invalid response header: $message") {
+        RegistryException(url, repository, reference, "Invalid response header: $message") {
 
-        override fun toString() = "RegistryClientException.HeaderMissing -> $message"
+        override fun toString() = "RegistryException.HeaderMissing -> $message"
     }
 
     /** Base exception for error codes returned by registry. */
@@ -43,7 +43,7 @@ sealed class RegistryClientException(
         reference: Reference?,
         message: String,
         val error: RegistryErrorResponse,
-    ) : RegistryClientException(url, repository, reference, message, null) {
+    ) : RegistryException(url, repository, reference, message, null) {
 
         /** Error when the request was malformed. */
         class BadRequestException(

@@ -1,8 +1,9 @@
 package de.cmdjulian.kirc.impl.delegate
 
-import de.cmdjulian.kirc.KircUploadException
 import de.cmdjulian.kirc.client.BlobUploadMode
 import de.cmdjulian.kirc.client.SuspendingContainerImageRegistryClient
+import de.cmdjulian.kirc.exception.KircException
+import de.cmdjulian.kirc.exception.RegistryException
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
@@ -19,6 +20,7 @@ import de.cmdjulian.kirc.spec.manifest.ManifestListEntry
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.utils.toByteReadChannel
 import de.cmdjulian.kirc.utils.toKotlinPath
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.coroutineScope
@@ -36,6 +38,8 @@ import java.time.OffsetDateTime
 import java.time.temporal.ChronoUnit
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.pathString
+
+private val logger = KotlinLogging.logger {}
 
 internal class ImageUploader(private val client: SuspendingContainerImageRegistryClient, private val tmpPath: Path) {
 
@@ -76,12 +80,11 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
 
                 client.uploadManifest(repository, manifestDigest, manifest)
             }
+        } catch (e: Exception) {
+            handleError(e)
         } finally {
             // clear up temporary blob files
-            withContext(Dispatchers.IO) {
-                SystemFileSystem.list(tempDirectory.toKotlinPath()).forEach(SystemFileSystem::delete)
-                SystemFileSystem.delete(tempDirectory.toKotlinPath())
-            }
+            cleanupTempDirectory(tempDirectory)
         }
 
         // upload index
@@ -115,6 +118,24 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
         }
     }
 
+    private fun handleError(e: Exception) {
+        logger.error(e) { "Error uploading image to registry" }
+        when (e) {
+            is KircException, is RegistryException -> throw e
+            else -> throw KircException.UnexpectedError(
+                "Unexpected error, could not upload image to registry: ${e.cause}",
+                e,
+            )
+        }
+    }
+
+    private suspend fun cleanupTempDirectory(tempDirectory: Path) {
+        withContext(Dispatchers.IO) {
+            SystemFileSystem.list(tempDirectory.toKotlinPath()).forEach(SystemFileSystem::delete)
+            SystemFileSystem.delete(tempDirectory.toKotlinPath())
+        }
+    }
+
     // PARSE INPUT TAR
 
     private suspend fun readFromTar(tarSource: Source, tempDirectory: Path) = tarSource.use { source ->
@@ -144,10 +165,13 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
             }
 
             when {
-                indexFile == null -> throw KircUploadException("index should be present inside provided docker image")
+                indexFile == null -> throw KircException.CorruptArchiveError(
+                    "index should be present inside provided docker image",
+                )
 
-                ociLayoutFile == null ->
-                    throw KircUploadException("'oci-layout' file should be present inside the provided docker image")
+                ociLayoutFile == null -> throw KircException.CorruptArchiveError(
+                    "'oci-layout' file should be present inside the provided docker image",
+                )
             }
 
             UploadContainerImage(
@@ -181,7 +205,7 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
 
     private fun resolveBlobPath(blobs: Map<String, Path>, namePart: String): Path =
         blobs.keys.first { blobName -> namePart in blobName }.let(blobs::get)
-            ?: throw KircUploadException("Could not find blob file containing '$namePart' in deserialized list")
+            ?: throw KircException.CorruptArchiveError("Could not find blob file containing '$namePart' in deserialized list")
 
     private suspend fun resolveManifest(blobs: Map<String, Path>, manifestEntry: ManifestListEntry): ManifestSingle {
         val blobPath = resolveBlobPath(blobs, "blobs/sha256/${manifestEntry.digest.hash}")
@@ -226,9 +250,11 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
         val manifestPath = resolveBlobPath(blobs, manifestDigest.hash)
         val size = withContext(Dispatchers.IO) {
             SystemFileSystem.metadataOrNull(manifestPath.toKotlinPath())?.size
-        } ?: throw KircUploadException("Could not determine file metadata for manifest '$manifestDigest'")
+        } ?: throw KircException.CorruptArchiveError(
+            "Could not determine file metadata for manifest '$manifestDigest'",
+        )
         val mediaType = manifest.mediaType
-            ?: throw KircUploadException("Could not determine media type of manifest $manifestDigest")
+            ?: throw KircException.CorruptArchiveError("Could not determine media type of manifest $manifestDigest")
         return UploadBlobPath(manifestDigest, mediaType, manifestPath, size)
     }
 }
