@@ -1,4 +1,4 @@
-package de.cmdjulian.kirc.impl
+package de.cmdjulian.kirc.impl.serialization
 
 import com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES
 import com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES

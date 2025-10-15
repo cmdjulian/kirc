@@ -2,9 +2,9 @@ package de.cmdjulian.kirc.client
 
 import de.cmdjulian.kirc.image.ContainerImageName
 import de.cmdjulian.kirc.impl.ContainerRegistryApiImpl
-import de.cmdjulian.kirc.impl.JsonMapper
 import de.cmdjulian.kirc.impl.SuspendingContainerImageClientImpl
 import de.cmdjulian.kirc.impl.SuspendingContainerImageRegistryClientImpl
+import de.cmdjulian.kirc.impl.serialization.JsonMapper
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.ProxyBuilder
 import io.ktor.client.engine.cio.CIO

@@ -1,6 +1,6 @@
 package de.cmdjulian.kirc.impl
 
-import de.cmdjulian.kirc.spec.ErrorResponse
+import de.cmdjulian.kirc.spec.RegistryErrorResponse
 import de.cmdjulian.kirc.unmarshal
 import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.shouldBe
@@ -23,7 +23,7 @@ internal class ErrorDeserializationTest {
             }
         """.trimIndent()
 
-        val response = json.unmarshal<ErrorResponse>()
+        val response = json.unmarshal<RegistryErrorResponse>()
         response.errors.shouldBeSingleton {
             it.code shouldBe "MANIFEST_UNKNOWN"
             it.message shouldBe "manifest unknown"

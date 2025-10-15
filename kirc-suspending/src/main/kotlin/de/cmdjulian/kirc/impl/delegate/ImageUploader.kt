@@ -1,11 +1,12 @@
 package de.cmdjulian.kirc.impl.delegate
 
 import de.cmdjulian.kirc.KircUploadException
+import de.cmdjulian.kirc.client.BlobUploadMode
 import de.cmdjulian.kirc.client.SuspendingContainerImageRegistryClient
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
-import de.cmdjulian.kirc.impl.jacksonDeserializer
+import de.cmdjulian.kirc.impl.serialization.jacksonDeserializer
 import de.cmdjulian.kirc.spec.ManifestJson
 import de.cmdjulian.kirc.spec.OciLayout
 import de.cmdjulian.kirc.spec.Repositories
@@ -16,6 +17,7 @@ import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestListEntry
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
+import de.cmdjulian.kirc.utils.toByteReadChannel
 import de.cmdjulian.kirc.utils.toKotlinPath
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
@@ -36,7 +38,12 @@ import kotlin.io.path.pathString
 internal class ImageUploader(private val client: SuspendingContainerImageRegistryClient, private val tmpPath: Path) {
 
     @OptIn(ExperimentalPathApi::class)
-    suspend fun upload(repository: Repository, reference: Reference, tar: Source): Digest = coroutineScope {
+    suspend fun upload(
+        repository: Repository,
+        reference: Reference,
+        tar: Source,
+        mode: BlobUploadMode = BlobUploadMode.Stream,
+    ): Digest = coroutineScope {
         // store data temporarily
         val tempDirectory = Path.of(
             tmpPath.pathString,
@@ -56,13 +63,26 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
                     if (!client.existsBlob(repository, blob.digest)) {
                         val session = client.initiateBlobUpload(repository)
 
-                        val source = withContext(Dispatchers.IO) {
-                            SystemFileSystem.source(blob.path.toKotlinPath()).buffered()
+                        val createSource: suspend () -> Source = {
+                            withContext(Dispatchers.IO) {
+                                SystemFileSystem.source(blob.path.toKotlinPath()).buffered()
+                            }
                         }
 
-                        val endSession = client.uploadBlobChunks(session, source)
+                        when (mode) {
+                            BlobUploadMode.Stream -> client.uploadBlobStream(
+                                session,
+                                blob.digest,
+                                { createSource().toByteReadChannel() },
+                                blob.size,
+                            )
 
-                        client.finishBlobUpload(endSession, blob.digest)
+                            is BlobUploadMode.Chunks -> {
+                                val endSession = client.uploadBlobChunks(session, createSource(), mode.chunkSize)
+                                // chunked upload requires a final request
+                                client.finishBlobUpload(endSession, blob.digest)
+                            }
+                        }
                     }
                 }
 

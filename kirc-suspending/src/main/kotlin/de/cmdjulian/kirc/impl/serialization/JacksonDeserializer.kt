@@ -1,4 +1,4 @@
-package de.cmdjulian.kirc.impl
+package de.cmdjulian.kirc.impl.serialization
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.io.InputStream

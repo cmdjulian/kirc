@@ -2,7 +2,7 @@ package de.cmdjulian.kirc.utils
 
 import com.github.kittinunf.result.Result
 import de.cmdjulian.kirc.image.Digest
-import de.cmdjulian.kirc.impl.KtorHttpError
+import de.cmdjulian.kirc.impl.KircApiError
 import de.cmdjulian.kirc.impl.response.ResultSource
 import de.cmdjulian.kirc.impl.response.UploadSession
 import io.ktor.client.statement.HttpResponse
@@ -13,68 +13,57 @@ import io.ktor.utils.io.jvm.javaio.toInputStream
 import kotlinx.io.asSource
 import kotlinx.io.buffered
 
-internal fun HttpResponse.toDigest(): Digest = headers[RegistryHeaders.DIGEST]?.let(::Digest)
-    ?: throw KtorHttpError(
-        status.value,
-        request.url,
-        request.method,
-        ByteArray(0),
-        IllegalStateException("Missing Docker-Content-Digest header"),
-    )
+internal fun HttpResponse.toDigest(): Digest = headers["Docker-Content-Digest"]?.let(::Digest)
+    ?: throw KircApiError.Header(status.value, request.url, request.method, "Header 'Docker-Content-Digest' is missing")
 
 internal suspend fun HttpResponse.toResultSource(): ResultSource {
     val size = headers[HttpHeaders.ContentLength]?.toLong()
-        ?: throw KtorHttpError(
+        ?: throw KircApiError.Header(
             status.value,
             request.url,
             request.method,
-            ByteArray(0),
-            IllegalStateException("Missing Content-Length"),
+            "Header '${HttpHeaders.ContentLength}' is missing",
         )
     return ResultSource(bodyAsChannel().toInputStream().asSource().buffered(), size)
 }
 
 internal fun HttpResponse.toUploadSession(): UploadSession = UploadSession(
-    sessionId = headers[RegistryHeaders.UPLOAD_UUID] ?: throw KtorHttpError(
+    sessionId = headers["Docker-Upload-UUID"] ?: throw KircApiError.Header(
         status.value,
         request.url,
         request.method,
-        ByteArray(0),
-        IllegalStateException("Missing Docker-Upload-UUID"),
+        "Header 'Docker-Upload-UUID' is missing",
     ),
-    location = headers[HttpHeaders.Location] ?: throw KtorHttpError(
+    location = headers[HttpHeaders.Location] ?: throw KircApiError.Header(
         status.value,
         request.url,
         request.method,
-        ByteArray(0),
-        IllegalStateException("Missing Location header"),
+        "Header '${HttpHeaders.Location}' is missing",
     ),
 )
 
 internal fun HttpResponse.toRange(): Pair<Long, Long> {
-    val rangeHeader = headers["Range"] ?: throw KtorHttpError(
+    val rangeHeader = headers["Range"] ?: throw KircApiError.Header(
         status.value,
         request.url,
         request.method,
-        ByteArray(0),
-        IllegalStateException("Missing Range header"),
+        "Header 'Range' is missing",
     )
     val rangeValue =
         if (rangeHeader.startsWith("bytes=")) rangeHeader.removePrefix("bytes=") else rangeHeader
     val parts = rangeValue.split('-')
-    val from = parts.getOrNull(0)?.toLongOrNull() ?: throw KtorHttpError(
+    val from = parts.getOrNull(0)?.toLongOrNull() ?: throw KircApiError.Header(
         status.value,
         request.url,
         request.method,
-        ByteArray(0),
-        IllegalStateException("Missing Range header, part 'from' is missing in \"bytes=<from>-<end>\""),
-    )
-    val end = parts.getOrNull(1)?.toLongOrNull() ?: throw KtorHttpError(
+        "Missing Range header, part 'from' is missing in \"bytes=<from>-<end>\"",
+
+        )
+    val end = parts.getOrNull(1)?.toLongOrNull() ?: throw KircApiError.Header(
         status.value,
         request.url,
         request.method,
-        ByteArray(0),
-        IllegalStateException("Missing Range header, part 'end' is missing in \"bytes=<from>-<end>\""),
+        "Missing Range header, part 'end' is missing in \"bytes=<from>-<end>\"",
     )
     return Pair(from, end)
 }

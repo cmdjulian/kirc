@@ -16,6 +16,7 @@ import de.cmdjulian.kirc.impl.response.Catalog
 import de.cmdjulian.kirc.impl.response.ResultSource
 import de.cmdjulian.kirc.impl.response.TagList
 import de.cmdjulian.kirc.impl.response.UploadSession
+import de.cmdjulian.kirc.impl.serialization.jacksonDeserializer
 import de.cmdjulian.kirc.spec.image.DockerImageConfigV1
 import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.image.OciImageConfigV1
@@ -118,8 +119,12 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
     override suspend fun initiateBlobUpload(repository: Repository): UploadSession =
         api.initiateUpload(repository).getOrElse { throw it.toRegistryClientError(repository, null) }
 
-    override suspend fun uploadBlobStream(session: UploadSession, stream: Source): UploadSession =
-        api.uploadBlobStream(session, stream).getOrElse { throw it.toRegistryClientError() }
+    override suspend fun uploadBlobStream(
+        session: UploadSession,
+        digest: Digest,
+        stream: RequestBodyType.Stream,
+        size: Long,
+    ): Digest = api.uploadBlobStream(session, digest, stream, size).getOrElse { throw it.toRegistryClientError() }
 
     override suspend fun uploadBlobChunks(session: UploadSession, blob: Source, chunkSize: Long): UploadSession =
         blob.use { stream ->

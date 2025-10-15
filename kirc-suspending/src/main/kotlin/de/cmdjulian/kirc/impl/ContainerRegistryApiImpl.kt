@@ -12,6 +12,7 @@ import de.cmdjulian.kirc.impl.response.Catalog
 import de.cmdjulian.kirc.impl.response.ResultSource
 import de.cmdjulian.kirc.impl.response.TagList
 import de.cmdjulian.kirc.impl.response.UploadSession
+import de.cmdjulian.kirc.impl.serialization.JsonMapper
 import de.cmdjulian.kirc.spec.blob.DockerBlobMediaType
 import de.cmdjulian.kirc.spec.blob.OciBlobMediaTypeGzip
 import de.cmdjulian.kirc.spec.blob.OciBlobMediaTypeTar
@@ -45,7 +46,6 @@ import io.ktor.http.HttpHeaders
 import io.ktor.utils.io.jvm.javaio.toInputStream
 import kotlinx.io.Buffer
 import kotlinx.io.Source
-import kotlinx.io.asInputStream
 import kotlinx.io.asSource
 import kotlinx.io.buffered
 import kotlinx.io.readByteArray
@@ -64,9 +64,9 @@ internal class ContainerRegistryApiImpl(
 
     // Status
 
-    override suspend fun ping(): Result<*, KtorHttpError> = retriable.execute { client.get("/v2/") }
+    override suspend fun ping(): Result<*, KircApiError> = retriable.execute { client.get("/v2/") }
 
-    override suspend fun repositories(limit: Int?, last: Int?): Result<Catalog, KtorHttpError> = retriable.execute {
+    override suspend fun repositories(limit: Int?, last: Int?): Result<Catalog, KircApiError> = retriable.execute {
         client.get("/v2/_catalog") {
             if (limit != null) parameter("n", limit)
             if (last != null) parameter("last", last)
@@ -74,7 +74,7 @@ internal class ContainerRegistryApiImpl(
         }
     }.mapSuspending(HttpResponse::body)
 
-    override suspend fun tags(repository: Repository, limit: Int?, last: Int?): Result<TagList, KtorHttpError> =
+    override suspend fun tags(repository: Repository, limit: Int?, last: Int?): Result<TagList, KircApiError> =
         retriable.execute {
             client.get("/v2/$repository/tags/list") {
                 if (limit != null) parameter("n", limit)
@@ -83,7 +83,7 @@ internal class ContainerRegistryApiImpl(
             }
         }.mapSuspending(HttpResponse::body)
 
-    override suspend fun digest(repository: Repository, reference: Reference): Result<Digest, KtorHttpError> =
+    override suspend fun digest(repository: Repository, reference: Reference): Result<Digest, KircApiError> =
         when (reference) {
             is Digest -> Result.success(reference)
             is Tag -> retriable.execute {
@@ -97,13 +97,13 @@ internal class ContainerRegistryApiImpl(
         repository: Repository,
         reference: Reference,
         accept: String,
-    ): Result<*, KtorHttpError> = retriable.execute {
+    ): Result<*, KircApiError> = retriable.execute {
         client.head("/v2/$repository/manifests/$reference") {
             header(HttpHeaders.Accept, accept)
         }
     }
 
-    override suspend fun manifests(repository: Repository, reference: Reference): Result<Manifest, KtorHttpError> =
+    override suspend fun manifests(repository: Repository, reference: Reference): Result<Manifest, KircApiError> =
         retriable.execute {
             client.get("/v2/$repository/manifests/$reference") { acceptManifestTypes() }
         }.mapSuspending(HttpResponse::body)
@@ -111,11 +111,11 @@ internal class ContainerRegistryApiImpl(
     override suspend fun manifestStream(
         repository: Repository,
         reference: Reference,
-    ): Result<ResultSource, KtorHttpError> = retriable.execute {
+    ): Result<ResultSource, KircApiError> = retriable.execute {
         client.get("/v2/$repository/manifests/$reference") { acceptManifestTypes() }
     }.mapSuspending(HttpResponse::toResultSource)
 
-    override suspend fun manifest(repository: Repository, reference: Reference): Result<ManifestSingle, KtorHttpError> =
+    override suspend fun manifest(repository: Repository, reference: Reference): Result<ManifestSingle, KircApiError> =
         retriable.execute {
             client.get("/v2/$repository/manifests/$reference") {
                 acceptSingleManifestTypes()
@@ -126,7 +126,7 @@ internal class ContainerRegistryApiImpl(
         repository: Repository,
         reference: Reference,
         manifest: Manifest,
-    ): Result<Digest, KtorHttpError> = retriable.execute {
+    ): Result<Digest, KircApiError> = retriable.execute {
         val urlRef = when (reference) {
             is Digest -> reference.hash
             is Tag -> reference
@@ -143,7 +143,7 @@ internal class ContainerRegistryApiImpl(
         }
     }.map(HttpResponse::toDigest)
 
-    override suspend fun deleteManifest(repository: Repository, reference: Reference): Result<Digest, KtorHttpError> =
+    override suspend fun deleteManifest(repository: Repository, reference: Reference): Result<Digest, KircApiError> =
         digest(repository, reference).flatMap { dg ->
             retriable.execute {
                 client.delete("/v2/$repository/manifests/$dg") { acceptManifestTypes() }
@@ -152,29 +152,29 @@ internal class ContainerRegistryApiImpl(
 
     // Blob
 
-    override suspend fun existsBlob(repository: Repository, digest: Digest): Result<*, KtorHttpError> =
+    override suspend fun existsBlob(repository: Repository, digest: Digest): Result<*, KircApiError> =
         retriable.execute {
             client.head("/v2/$repository/blobs/$digest")
         }
 
-    override suspend fun blob(repository: Repository, digest: Digest): Result<ByteArray, KtorHttpError> =
+    override suspend fun blob(repository: Repository, digest: Digest): Result<ByteArray, KircApiError> =
         retriable.execute {
             client.get("/v2/$repository/blobs/$digest") { acceptBlobTypes() }
         }.mapSuspending(HttpResponse::body)
 
-    override suspend fun blobStream(repository: Repository, digest: Digest): Result<Source, KtorHttpError> =
+    override suspend fun blobStream(repository: Repository, digest: Digest): Result<Source, KircApiError> =
         retriable.execute {
             client.get("/v2/$repository/blobs/$digest") { acceptBlobTypes() }
         }.mapSuspending { resp ->
             resp.bodyAsChannel().toInputStream().asSource().buffered()
         }
 
-    override suspend fun initiateUpload(repository: Repository): Result<UploadSession, KtorHttpError> =
+    override suspend fun initiateUpload(repository: Repository): Result<UploadSession, KircApiError> =
         retriable.execute {
             client.post("/v2/$repository/blobs/uploads/")
         }.map(HttpResponse::toUploadSession)
 
-    override suspend fun finishBlobUpload(session: UploadSession, digest: Digest): Result<Digest, KtorHttpError> =
+    override suspend fun finishBlobUpload(session: UploadSession, digest: Digest): Result<Digest, KircApiError> =
         retriable.execute {
             client.put(session.location) { parameter("digest", digest.toString()) }
         }.map(HttpResponse::toDigest)
@@ -184,7 +184,7 @@ internal class ContainerRegistryApiImpl(
         buffer: Buffer,
         startRange: Long,
         endRange: Long,
-    ): Result<UploadSession, KtorHttpError> = retriable.execute {
+    ): Result<UploadSession, KircApiError> = retriable.execute {
         client.patch(session.location) {
             header(HttpHeaders.ContentLength, buffer.size)
             header(HttpHeaders.ContentRange, "$startRange-$endRange")
@@ -195,20 +195,24 @@ internal class ContainerRegistryApiImpl(
 
     override suspend fun uploadBlobStream(
         session: UploadSession,
-        source: Source,
-    ): Result<UploadSession, KtorHttpError> = retriable.execute {
-        client.patch(session.location) {
+        digest: Digest,
+        stream: RequestBodyType.Stream,
+        size: Long,
+    ): Result<Digest, KircApiError> = retriable.execute(stream) {
+        client.put(session.location) {
+            parameter("digest", digest.toString())
             header(HttpHeaders.ContentType, APPLICATION_OCTET_STREAM)
-            setBody(source.asInputStream().readBytes()) // fallback to buffering entire stream
+            header(HttpHeaders.ContentLength, size)
+            setBody(stream.channel())
         }
-    }.map(HttpResponse::toUploadSession)
+    }.map(HttpResponse::toDigest)
 
-    override suspend fun uploadStatus(session: UploadSession): Result<Pair<Long, Long>, KtorHttpError> =
+    override suspend fun uploadStatus(session: UploadSession): Result<Pair<Long, Long>, KircApiError> =
         retriable.execute {
             client.get(session.location)
         }.map(HttpResponse::toRange)
 
-    override suspend fun cancelBlobUpload(session: UploadSession): Result<*, KtorHttpError> = retriable.execute {
+    override suspend fun cancelBlobUpload(session: UploadSession): Result<*, KircApiError> = retriable.execute {
         client.delete(session.location)
     }
 

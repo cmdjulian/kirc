@@ -4,6 +4,7 @@ import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
+import de.cmdjulian.kirc.impl.RequestBodyType
 import de.cmdjulian.kirc.impl.response.ResultSource
 import de.cmdjulian.kirc.impl.response.UploadSession
 import de.cmdjulian.kirc.spec.image.ImageConfig
@@ -114,7 +115,12 @@ interface SuspendingContainerImageRegistryClient {
     /**
      * Uploads an entire blob by stream
      */
-    suspend fun uploadBlobStream(session: UploadSession, stream: Source): UploadSession
+    suspend fun uploadBlobStream(
+        session: UploadSession,
+        digest: Digest,
+        stream: RequestBodyType.Stream,
+        size: Long,
+    ): Digest
 
     /**
      * Upload a manifest
