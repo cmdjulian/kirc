@@ -94,7 +94,7 @@ interface BlockingContainerImageRegistryClient {
         repository: Repository,
         reference: Reference,
         tar: InputStream,
-        uploadMode: BlobUploadMode = BlobUploadMode.Chunks(),
+        uploadMode: BlobUploadMode = BlobUploadMode.Stream,
     ): Digest
 
     /**
