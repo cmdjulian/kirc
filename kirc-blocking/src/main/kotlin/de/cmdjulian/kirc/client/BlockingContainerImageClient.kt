@@ -5,6 +5,7 @@ import de.cmdjulian.kirc.spec.ContainerImage
 import de.cmdjulian.kirc.spec.LayerBlob
 import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 
 interface BlockingContainerImageClient {
@@ -40,10 +41,10 @@ interface BlockingContainerImageClient {
 }
 
 fun SuspendingContainerImageClient.toBlockingClient() = object : BlockingContainerImageClient {
-    override fun tags(): List<Tag> = runBlocking { this@toBlockingClient.tags() }
-    override fun manifest(): ManifestSingle = runBlocking { this@toBlockingClient.manifest() }
-    override fun config(): ImageConfig = runBlocking { this@toBlockingClient.config() }
-    override fun blobs(): List<LayerBlob> = runBlocking { this@toBlockingClient.blobs() }
-    override fun size(): Long = runBlocking { this@toBlockingClient.size() }
-    override fun toImage(): ContainerImage = runBlocking { this@toBlockingClient.toImage() }
+    override fun tags(): List<Tag> = runBlocking(Dispatchers.Default) { this@toBlockingClient.tags() }
+    override fun manifest(): ManifestSingle = runBlocking(Dispatchers.Default) { this@toBlockingClient.manifest() }
+    override fun config(): ImageConfig = runBlocking(Dispatchers.Default) { this@toBlockingClient.config() }
+    override fun blobs(): List<LayerBlob> = runBlocking(Dispatchers.Default) { this@toBlockingClient.blobs() }
+    override fun size(): Long = runBlocking(Dispatchers.Default) { this@toBlockingClient.size() }
+    override fun toImage(): ContainerImage = runBlocking(Dispatchers.Default) { this@toBlockingClient.toImage() }
 }

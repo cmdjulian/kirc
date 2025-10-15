@@ -18,7 +18,9 @@ import de.cmdjulian.kirc.spec.manifest.ManifestListEntry
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.utils.toKotlinPath
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.io.Source
 import kotlinx.io.asInputStream
@@ -33,7 +35,7 @@ import kotlin.io.path.pathString
 
 internal class ImageUploader(private val client: SuspendingContainerImageRegistryClient, private val tmpPath: Path) {
 
-    @OptIn(ExperimentalPathApi::class)
+    @OptIn(ExperimentalPathApi::class, ExperimentalCoroutinesApi::class)
     suspend fun upload(repository: Repository, reference: Reference, tar: Source): Digest = coroutineScope {
         // store data temporarily
         val tempDirectory = Path.of(
@@ -48,19 +50,28 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
         val uploadContainerImage = readFromTar(tar, tempDirectory)
 
         // upload architecture images
+        // upload max three layers in parallel at most
+        val blobUploadDispatcher = Dispatchers.Default.limitedParallelism(3)
         try {
             for ((manifest, manifestDigest, blobs) in uploadContainerImage.images) {
-                for (blob in blobs) {
-                    if (!client.existsBlob(repository, blob.digest)) {
-                        val session = client.initiateBlobUpload(repository)
+                // upload blobs in parallel, but only up to three at once to mimic how Docker does it
+                coroutineScope {
+                    withContext(blobUploadDispatcher) {
+                        for (blob in blobs.distinctBy(UploadBlobPath::digest)) {
+                            launch {
+                                if (!client.existsBlob(repository, blob.digest)) {
+                                    val session = client.initiateBlobUpload(repository)
 
-                        val source = withContext(Dispatchers.IO) {
-                            SystemFileSystem.source(blob.path.toKotlinPath()).buffered()
+                                    val source = withContext(Dispatchers.IO) {
+                                        SystemFileSystem.source(blob.path.toKotlinPath()).buffered()
+                                    }
+
+                                    val endSession = client.uploadBlobChunks(session, source)
+
+                                    client.finishBlobUpload(endSession, blob.digest)
+                                }
+                            }
                         }
-
-                        val endSession = client.uploadBlobChunks(session, source)
-
-                        client.finishBlobUpload(endSession, blob.digest)
                     }
                 }
 
