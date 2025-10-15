@@ -8,8 +8,8 @@ import org.jlleitschuh.gradle.ktlint.KtlintExtension
 import java.util.*
 
 plugins {
-    kotlin("jvm") version "2.0.0" apply false
-    kotlin("kapt") version "2.0.0" apply false
+    kotlin("jvm") version "2.2.20" apply false
+    kotlin("kapt") version "2.2.20" apply false
     kotlin("libs.publisher") version "0.0.61-dev-34"
     id("org.jlleitschuh.gradle.ktlint") version "12.1.1" apply false
     id("org.owasp.dependencycheck") version "9.2.0" apply false // "dependencyCheckAnalyze"
@@ -112,7 +112,7 @@ subprojects {
     tasks.withType<KotlinCompile>().configureEach {
         compilerOptions {
             javaParameters = true
-            freeCompilerArgs = listOf("-Xjsr305=strict", "-Xemit-jvm-type-annotations", "-Xcontext-receivers", "-Xjvm-default=all")
+            freeCompilerArgs = listOf("-Xjsr305=strict", "-Xemit-jvm-type-annotations", "-jvm-default=enable")
         }
     }
 }

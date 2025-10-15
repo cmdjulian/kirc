@@ -1,6 +1,7 @@
 package de.cmdjulian.kirc.client
 
 import de.cmdjulian.kirc.image.ContainerImageName
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.io.files.SystemTemporaryDirectory
 import java.net.Proxy
@@ -46,7 +47,7 @@ object BlockingContainerImageClientFactory {
         keystore: KeyStore? = null,
         timeout: Duration = Duration.ofSeconds(5),
         tmpPath: Path = Path(SystemTemporaryDirectory.toString()),
-    ): BlockingContainerImageClient = runBlocking {
+    ): BlockingContainerImageClient = runBlocking(Dispatchers.Default) {
         SuspendingContainerImageClientFactory
             .create(image, credentials, proxy, insecure, skipTlsVerify, keystore, timeout, tmpPath)
             .toBlockingClient()
