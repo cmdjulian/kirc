@@ -119,7 +119,7 @@ interface SuspendingContainerImageRegistryClient {
         session: UploadSession,
         digest: Digest,
         stream: RequestBodyType.Stream,
-        size: Long,
+        size: Long, d,
     ): Digest
 
     /**
