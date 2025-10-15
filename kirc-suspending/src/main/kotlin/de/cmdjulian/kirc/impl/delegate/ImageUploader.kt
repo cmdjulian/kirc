@@ -58,9 +58,9 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
         // read from temp file and deserialize
         val uploadContainerImage = readFromTar(tar, tempDirectory)
 
-        // upload architecture images
         // upload max three layers in parallel at most
         val blobUploadDispatcher = Dispatchers.Default.limitedParallelism(3)
+        // upload architecture images
         try {
             for ((manifest, manifestDigest, blobs) in uploadContainerImage.images) {
                 // upload blobs in parallel, but only up to three at once to mimic how Docker does it
@@ -68,30 +68,7 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
                     withContext(blobUploadDispatcher) {
                         for (blob in blobs.distinctBy(UploadBlobPath::digest)) {
                             launch {
-                                if (!client.existsBlob(repository, blob.digest)) {
-                                    val session = client.initiateBlobUpload(repository)
-
-                                    val createSource: suspend () -> Source = {
-                                        withContext(Dispatchers.IO) {
-                                            SystemFileSystem.source(blob.path.toKotlinPath()).buffered()
-                                        }
-                                    }
-
-                                    when (mode) {
-                                        BlobUploadMode.Stream -> client.uploadBlobStream(
-                                            session,
-                                            blob.digest,
-                                            { createSource().toByteReadChannel() },
-                                            blob.size,
-                                        )
-
-                                        is BlobUploadMode.Chunks -> {
-                                            val endSession = client.uploadBlobChunks(session, createSource(), mode.chunkSize)
-                                            // chunked upload requires a final request
-                                            client.finishBlobUpload(endSession, blob.digest)
-                                        }
-                                    }
-                                }
+                                uploadBlob(repository, blob, mode)
                             }
                         }
                     }
@@ -110,6 +87,35 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
         // upload index
         client.uploadManifest(repository, reference, uploadContainerImage.index)
     }
+
+    private suspend fun uploadBlob(repository: Repository, blob: UploadBlobPath, mode: BlobUploadMode) {
+        if (!client.existsBlob(repository, blob.digest)) {
+            val session = client.initiateBlobUpload(repository)
+
+            val createSource: suspend () -> Source = {
+                withContext(Dispatchers.IO) {
+                    SystemFileSystem.source(blob.path.toKotlinPath()).buffered()
+                }
+            }
+
+            when (mode) {
+                BlobUploadMode.Stream -> client.uploadBlobStream(
+                    session,
+                    blob.digest,
+                    { createSource().toByteReadChannel() },
+                    blob.size,
+                )
+
+                is BlobUploadMode.Chunks -> {
+                    val endSession = client.uploadBlobChunks(session, createSource(), mode.chunkSize)
+                    // chunked upload requires a final request
+                    client.finishBlobUpload(endSession, blob.digest)
+                }
+            }
+        }
+    }
+
+    // PARSE INPUT TAR
 
     private suspend fun readFromTar(tarSource: Source, tempDirectory: Path) = tarSource.use { source ->
         TarArchiveInputStream(source.asInputStream()).use { stream ->
