@@ -205,7 +205,9 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
 
     private fun resolveBlobPath(blobs: Map<String, Path>, namePart: String): Path =
         blobs.keys.first { blobName -> namePart in blobName }.let(blobs::get)
-            ?: throw KircException.CorruptArchiveError("Could not find blob file containing '$namePart' in deserialized list")
+            ?: throw KircException.CorruptArchiveError(
+                "Could not find blob file containing '$namePart' in deserialized list",
+            )
 
     private suspend fun resolveManifest(blobs: Map<String, Path>, manifestEntry: ManifestListEntry): ManifestSingle {
         val blobPath = resolveBlobPath(blobs, "blobs/sha256/${manifestEntry.digest.hash}")

@@ -27,7 +27,7 @@ internal fun KircApiError.toRegistryClientError(
 private fun KircApiError.Registry.toHttpException(
     repository: Repository?,
     reference: Reference?,
-): RegistryException = when (statusCode) {
+): RegistryException.ClientException = when (statusCode) {
     400 -> BadRequestException(url, repository, reference, body, detailMessage)
     401 -> AuthenticationException(url, repository, reference, body, detailMessage)
     403 -> AuthorizationException(url, repository, reference, body, detailMessage)
