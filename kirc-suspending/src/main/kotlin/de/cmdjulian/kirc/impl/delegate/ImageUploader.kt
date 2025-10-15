@@ -76,8 +76,6 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
 
                     client.uploadManifest(repository, manifestDigest, manifest)
                 }
-            } catch (e: Exception) {
-                handleError(e)
             } finally {
                 // clear up temporary blob files
                 cleanupTempDirectory(tempDirectory)
