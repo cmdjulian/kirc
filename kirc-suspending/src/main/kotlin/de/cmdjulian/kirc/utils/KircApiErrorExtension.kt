@@ -21,19 +21,19 @@ internal fun KircApiError.toRegistryClientError(
 ): RegistryException = when (this) {
     is KircApiError.Network -> NetworkErrorException(url, repository, reference, cause)
     is KircApiError.Registry -> toHttpException(repository, reference)
-    is KircApiError.Header -> HeaderMissingException(url, repository, reference, detailMessage)
+    is KircApiError.Header -> HeaderMissingException(url, repository, reference, detailMessage, this)
 }
 
 private fun KircApiError.Registry.toHttpException(
     repository: Repository?,
     reference: Reference?,
 ): RegistryException.ClientException = when (statusCode) {
-    400 -> BadRequestException(url, repository, reference, body, detailMessage)
-    401 -> AuthenticationException(url, repository, reference, body, detailMessage)
-    403 -> AuthorizationException(url, repository, reference, body, detailMessage)
-    404 -> NotFoundException(url, repository, reference, body, detailMessage)
-    405 -> MethodNotAllowed(url, repository, reference, body, detailMessage)
-    416 -> RangeNotSatisfiable(url, repository, reference, body, detailMessage)
-    429 -> TooManyRequests(url, repository, reference, body, detailMessage)
-    else -> UnexpectedErrorException(url, repository, reference, body, detailMessage)
+    400 -> BadRequestException(url, repository, reference, body, detailMessage, this)
+    401 -> AuthenticationException(url, repository, reference, body, detailMessage, this)
+    403 -> AuthorizationException(url, repository, reference, body, detailMessage, this)
+    404 -> NotFoundException(url, repository, reference, body, detailMessage, this)
+    405 -> MethodNotAllowed(url, repository, reference, body, detailMessage, this)
+    416 -> RangeNotSatisfiable(url, repository, reference, body, detailMessage, this)
+    429 -> TooManyRequests(url, repository, reference, body, detailMessage, this)
+    else -> UnexpectedErrorException(url, repository, reference, body, detailMessage, this)
 }

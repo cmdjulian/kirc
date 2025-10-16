@@ -30,8 +30,14 @@ sealed class RegistryException(
     }
 
     /** Exception for missing headers in the response which are necessary, e.g. digest, byte range. */
-    class HeaderMissingException(url: URL, repository: Repository?, reference: Reference?, message: String) :
-        RegistryException(url, repository, reference, "Invalid response header: $message") {
+    class HeaderMissingException(
+        url: URL,
+        repository: Repository?,
+        reference: Reference?,
+        message: String,
+        cause: Throwable,
+    ) :
+        RegistryException(url, repository, reference, "Invalid response header: $message", cause) {
 
         override fun toString() = "RegistryException.HeaderMissing -> $message"
     }
@@ -43,7 +49,8 @@ sealed class RegistryException(
         reference: Reference?,
         message: String,
         val error: RegistryErrorResponse,
-    ) : RegistryException(url, repository, reference, message, null) {
+        cause: Throwable,
+    ) : RegistryException(url, repository, reference, message, cause) {
 
         /** Error when the request was malformed. */
         class BadRequestException(
@@ -52,7 +59,8 @@ sealed class RegistryException(
             reference: Reference?,
             error: RegistryErrorResponse,
             message: String,
-        ) : ClientException(url, repository, reference, "Bad request: $message", error) {
+            cause: Throwable,
+        ) : ClientException(url, repository, reference, "Bad request: $message", error, cause) {
             override fun toString() = "ClientException.BadRequestError -> $message"
         }
 
@@ -63,7 +71,8 @@ sealed class RegistryException(
             reference: Reference?,
             error: RegistryErrorResponse,
             message: String,
-        ) : ClientException(url, repository, reference, "Authentication required: $message", error) {
+            cause: Throwable,
+        ) : ClientException(url, repository, reference, "Authentication required: $message", error, cause) {
             override fun toString() = "ClientException.AuthenticationError -> $message"
         }
 
@@ -74,7 +83,8 @@ sealed class RegistryException(
             reference: Reference?,
             error: RegistryErrorResponse,
             message: String,
-        ) : ClientException(url, repository, reference, "Authorization required: $message", error) {
+            cause: Throwable,
+        ) : ClientException(url, repository, reference, "Authorization required: $message", error, cause) {
             override fun toString() = "ClientException.AuthorizationError -> $message"
         }
 
@@ -85,7 +95,8 @@ sealed class RegistryException(
             reference: Reference?,
             error: RegistryErrorResponse,
             message: String,
-        ) : ClientException(url, repository, reference, "Not Found: $message", error) {
+            cause: Throwable,
+        ) : ClientException(url, repository, reference, "Not Found: $message", error, cause) {
             override fun toString() = "ClientException.NotFoundException -> $message"
         }
 
@@ -96,7 +107,8 @@ sealed class RegistryException(
             reference: Reference?,
             error: RegistryErrorResponse,
             message: String,
-        ) : ClientException(url, repository, reference, "Method not allowed: $message", error) {
+            cause: Throwable,
+        ) : ClientException(url, repository, reference, "Method not allowed: $message", error, cause) {
             override fun toString() = "ClientException.MethodNotAllowed (is registry delete enabled?) -> $message"
         }
 
@@ -107,7 +119,8 @@ sealed class RegistryException(
             reference: Reference?,
             error: RegistryErrorResponse,
             message: String,
-        ) : ClientException(url, repository, reference, "Requested range not satisfiable: $message", error) {
+            cause: Throwable,
+        ) : ClientException(url, repository, reference, "Requested range not satisfiable: $message", error, cause) {
             override fun toString() = "ClientException.RangeNotSatisfiable -> $message"
         }
 
@@ -118,7 +131,8 @@ sealed class RegistryException(
             reference: Reference?,
             error: RegistryErrorResponse,
             message: String,
-        ) : ClientException(url, repository, reference, "Too many requests: $message", error) {
+            cause: Throwable,
+        ) : ClientException(url, repository, reference, "Too many requests: $message", error, cause) {
             override fun toString() = "ClientException.TooManyRequests -> $message"
         }
 
@@ -129,7 +143,8 @@ sealed class RegistryException(
             reference: Reference?,
             error: RegistryErrorResponse,
             message: String,
-        ) : ClientException(url, repository, reference, "Unknown error returned by server: $message", error) {
+            cause: Throwable,
+        ) : ClientException(url, repository, reference, "Unknown error returned by server: $message", error, cause) {
             override fun toString() = "ClientException.UnexpectedErrorException -> $message"
         }
     }
