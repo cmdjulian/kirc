@@ -66,9 +66,9 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
                     // coroutineScope {
                     //    withContext(blobUploadDispatcher) {
                     for (blob in blobs.distinctBy(UploadBlobPath::digest)) {
-                        //launch {
+                        // launch {
                         uploadBlob(repository, blob, mode)
-                        //}
+                        // }
                     }
                     //    }
                     // }
