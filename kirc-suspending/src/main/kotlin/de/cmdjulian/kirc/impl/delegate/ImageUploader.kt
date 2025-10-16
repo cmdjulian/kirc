@@ -24,6 +24,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.io.Source
 import kotlinx.io.asInputStream
@@ -58,20 +59,20 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
             val uploadContainerImage = readFromTar(tar, tempDirectory)
 
             // upload max three layers in parallel at most
-            // val blobUploadDispatcher = Dispatchers.Default.limitedParallelism(3)
+            val blobUploadDispatcher = Dispatchers.Default.limitedParallelism(3)
             // upload architecture images
             try {
                 for ((manifest, manifestDigest, blobs) in uploadContainerImage.images) {
                     // upload blobs in parallel, but only up to three at once to mimic how Docker does it
-                    // coroutineScope {
-                    //    withContext(blobUploadDispatcher) {
-                    for (blob in blobs.distinctBy(UploadBlobPath::digest)) {
-                        // launch {
-                        uploadBlob(repository, blob, mode)
-                        // }
+                    coroutineScope {
+                        withContext(blobUploadDispatcher) {
+                            for (blob in blobs.distinctBy(UploadBlobPath::digest)) {
+                                launch {
+                                    uploadBlob(repository, blob, mode)
+                                }
+                            }
+                        }
                     }
-                    //    }
-                    // }
 
                     client.uploadManifest(repository, manifestDigest, manifest)
                 }
