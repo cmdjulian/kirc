@@ -18,7 +18,6 @@ import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestListEntry
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
-import de.cmdjulian.kirc.utils.toByteReadChannel
 import de.cmdjulian.kirc.utils.toKotlinPath
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
@@ -98,12 +97,7 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
             }
 
             when (mode) {
-                BlobUploadMode.Stream -> client.uploadBlobStream(
-                    session,
-                    blob.digest,
-                    { createSource().toByteReadChannel() },
-                    blob.size,
-                )
+                BlobUploadMode.Stream -> client.uploadBlobStream(session, blob.digest, blob.path, blob.size)
 
                 is BlobUploadMode.Chunks -> {
                     val endSession = client.uploadBlobChunks(session, createSource(), mode.chunkSize)

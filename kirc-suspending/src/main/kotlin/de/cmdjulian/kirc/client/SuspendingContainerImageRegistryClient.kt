@@ -4,7 +4,6 @@ import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
-import de.cmdjulian.kirc.impl.RequestBodyType
 import de.cmdjulian.kirc.impl.response.ResultSource
 import de.cmdjulian.kirc.impl.response.UploadSession
 import de.cmdjulian.kirc.spec.image.ImageConfig
@@ -13,6 +12,7 @@ import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import kotlinx.io.Sink
 import kotlinx.io.Source
+import java.nio.file.Path
 
 /**
  * Handles calls to the container registry and returns the result upon success.
@@ -115,12 +115,7 @@ interface SuspendingContainerImageRegistryClient {
     /**
      * Uploads an entire blob by stream
      */
-    suspend fun uploadBlobStream(
-        session: UploadSession,
-        digest: Digest,
-        stream: RequestBodyType.Stream,
-        size: Long,
-    ): Digest
+    suspend fun uploadBlobStream(session: UploadSession, digest: Digest, path: Path, size: Long): Digest
 
     /**
      * Upload a manifest

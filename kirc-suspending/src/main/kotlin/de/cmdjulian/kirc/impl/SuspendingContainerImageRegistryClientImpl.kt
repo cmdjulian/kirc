@@ -123,9 +123,9 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
     override suspend fun uploadBlobStream(
         session: UploadSession,
         digest: Digest,
-        stream: RequestBodyType.Stream,
+        path: Path,
         size: Long,
-    ): Digest = api.uploadBlobStream(session, digest, stream, size).getOrElse { throw it.toRegistryClientError() }
+    ): Digest = api.uploadBlobStream(session, digest, path, size).getOrElse { throw it.toRegistryClientError() }
 
     override suspend fun uploadBlobChunks(session: UploadSession, blob: Source, chunkSize: Long): UploadSession =
         blob.use { stream ->

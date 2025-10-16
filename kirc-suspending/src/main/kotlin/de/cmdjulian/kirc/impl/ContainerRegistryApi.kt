@@ -12,6 +12,7 @@ import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import kotlinx.io.Buffer
 import kotlinx.io.Source
+import java.nio.file.Path
 
 /**
  * Defines the calls to the container registry API
@@ -80,7 +81,7 @@ internal interface ContainerRegistryApi {
     suspend fun uploadBlobStream(
         session: UploadSession,
         digest: Digest,
-        stream: RequestBodyType.Stream,
+        path: Path,
         size: Long,
     ): Result<Digest, KircApiError>
 

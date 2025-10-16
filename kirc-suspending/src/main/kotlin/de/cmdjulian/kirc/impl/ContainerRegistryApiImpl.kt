@@ -50,6 +50,7 @@ import kotlinx.io.asSource
 import kotlinx.io.buffered
 import kotlinx.io.readByteArray
 import java.net.URI
+import java.nio.file.Path
 
 private const val APPLICATION_JSON = "application/json"
 private const val APPLICATION_OCTET_STREAM = "application/octet-stream"
@@ -196,14 +197,14 @@ internal class ContainerRegistryApiImpl(
     override suspend fun uploadBlobStream(
         session: UploadSession,
         digest: Digest,
-        stream: RequestBodyType.Stream,
+        path: Path,
         size: Long,
-    ): Result<Digest, KircApiError> = retriable.execute(stream) {
+    ): Result<Digest, KircApiError> = retriable.execute {
         client.put(session.location) {
             parameter("digest", digest.toString())
             header(HttpHeaders.ContentType, APPLICATION_OCTET_STREAM)
             header(HttpHeaders.ContentLength, size)
-            setBody(stream.channel())
+            setBody(RepeatableFileContent(path))
         }
     }.map(HttpResponse::toDigest)
 
