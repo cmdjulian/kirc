@@ -25,11 +25,16 @@ import de.cmdjulian.kirc.spec.manifest.DockerManifestV2
 import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestV1
+import de.cmdjulian.kirc.utils.toKotlinPath
 import de.cmdjulian.kirc.utils.toRegistryClientError
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.io.Buffer
 import kotlinx.io.Sink
 import kotlinx.io.Source
 import kotlinx.io.asInputStream
+import kotlinx.io.buffered
+import kotlinx.io.files.SystemFileSystem
 import java.nio.file.Path
 
 internal class SuspendingContainerImageRegistryClientImpl(private val api: ContainerRegistryApi, tmpPath: Path) :
@@ -123,22 +128,32 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
     override suspend fun uploadBlobStream(session: UploadSession, digest: Digest, path: Path, size: Long): Digest =
         api.uploadBlobStream(session, digest, path, size).getOrElse { throw it.toRegistryClientError() }
 
-    override suspend fun uploadBlobChunks(session: UploadSession, blob: Source, chunkSize: Long): UploadSession =
-        blob.use { stream ->
-            var returnedSession = session
+    override suspend fun uploadBlobChunks(session: UploadSession, path: Path, chunkSize: Long): UploadSession =
+        withContext(Dispatchers.IO) {
+            SystemFileSystem.source(path.toKotlinPath()).buffered()
+        }.use { stream ->
+            var currentSession = session
             var startRange = 0L
-            var endRange: Long
 
             while (!stream.exhausted()) {
                 val buffer = Buffer()
-                stream.readAtMostTo(buffer, chunkSize)
-                endRange = startRange + buffer.size - 1
-                returnedSession = api.uploadBlobChunked(returnedSession, buffer, startRange, endRange)
+                var readTotal = 0L
+                // Accumulate up to chunkSize bytes (may span multiple 8192-byte segments)
+                while (readTotal < chunkSize && !stream.exhausted()) {
+                    val read = stream.readAtMostTo(buffer, chunkSize - readTotal)
+                    if (read == 0L) break
+                    readTotal += read
+                }
+                if (buffer.size == 0L) break
+
+                val endRange = startRange + buffer.size - 1
+                currentSession = api.uploadBlobChunked(currentSession, buffer, startRange, endRange)
                     .getOrElse { throw it.toRegistryClientError() }
-                startRange = endRange
+
+                startRange = endRange + 1 // advance past last byte of previous chunk
             }
 
-            returnedSession
+            currentSession
         }
 
     override suspend fun finishBlobUpload(session: UploadSession, digest: Digest): Digest =

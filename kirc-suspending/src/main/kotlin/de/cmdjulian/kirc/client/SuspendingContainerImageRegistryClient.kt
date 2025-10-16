@@ -110,7 +110,7 @@ interface SuspendingContainerImageRegistryClient {
      *
      * [chunkSize] - Chunk Size in Bytes, defaulting to 10 MiB
      */
-    suspend fun uploadBlobChunks(session: UploadSession, blob: Source, chunkSize: Long = 10 * 1048576L): UploadSession
+    suspend fun uploadBlobChunks(session: UploadSession, path: Path, chunkSize: Long = 10 * 1048576L): UploadSession
 
     /**
      * Uploads an entire blob by stream

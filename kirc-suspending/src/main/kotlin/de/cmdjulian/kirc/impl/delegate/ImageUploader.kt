@@ -90,17 +90,11 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
         if (!client.existsBlob(repository, blob.digest)) {
             val session = client.initiateBlobUpload(repository)
 
-            val createSource: suspend () -> Source = {
-                withContext(Dispatchers.IO) {
-                    SystemFileSystem.source(blob.path.toKotlinPath()).buffered()
-                }
-            }
-
             when (mode) {
                 BlobUploadMode.Stream -> client.uploadBlobStream(session, blob.digest, blob.path, blob.size)
 
                 is BlobUploadMode.Chunks -> {
-                    val endSession = client.uploadBlobChunks(session, createSource(), mode.chunkSize)
+                    val endSession = client.uploadBlobChunks(session, blob.path, mode.chunkSize)
                     // chunked upload requires a final request
                     client.finishBlobUpload(endSession, blob.digest)
                 }
