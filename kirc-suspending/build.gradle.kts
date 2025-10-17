@@ -37,7 +37,7 @@ dependencies {
     implementation("io.github.hakky54:sslcontext-kickstart:8.3.7")
 
     // tar file handling
-    implementation("org.apache.commons:commons-compress:1.26.1")
+    implementation("org.apache.commons:commons-compress:1.28.0")
 
     // tests
     testImplementation(project(":kirc-blocking"))
