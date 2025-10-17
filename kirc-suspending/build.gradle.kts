@@ -12,13 +12,20 @@ dependencies {
     implementation(kotlin("stdlib"))
     implementation(libs.coroutines)
     api(libs.kotlinx.io)
+    implementation("io.ktor:ktor-client-auth:2.3.12")
 
     // graal reflect config
     kapt(graalHints.processor)
     compileOnly(graalHints.annotations)
 
-    // fuel
-    implementation("com.github.kittinunf.fuel:fuel:2.3.1")
+    // http client
+    implementation("io.ktor:ktor-client-core:2.3.12")
+    implementation("io.ktor:ktor-client-cio:2.3.12")
+    implementation("io.ktor:ktor-client-logging:2.3.12")
+    implementation("io.ktor:ktor-client-content-negotiation:2.3.12")
+    implementation("io.ktor:ktor-serialization-jackson:2.3.12")
+    // explicit result library
+    implementation("com.github.kittinunf.result:result:5.0.0")
 
     // auth header parsing
     implementation("im.toss:http-auth-parser:0.1.2")

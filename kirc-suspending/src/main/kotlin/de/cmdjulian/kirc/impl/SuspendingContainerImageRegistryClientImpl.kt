@@ -2,7 +2,8 @@ package de.cmdjulian.kirc.impl
 
 import com.github.kittinunf.result.getOrElse
 import com.github.kittinunf.result.map
-import com.github.kittinunf.result.onError
+import com.github.kittinunf.result.onFailure
+import de.cmdjulian.kirc.client.BlobUploadMode
 import de.cmdjulian.kirc.client.SuspendingContainerImageClient
 import de.cmdjulian.kirc.client.SuspendingContainerImageRegistryClient
 import de.cmdjulian.kirc.image.ContainerImageName
@@ -16,6 +17,7 @@ import de.cmdjulian.kirc.impl.response.Catalog
 import de.cmdjulian.kirc.impl.response.ResultSource
 import de.cmdjulian.kirc.impl.response.TagList
 import de.cmdjulian.kirc.impl.response.UploadSession
+import de.cmdjulian.kirc.impl.serialization.jacksonDeserializer
 import de.cmdjulian.kirc.spec.image.DockerImageConfigV1
 import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.image.OciImageConfigV1
@@ -42,7 +44,7 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
     private val uploader = ImageUploader(this, tmpPath)
 
     override suspend fun testConnection() {
-        api.ping().onError {
+        api.ping().onFailure {
             throw it.toRegistryClientError()
         }
     }
@@ -51,7 +53,7 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
         api.existsBlob(repository, digest)
             .map { true }
             .getOrElse { error ->
-                if (error.response.statusCode == 404) {
+                if (error.statusCode == 404) {
                     false
                 } else {
                     throw error.toRegistryClientError(repository, digest)
@@ -77,7 +79,7 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
         api.digest(repository, reference)
             .map { true }
             .getOrElse {
-                if (it.response.statusCode == 404) false else throw it.toRegistryClientError(repository, reference)
+                if (it.statusCode == 404) false else throw it.toRegistryClientError(repository, reference)
             }
 
     override suspend fun manifest(repository: Repository, reference: Reference): Manifest =
@@ -123,8 +125,8 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
     override suspend fun initiateBlobUpload(repository: Repository): UploadSession =
         api.initiateUpload(repository).getOrElse { throw it.toRegistryClientError(repository, null) }
 
-    override suspend fun uploadBlobStream(session: UploadSession, stream: Source): UploadSession =
-        api.uploadBlobStream(session, stream).getOrElse { throw it.toRegistryClientError() }
+    override suspend fun uploadBlobStream(session: UploadSession, digest: Digest, path: Path, size: Long): Digest =
+        api.uploadBlobStream(session, digest, path, size).getOrElse { throw it.toRegistryClientError() }
 
     override suspend fun uploadBlobChunks(session: UploadSession, path: Path, chunkSize: Long): UploadSession =
         withContext(Dispatchers.IO) {
@@ -162,15 +164,19 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
         api.uploadStatus(session).getOrElse { throw it.toRegistryClientError() }
 
     override suspend fun cancelBlobUpload(session: UploadSession) {
-        api.cancelBlobUpload(session).onError { throw it.toRegistryClientError() }
+        api.cancelBlobUpload(session).onFailure { throw it.toRegistryClientError() }
     }
 
     override suspend fun uploadManifest(repository: Repository, reference: Reference, manifest: Manifest): Digest =
         api.uploadManifest(repository, reference, manifest)
             .getOrElse { throw it.toRegistryClientError(repository, reference) }
 
-    override suspend fun upload(repository: Repository, reference: Reference, tar: Source): Digest =
-        uploader.upload(repository, reference, tar)
+    override suspend fun upload(
+        repository: Repository,
+        reference: Reference,
+        tar: Source,
+        uploadMode: BlobUploadMode,
+    ): Digest = uploader.upload(repository, reference, tar, uploadMode)
 
     override suspend fun download(repository: Repository, reference: Reference): Source =
         downloader.download(repository, reference)
