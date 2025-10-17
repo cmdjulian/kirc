@@ -1,6 +1,6 @@
 package de.cmdjulian.kirc.impl.delegate
 
-import de.cmdjulian.kirc.impl.jacksonDeserializer
+import de.cmdjulian.kirc.impl.serialization.jacksonDeserializer
 import de.cmdjulian.kirc.utils.toKotlinPath
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
