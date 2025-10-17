@@ -12,6 +12,7 @@ import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import kotlinx.io.Sink
 import kotlinx.io.Source
+import java.nio.file.Path
 
 /**
  * Handles calls to the container registry and returns the result upon success.
