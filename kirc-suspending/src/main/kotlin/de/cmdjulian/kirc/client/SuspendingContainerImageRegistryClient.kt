@@ -12,6 +12,7 @@ import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import kotlinx.io.Sink
 import kotlinx.io.Source
+import java.nio.file.Path
 
 /**
  * Handles calls to the container registry and returns the result upon success.
@@ -109,7 +110,7 @@ interface SuspendingContainerImageRegistryClient {
      *
      * [chunkSize] - Chunk Size in Bytes, defaulting to 10 MiB
      */
-    suspend fun uploadBlobChunks(session: UploadSession, blob: Source, chunkSize: Long = 10 * 1048576L): UploadSession
+    suspend fun uploadBlobChunks(session: UploadSession, path: Path, chunkSize: Long = 10 * 1048576L): UploadSession
 
     /**
      * Uploads an entire blob by stream

@@ -62,11 +62,7 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
                                 if (!client.existsBlob(repository, blob.digest)) {
                                     val session = client.initiateBlobUpload(repository)
 
-                                    val source = withContext(Dispatchers.IO) {
-                                        SystemFileSystem.source(blob.path.toKotlinPath()).buffered()
-                                    }
-
-                                    val endSession = client.uploadBlobChunks(session, source)
+                                    val endSession = client.uploadBlobChunks(session, blob.path)
 
                                     client.finishBlobUpload(endSession, blob.digest)
                                 }
