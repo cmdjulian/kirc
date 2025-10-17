@@ -24,10 +24,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.io.Source
 import kotlinx.io.asInputStream
-import kotlinx.io.asSource
 import kotlinx.io.buffered
 import kotlinx.io.files.SystemFileSystem
-import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import java.nio.file.Path
 import java.time.OffsetDateTime
@@ -97,19 +95,20 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
 
             generateSequence(stream::getNextEntry).forEach { entry ->
                 when {
-                    entry.isDirectory -> stream.readEntry(entry)
+                    entry.isDirectory -> stream.skip(entry.size)
 
-                    "blobs/sha256/" in entry.name -> blobs[entry.name] = stream.processBlobEntry(entry, tempDirectory)
+                    entry.name.startsWith("blobs/sha256/") -> blobs[entry.name] =
+                        stream.processBlobEntry(entry, tempDirectory)
 
-                    "index.json" in entry.name -> indexFile = stream.deserializeEntry<ManifestList>(entry)
+                    "index.json" == entry.name -> indexFile = stream.deserializeEntry<ManifestList>(entry)
 
-                    "repositories" in entry.name -> repositoriesFile = stream.deserializeEntry<Repositories>(entry)
+                    "repositories" == entry.name -> repositoriesFile = stream.deserializeEntry<Repositories>(entry)
 
-                    "manifest.json" in entry.name -> manifestJsonFile = stream.deserializeEntry<ManifestJson>(entry)
+                    "manifest.json" == entry.name -> manifestJsonFile = stream.deserializeEntry<ManifestJson>(entry)
 
-                    "oci-layout" in entry.name -> ociLayoutFile = stream.deserializeEntry<OciLayout>(entry)
+                    "oci-layout" == entry.name -> ociLayoutFile = stream.deserializeEntry<OciLayout>(entry)
 
-                    else -> stream.readEntry(entry)
+                    else -> stream.skip(entry.size)
                 }
             }
 
@@ -128,25 +127,6 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
                 layout = ociLayoutFile,
             )
         }
-    }
-
-    private suspend fun TarArchiveInputStream.readEntry(entry: TarArchiveEntry): ByteArray =
-        withContext(Dispatchers.IO) { readNBytes(entry.size.toInt()) }
-
-    // We deserialize entries which aren't blobs. They are small enough to be loaded to memory
-    private suspend inline fun <reified T : Any> TarArchiveInputStream.deserializeEntry(entry: TarArchiveEntry): T =
-        jacksonDeserializer<T>().deserialize(readEntry(entry))
-
-    private suspend fun TarArchiveInputStream.processBlobEntry(entry: TarArchiveEntry, tempDirectory: Path): Path {
-        val blobDigest = entry.name.removePrefix("blobs/sha256/")
-        val tempPath = Path.of(tempDirectory.pathString, blobDigest)
-        withContext(Dispatchers.IO) {
-            SystemFileSystem.sink(tempPath.toKotlinPath()).buffered().also { path ->
-                path.write(this@processBlobEntry.asSource(), entry.size)
-                path.flush()
-            }
-        }
-        return tempPath
     }
 
     private fun resolveBlobPath(blobs: Map<String, Path>, namePart: String): Path =
