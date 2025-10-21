@@ -7,6 +7,8 @@ import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
 import de.cmdjulian.kirc.spec.manifest.ManifestList
+import de.cmdjulian.kirc.testcontainer.AuthServerTestContainer
+import de.cmdjulian.kirc.testcontainer.RegistryTestContainerBearer
 import io.kotest.assertions.throwables.shouldNotThrowAny
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -24,15 +26,19 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.testcontainers.containers.Network
 import java.net.URI
+import java.security.KeyStore
+import java.security.cert.CertificateFactory
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-internal class BlockingRegistryTest {
+internal class RegistryBearerAuthTest {
     private lateinit var client: BlockingContainerImageRegistryClient
-    private lateinit var registry: RegistryTestContainer
+    private lateinit var registry: RegistryTestContainerBearer
     private lateinit var cliHelper: DockerRegistryCliHelper
+    private lateinit var authServer: AuthServerTestContainer
 
-    private val helloWorldImage = javaClass.getResource("/hello-world.tar") ?: error("Resource not found")
+    private val helloWorldImage = javaClass.getResource("/hello-world.tar") ?: error("hello-world.tar not found")
     private val digestManifest = Digest("sha256:26c9f8a26a5f87d187957cf2d77efc7cf4d797e7fc55eee65316a0b62ae43034")
     private val digestConfig = Digest("sha256:74cc54e27dc41bb10dc4b2226072d469509f2f22f1a3ce74f4a59661a1d44602")
     private val digestLayer = Digest("sha256:63a41026379f4391a306242eb0b9f26dc3550d863b7fdbb97d899f6eb89efe72")
@@ -40,15 +46,28 @@ internal class BlockingRegistryTest {
 
     @BeforeEach
     fun startRegistry() {
-        registry = RegistryTestContainer().apply { start() }
-        client = BlockingContainerImageClientFactory.create(registry.addressHttp.let(URI::create), credentials)
+        val network = Network.newNetwork()
+        val certStream = javaClass.getResource("/cert.pem")?.openStream() ?: error("cert.pem not found")
+        val cert = CertificateFactory.getInstance("X.509").generateCertificate(certStream)
+        val ks = KeyStore.getInstance(KeyStore.getDefaultType()).apply {
+            load(null, null)
+            setCertificateEntry("auth-cert", cert)
+        }
+        authServer = AuthServerTestContainer(network).apply { start() }
+        registry = RegistryTestContainerBearer(network, authServer.addressAuth).apply { start() }
+        client = BlockingContainerImageClientFactory.create(
+            url = registry.addressHttp.let(URI::create),
+            credentials = credentials,
+            keystore = ks,
+        )
         cliHelper = DockerRegistryCliHelper(registry.addressHttp, credentials)
     }
 
     @AfterEach
     fun stopRegistry() {
-        cliHelper.deleteAll()
+        authServer.stop()
         registry.stop()
+        cliHelper.deleteAll()
     }
 
     @Test

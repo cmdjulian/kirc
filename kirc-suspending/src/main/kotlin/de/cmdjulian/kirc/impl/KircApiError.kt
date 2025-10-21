@@ -42,7 +42,7 @@ internal sealed class KircApiError(
         url: Url,
         method: HttpMethod,
         override val cause: Throwable,
-    ) : KircApiError(-1, url, method, cause, cause.message ?: "Network error: '${cause.message}'") {
+    ) : KircApiError(-1, url, method, cause, cause.message ?: "Unknown network error") {
         override fun toString(): String = "KircApiError.Network -> ${this@Network.message}"
     }
 
@@ -57,8 +57,45 @@ internal sealed class KircApiError(
         statusCode: Int,
         url: Url,
         method: HttpMethod,
-        message: String,
+        override val message: String,
     ) : KircApiError(statusCode, url, method, null, message) {
         override fun toString(): String = "KircApiError.Header -> ${this@Header.message}"
+    }
+
+    /**
+     * Thrown when parsing json responses from api calls was unsuccessful.
+     *
+     * E.g. when deserializing error responses from the registry or the token response from the auth server.
+     */
+    class Json(
+        statusCode: Int,
+        url: Url,
+        method: HttpMethod,
+        override val cause: Throwable,
+        message: String,
+    ) : KircApiError(statusCode, url, method, cause, message) {
+        override fun toString(): String = "KircApiError.Json -> ${this@Json.message}"
+    }
+
+    /**
+     * Thrown when an authentication bearer token could not be retrieved from the auth server.
+     */
+    class Bearer(
+        statusCode: Int,
+        url: Url,
+        method: HttpMethod,
+        override val message: String,
+    ) : KircApiError(statusCode, url, method, null, message) {
+        override fun toString(): String = "KircApiError.Bearer -> ${this@Bearer.message}"
+    }
+
+    /**
+     * Unknown error occurred.
+     *
+     * Should not happen, but is here for completeness.
+     */
+    class Unknown(override val cause: Throwable) :
+        KircApiError(-1, Url("/"), HttpMethod("?"), cause, cause.message ?: "Unknown error") {
+        override fun toString(): String = "KircApiError.Unknown -> ${this@Unknown.message}"
     }
 }

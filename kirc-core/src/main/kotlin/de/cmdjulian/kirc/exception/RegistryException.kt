@@ -42,13 +42,24 @@ sealed class RegistryException(
         override fun toString() = "RegistryException.HeaderMissing -> $message"
     }
 
+    class JsonParsingException(
+        url: URL,
+        repository: Repository?,
+        reference: Reference?,
+        message: String,
+        cause: Throwable,
+    ) : RegistryException(url, repository, reference, "Error parsing response: $message", cause) {
+
+        override fun toString() = "RegistryException.JsonParsingException -> $message"
+    }
+
     /** Base exception for error codes returned by registry. */
     sealed class ClientException(
         url: URL,
         repository: Repository?,
         reference: Reference?,
         message: String,
-        val error: RegistryErrorResponse,
+        val error: RegistryErrorResponse?,
         cause: Throwable,
     ) : RegistryException(url, repository, reference, message, cause) {
 
@@ -57,7 +68,7 @@ sealed class RegistryException(
             url: URL,
             repository: Repository?,
             reference: Reference?,
-            error: RegistryErrorResponse,
+            error: RegistryErrorResponse?,
             message: String,
             cause: Throwable,
         ) : ClientException(url, repository, reference, "Bad request: $message", error, cause) {
@@ -69,7 +80,7 @@ sealed class RegistryException(
             url: URL,
             repository: Repository?,
             reference: Reference?,
-            error: RegistryErrorResponse,
+            error: RegistryErrorResponse?,
             message: String,
             cause: Throwable,
         ) : ClientException(url, repository, reference, "Authentication required: $message", error, cause) {
@@ -81,7 +92,7 @@ sealed class RegistryException(
             url: URL,
             repository: Repository?,
             reference: Reference?,
-            error: RegistryErrorResponse,
+            error: RegistryErrorResponse?,
             message: String,
             cause: Throwable,
         ) : ClientException(url, repository, reference, "Authorization required: $message", error, cause) {
@@ -93,7 +104,7 @@ sealed class RegistryException(
             url: URL,
             repository: Repository?,
             reference: Reference?,
-            error: RegistryErrorResponse,
+            error: RegistryErrorResponse?,
             message: String,
             cause: Throwable,
         ) : ClientException(url, repository, reference, "Not Found: $message", error, cause) {
@@ -105,7 +116,7 @@ sealed class RegistryException(
             url: URL,
             repository: Repository?,
             reference: Reference?,
-            error: RegistryErrorResponse,
+            error: RegistryErrorResponse?,
             message: String,
             cause: Throwable,
         ) : ClientException(url, repository, reference, "Method not allowed: $message", error, cause) {
@@ -117,7 +128,7 @@ sealed class RegistryException(
             url: URL,
             repository: Repository?,
             reference: Reference?,
-            error: RegistryErrorResponse,
+            error: RegistryErrorResponse?,
             message: String,
             cause: Throwable,
         ) : ClientException(url, repository, reference, "Requested range not satisfiable: $message", error, cause) {
@@ -129,7 +140,7 @@ sealed class RegistryException(
             url: URL,
             repository: Repository?,
             reference: Reference?,
-            error: RegistryErrorResponse,
+            error: RegistryErrorResponse?,
             message: String,
             cause: Throwable,
         ) : ClientException(url, repository, reference, "Too many requests: $message", error, cause) {
@@ -141,7 +152,7 @@ sealed class RegistryException(
             url: URL,
             repository: Repository?,
             reference: Reference?,
-            error: RegistryErrorResponse,
+            error: RegistryErrorResponse?,
             message: String,
             cause: Throwable,
         ) : ClientException(url, repository, reference, "Unknown error returned by server: $message", error, cause) {

@@ -1,8 +1,8 @@
-package de.cmdjulian.kirc
+package de.cmdjulian.kirc.testcontainer
 
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.wait.strategy.Wait
-import org.testcontainers.utility.MountableFile.forClasspathResource
+import org.testcontainers.utility.MountableFile
 
 class RegistryTestContainer() : GenericContainer<RegistryTestContainer>("registry:2") {
 
@@ -11,7 +11,7 @@ class RegistryTestContainer() : GenericContainer<RegistryTestContainer>("registr
     init {
         withNetworkAliases("localhost")
         withExposedPorts(5000)
-        withCopyFileToContainer(forClasspathResource("htpasswd"), "/auth/htpasswd")
+        withCopyFileToContainer(MountableFile.forClasspathResource("htpasswd"), "/auth/htpasswd")
 
         withEnv("REGISTRY_AUTH", "htpasswd")
         withEnv("REGISTRY_AUTH_HTPASSWD_PATH", "/auth/htpasswd")
