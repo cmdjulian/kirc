@@ -15,7 +15,6 @@ import io.ktor.client.engine.ProxyBuilder
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.engine.cio.CIOEngineConfig
 import io.ktor.client.engine.http
-import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.auth.Auth
 import io.ktor.client.plugins.auth.providers.BasicAuthCredentials
 import io.ktor.client.plugins.auth.providers.BearerTokens
@@ -36,6 +35,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.jackson.JacksonConverter
+import java.net.InetSocketAddress
 import java.net.Proxy
 import java.net.URI
 import java.nio.file.Path
@@ -65,7 +65,7 @@ object SuspendingContainerImageClientFactory {
         proxy: Proxy? = null,
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
-        timeout: Duration = Duration.ofSeconds(5),
+        timeout: Duration = Duration.ofSeconds(10),
         tmpPath: Path = Path(System.getProperty("java.io.tmpdir")),
     ): SuspendingContainerImageRegistryClient {
         require(keystore == null || !skipTlsVerify) { "can not skip tls verify if a keystore is set" }
@@ -76,16 +76,11 @@ object SuspendingContainerImageClientFactory {
                 requestTimeout = timeout.toMillis()
                 if (proxy != null) {
                     val address = proxy.address()
-                    if (address is java.net.InetSocketAddress) {
+                    if (address is InetSocketAddress) {
                         this.proxy = ProxyBuilder.http("http://${address.hostString}:${address.port}")
                     }
                 }
                 configureHttps(skipTlsVerify, keystore)
-            }
-            install(HttpTimeout) {
-                requestTimeoutMillis = timeout.toMillis()
-                connectTimeoutMillis = timeout.toMillis()
-                socketTimeoutMillis = timeout.toMillis()
             }
             install(ContentNegotiation) {
                 // re-use existing ObjectMapper instance
@@ -264,7 +259,7 @@ object SuspendingContainerImageClientFactory {
         insecure: Boolean = false,
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
-        timeout: Duration = Duration.ofSeconds(5),
+        timeout: Duration = Duration.ofSeconds(10),
         tmpPath: Path = Path(System.getProperty("java.io.tmpdir")),
     ): SuspendingContainerImageClient {
         val url = "${if (insecure) "http://" else "https://"}${image.registry}"
