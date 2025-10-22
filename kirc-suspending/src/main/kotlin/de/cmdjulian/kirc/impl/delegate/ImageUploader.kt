@@ -45,13 +45,10 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
     suspend fun upload(repository: Repository, reference: Reference, tar: Source, mode: BlobUploadMode): Digest =
         coroutineScope {
             // store data temporarily (sanitize name for cross-platform safety, replace ':' which is invalid on Windows)
-            val timePart =
-                OffsetDateTime.now().truncatedTo(ChronoUnit.SECONDS).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+            val timePart = OffsetDateTime.now().truncatedTo(ChronoUnit.SECONDS)
+                .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
             val safeRef = reference.toString().replace(':', '_')
-            val tempDirectory = Path.of(
-                tmpPath.pathString,
-                "${timePart}--$repository--$safeRef",
-            )
+            val tempDirectory = Path.of(tmpPath.pathString, "$timePart--$repository--$safeRef")
             withContext(Dispatchers.IO) {
                 SystemFileSystem.createDirectories(tempDirectory.toKotlinPath())
             }
@@ -81,7 +78,7 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
                 // upload index (manifest list) last
                 client.uploadManifest(repository, reference, uploadContainerImage.index)
             } catch (e: RuntimeException) {
-                throw handleError(e)
+                handleError(e)
             } finally {
                 // clear up temporary blob files
                 runCatching { cleanupTempDirectory(tempDirectory) }
@@ -107,14 +104,16 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
         }
     }
 
-    private fun handleError(e: Exception): RuntimeException = when (e) {
-        is KircException, is RegistryException -> e
-        else -> KircException.UnexpectedError(
-            "Unexpected error, could not upload image to registry: ${e.cause}",
-            e,
-        )
-    }.also { kircException ->
-        logger.error(kircException) { "Error uploading image to registry" }
+    private fun handleError(e: Exception): Nothing {
+        val sanitizedError = when (e) {
+            is KircException, is RegistryException -> e
+            else -> KircException.UnexpectedError(
+                "Unexpected error, could not upload image to registry: ${e.cause}",
+                e,
+            )
+        }
+        logger.error(sanitizedError) { "Error uploading image to registry" }
+        throw sanitizedError
     }
 
     private suspend fun cleanupTempDirectory(tempDirectory: Path) {
