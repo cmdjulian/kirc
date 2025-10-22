@@ -6,6 +6,7 @@ import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
+import de.cmdjulian.kirc.impl.KircApiError
 import de.cmdjulian.kirc.impl.serialization.JsonMapper
 import de.cmdjulian.kirc.spec.ManifestJson
 import de.cmdjulian.kirc.spec.ManifestJsonEntry
@@ -246,9 +247,9 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
     private fun handleError(e: Exception): Nothing {
         downloaderLogger.error(e) { "Error downloading image from registry" }
         when (e) {
-            is KircException -> throw e
+            is KircException, is KircApiError -> throw e
             else -> throw KircException.UnexpectedError(
-                "Unexpected error, could not download image from registry: ${e.cause}",
+                "Could not download image from registry: ${e.cause}",
                 e,
             )
         }

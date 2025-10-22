@@ -7,7 +7,8 @@ import de.cmdjulian.kirc.exception.RegistryException
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
-import de.cmdjulian.kirc.impl.serialization.jacksonDeserializer
+import de.cmdjulian.kirc.impl.serialization.JsonMapper
+import de.cmdjulian.kirc.impl.serialization.deserialize
 import de.cmdjulian.kirc.spec.ManifestJson
 import de.cmdjulian.kirc.spec.OciLayout
 import de.cmdjulian.kirc.spec.Repositories
@@ -185,7 +186,13 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
         val manifestStream = withContext(Dispatchers.IO) {
             SystemFileSystem.source(blobPath.toKotlinPath()).buffered().asInputStream()
         }
-        return jacksonDeserializer<ManifestSingle>().deserialize(manifestStream)
+        return runCatching { JsonMapper.deserialize<ManifestSingle>(manifestStream) }
+            .getOrElse {
+                throw KircException.CorruptArchiveError(
+                    "Failed to deserialize manifest '${manifestEntry.digest}' from archive",
+                    it,
+                )
+            }
     }
 
     /**

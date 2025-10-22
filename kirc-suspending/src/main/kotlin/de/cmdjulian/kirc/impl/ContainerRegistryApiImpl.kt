@@ -12,7 +12,6 @@ import de.cmdjulian.kirc.impl.response.ResultSource
 import de.cmdjulian.kirc.impl.response.TagList
 import de.cmdjulian.kirc.impl.response.UploadSession
 import de.cmdjulian.kirc.impl.serialization.JsonMapper
-import de.cmdjulian.kirc.impl.serialization.jacksonDeserializer
 import de.cmdjulian.kirc.spec.RegistryErrorResponse
 import de.cmdjulian.kirc.spec.blob.DockerBlobMediaType
 import de.cmdjulian.kirc.spec.blob.OciBlobMediaTypeGzip
@@ -85,11 +84,15 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
     private fun HttpStatusCode.isSuccess() = value in 200..299
 
     // Tries to parse the error response body, otherwise returns a generic JSON error.
-    private suspend fun HttpResponse.toErrorResponse() = bodyAsText()
-        .runCatching(jacksonDeserializer<RegistryErrorResponse>()::deserialize)
+    private suspend fun HttpResponse.toErrorResponse() = runCatching { body<RegistryErrorResponse>() }
         .fold(
             onSuccess = {
-                KircApiError.Registry(statusCode = status.value, url = request.url, method = request.method, body = it)
+                KircApiError.Registry(
+                    statusCode = status.value,
+                    url = request.url,
+                    method = request.method,
+                    body = it,
+                )
             },
             onFailure = {
                 KircApiError.Json(

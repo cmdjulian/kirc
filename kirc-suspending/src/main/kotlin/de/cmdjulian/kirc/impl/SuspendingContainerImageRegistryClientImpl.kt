@@ -6,6 +6,7 @@ import com.github.kittinunf.result.onFailure
 import de.cmdjulian.kirc.client.BlobUploadMode
 import de.cmdjulian.kirc.client.SuspendingContainerImageClient
 import de.cmdjulian.kirc.client.SuspendingContainerImageRegistryClient
+import de.cmdjulian.kirc.exception.KircException
 import de.cmdjulian.kirc.image.ContainerImageName
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
@@ -17,7 +18,8 @@ import de.cmdjulian.kirc.impl.response.Catalog
 import de.cmdjulian.kirc.impl.response.ResultSource
 import de.cmdjulian.kirc.impl.response.TagList
 import de.cmdjulian.kirc.impl.response.UploadSession
-import de.cmdjulian.kirc.impl.serialization.jacksonDeserializer
+import de.cmdjulian.kirc.impl.serialization.JsonMapper
+import de.cmdjulian.kirc.impl.serialization.deserialize
 import de.cmdjulian.kirc.spec.image.DockerImageConfigV1
 import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.image.OciImageConfigV1
@@ -30,6 +32,7 @@ import de.cmdjulian.kirc.utils.toRegistryClientError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.io.Buffer
+import kotlinx.io.EOFException
 import kotlinx.io.Sink
 import kotlinx.io.Source
 import kotlinx.io.asInputStream
@@ -113,9 +116,16 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
         api.blobStream(repository, manifest.config.digest)
             .map(Source::asInputStream)
             .map { config ->
-                when (manifest) {
-                    is DockerManifestV2 -> jacksonDeserializer<DockerImageConfigV1>().deserialize(config)
-                    is OciManifestV1 -> jacksonDeserializer<OciImageConfigV1>().deserialize(config)
+                runCatching {
+                    when (manifest) {
+                        is DockerManifestV2 -> JsonMapper.deserialize<DockerImageConfigV1>(config)
+                        is OciManifestV1 -> JsonMapper.deserialize<OciImageConfigV1>(config)
+                    }
+                }.getOrElse {
+                    throw KircException.UnexpectedError(
+                        "Failed to deserialize image config for manifest type ${manifest::class.simpleName}",
+                        it,
+                    )
                 }
             }
             .getOrElse { throw it.toRegistryClientError(repository) }
@@ -129,30 +139,26 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
         api.uploadBlobStream(session, digest, path, size).getOrElse { throw it.toRegistryClientError() }
 
     override suspend fun uploadBlobChunks(session: UploadSession, path: Path, chunkSize: Long): UploadSession =
-        withContext(Dispatchers.IO) {
-            SystemFileSystem.source(path.toKotlinPath()).buffered()
-        }.use { stream ->
+        withContext(Dispatchers.IO) { SystemFileSystem.source(path.toKotlinPath()).buffered() }.use { stream ->
             var currentSession = session
             var startRange = 0L
 
             while (!stream.exhausted()) {
                 val buffer = Buffer()
-                var readTotal = 0L
-                // Accumulate up to chunkSize bytes (may span multiple 8192-byte segments)
-                while (readTotal < chunkSize && !stream.exhausted()) {
-                    val read = stream.readAtMostTo(buffer, chunkSize - readTotal)
-                    if (read == 0L) break
-                    readTotal += read
+                // read up to chunkSize bytes into buffer
+                try {
+                    // readTo exhausts stream when EOF is reached and then throws EOFException
+                    stream.readTo(buffer, chunkSize)
+                } catch (_: EOFException) {
+                    // expected behavior when EOF is reached
+                } finally {
+                    val bytesRead = buffer.size
+                    val endRange = startRange + bytesRead - 1
+                    currentSession = api.uploadBlobChunked(currentSession, buffer, startRange, endRange)
+                        .getOrElse { throw it.toRegistryClientError() }
+                    startRange = endRange + 1
                 }
-                if (buffer.size == 0L) break
-
-                val endRange = startRange + buffer.size - 1
-                currentSession = api.uploadBlobChunked(currentSession, buffer, startRange, endRange)
-                    .getOrElse { throw it.toRegistryClientError() }
-
-                startRange = endRange + 1 // advance past last byte of previous chunk
             }
-
             currentSession
         }
 

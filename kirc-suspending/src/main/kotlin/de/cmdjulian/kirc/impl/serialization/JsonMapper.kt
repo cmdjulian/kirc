@@ -3,6 +3,7 @@ package de.cmdjulian.kirc.impl.serialization
 import com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES
 import com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES
 import com.fasterxml.jackson.databind.DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_USING_DEFAULT_VALUE
+import com.fasterxml.jackson.databind.json.JsonMapper
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.KotlinFeature.NullToEmptyCollection
@@ -14,6 +15,7 @@ import com.fasterxml.jackson.module.kotlin.kotlinModule
 import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
+import java.io.InputStream
 
 private val KotlinModule = kotlinModule {
     configure(NullToEmptyCollection, true)
@@ -33,3 +35,8 @@ internal val JsonMapper = jsonMapper {
     addMixIn(ManifestSingle::class.java, ManifestSingleMixIn::class.java)
     addMixIn(ManifestList::class.java, ManifestListMixIn::class.java)
 }
+
+internal inline fun <reified T> JsonMapper.deserialize(bytes: ByteArray): T = readValue(bytes, T::class.java)
+
+internal inline fun <reified T> JsonMapper.deserialize(inputStream: InputStream): T =
+    readValue(inputStream, T::class.java)

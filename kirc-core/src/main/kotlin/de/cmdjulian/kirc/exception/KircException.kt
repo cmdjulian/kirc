@@ -11,7 +11,8 @@ sealed class KircException(message: String, cause: Throwable? = null) : RuntimeE
      * - file metadata couldn't be determined
      * - index file or oci-layout file missing
      */
-    class CorruptArchiveError(message: String) : KircException("Corrupt archive: $message") {
+    class CorruptArchiveError(message: String, cause: Throwable? = null) :
+        KircException("Corrupt archive: $message", cause) {
         override fun toString() = "KircException.CorruptArchive -> $message"
     }
 

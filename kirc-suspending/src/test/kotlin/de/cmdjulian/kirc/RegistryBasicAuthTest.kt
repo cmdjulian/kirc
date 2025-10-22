@@ -1,5 +1,6 @@
 package de.cmdjulian.kirc
 
+import de.cmdjulian.kirc.client.BlobUploadMode
 import de.cmdjulian.kirc.client.BlockingContainerImageClientFactory
 import de.cmdjulian.kirc.client.BlockingContainerImageRegistryClient
 import de.cmdjulian.kirc.client.RegistryCredentials
@@ -152,7 +153,7 @@ internal class RegistryBasicAuthTest {
     }
 
     @Test
-    fun `upload - to registry`() {
+    fun `upload - stream`() {
         val data = SystemFileSystem.source(Path(helloWorldImage.path))
         val repository = Repository("python")
         val tag = Tag("test")
@@ -160,7 +161,22 @@ internal class RegistryBasicAuthTest {
         client.exists(repository, tag) shouldBe false
 
         shouldNotThrowAny {
-            client.upload(repository, tag, data.buffered().asInputStream())
+            client.upload(repository, tag, data.buffered().asInputStream(), BlobUploadMode.Stream)
+        }
+
+        client.exists(repository, tag) shouldBe true
+    }
+
+    @Test
+    fun `upload - chunked`() {
+        val data = SystemFileSystem.source(Path(helloWorldImage.path))
+        val repository = Repository("python")
+        val tag = Tag("test")
+
+        client.exists(repository, tag) shouldBe false
+
+        shouldNotThrowAny {
+            client.upload(repository, tag, data.buffered().asInputStream(), BlobUploadMode.Chunks(1024))
         }
 
         client.exists(repository, tag) shouldBe true

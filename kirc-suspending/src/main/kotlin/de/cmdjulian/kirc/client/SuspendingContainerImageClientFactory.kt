@@ -7,10 +7,10 @@ import de.cmdjulian.kirc.impl.SuspendingContainerImageClientImpl
 import de.cmdjulian.kirc.impl.SuspendingContainerImageRegistryClientImpl
 import de.cmdjulian.kirc.impl.response.TokenResponse
 import de.cmdjulian.kirc.impl.serialization.JsonMapper
-import de.cmdjulian.kirc.impl.serialization.jacksonDeserializer
 import im.toss.http.parser.HttpAuthCredentials
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
+import io.ktor.client.call.body
 import io.ktor.client.engine.ProxyBuilder
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.engine.cio.CIOEngineConfig
@@ -240,7 +240,7 @@ object SuspendingContainerImageClientFactory {
                 message = "Could not retrieve bearer token (status=${response.bodyAsText()})",
             )
         }
-        response.bodyAsText().runCatching(jacksonDeserializer<TokenResponse>()::deserialize).getOrElse {
+        runCatching { response.body<TokenResponse>() }.getOrElse {
             throw KircApiError.Json(
                 statusCode = response.status.value,
                 url = response.request.url,
