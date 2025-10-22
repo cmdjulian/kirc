@@ -129,7 +129,9 @@ object SuspendingContainerImageClientFactory {
             credentials {
                 if (credentials != null) {
                     BasicAuthCredentials(username = credentials.username, password = credentials.password)
-                } else null
+                } else {
+                    null
+                }
             }
             sendWithoutRequest { request ->
                 "v2" in request.url.pathSegments
@@ -141,7 +143,9 @@ object SuspendingContainerImageClientFactory {
             refreshTokens {
                 if (credentials != null) {
                     bearerAuth(credentials)?.also(bearerTokenStorage::add)
-                } else null
+                } else {
+                    null
+                }
             }
             sendWithoutRequest { request ->
                 "v2" in request.url.pathSegments
@@ -219,12 +223,14 @@ object SuspendingContainerImageClientFactory {
             markAsRefreshTokenRequest()
         }
     }.map { response ->
-        if (response.status.isError()) throw KircApiError.Bearer(
-            statusCode = response.status.value,
-            url = response.request.url,
-            method = response.request.method,
-            message = "Could not retrieve bearer token (status=${response.bodyAsText()})",
-        )
+        if (response.status.isError()) {
+            throw KircApiError.Bearer(
+                statusCode = response.status.value,
+                url = response.request.url,
+                method = response.request.method,
+                message = "Could not retrieve bearer token (status=${response.bodyAsText()})",
+            )
+        }
         response.bodyAsText().runCatching(jacksonDeserializer<TokenResponse>()::deserialize).getOrElse {
             throw KircApiError.Json(
                 statusCode = response.status.value,

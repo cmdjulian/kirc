@@ -68,20 +68,19 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
      *
      * If not, a [KircApiError.Unknown] is created with the original exception
      */
-    private suspend fun execute(block: suspend () -> HttpResponse): Result<HttpResponse, KircApiError> =
-        runCatching {
-            val result = block()
-            if (result.status.isSuccess()) result else throw result.toErrorResponse()
-        }.fold(
-            onSuccess = { Result.success(it) },
-            onFailure = { throwable ->
-                if (throwable is KircApiError) {
-                    Result.failure(throwable)
-                } else {
-                    Result.failure(KircApiError.Unknown(throwable))
-                }
-            },
-        )
+    private suspend fun execute(block: suspend () -> HttpResponse): Result<HttpResponse, KircApiError> = runCatching {
+        val result = block()
+        if (result.status.isSuccess()) result else throw result.toErrorResponse()
+    }.fold(
+        onSuccess = { Result.success(it) },
+        onFailure = { throwable ->
+            if (throwable is KircApiError) {
+                Result.failure(throwable)
+            } else {
+                Result.failure(KircApiError.Unknown(throwable))
+            }
+        },
+    )
 
     private fun HttpStatusCode.isSuccess() = value in 200..299
 
@@ -189,27 +188,23 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
 
     // Blob
 
-    override suspend fun existsBlob(repository: Repository, digest: Digest): Result<*, KircApiError> =
-        execute {
-            client.head("/v2/$repository/blobs/$digest")
-        }
+    override suspend fun existsBlob(repository: Repository, digest: Digest): Result<*, KircApiError> = execute {
+        client.head("/v2/$repository/blobs/$digest")
+    }
 
-    override suspend fun blob(repository: Repository, digest: Digest): Result<ByteArray, KircApiError> =
-        execute {
-            client.get("/v2/$repository/blobs/$digest") { acceptBlobTypes() }
-        }.mapSuspending(HttpResponse::body)
+    override suspend fun blob(repository: Repository, digest: Digest): Result<ByteArray, KircApiError> = execute {
+        client.get("/v2/$repository/blobs/$digest") { acceptBlobTypes() }
+    }.mapSuspending(HttpResponse::body)
 
-    override suspend fun blobStream(repository: Repository, digest: Digest): Result<Source, KircApiError> =
-        execute {
-            client.get("/v2/$repository/blobs/$digest") { acceptBlobTypes() }
-        }.mapSuspending { resp ->
-            resp.bodyAsChannel().toInputStream().asSource().buffered()
-        }
+    override suspend fun blobStream(repository: Repository, digest: Digest): Result<Source, KircApiError> = execute {
+        client.get("/v2/$repository/blobs/$digest") { acceptBlobTypes() }
+    }.mapSuspending { resp ->
+        resp.bodyAsChannel().toInputStream().asSource().buffered()
+    }
 
-    override suspend fun initiateUpload(repository: Repository): Result<UploadSession, KircApiError> =
-        execute {
-            client.post("/v2/$repository/blobs/uploads/")
-        }.map(HttpResponse::toUploadSession)
+    override suspend fun initiateUpload(repository: Repository): Result<UploadSession, KircApiError> = execute {
+        client.post("/v2/$repository/blobs/uploads/")
+    }.map(HttpResponse::toUploadSession)
 
     override suspend fun finishBlobUpload(session: UploadSession, digest: Digest): Result<Digest, KircApiError> =
         execute {
@@ -244,10 +239,9 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
         }
     }.map(HttpResponse::toDigest)
 
-    override suspend fun uploadStatus(session: UploadSession): Result<Pair<Long, Long>, KircApiError> =
-        execute {
-            client.get(session.location)
-        }.map(HttpResponse::toRange)
+    override suspend fun uploadStatus(session: UploadSession): Result<Pair<Long, Long>, KircApiError> = execute {
+        client.get(session.location)
+    }.map(HttpResponse::toRange)
 
     override suspend fun cancelBlobUpload(session: UploadSession): Result<*, KircApiError> = execute {
         client.delete(session.location)
