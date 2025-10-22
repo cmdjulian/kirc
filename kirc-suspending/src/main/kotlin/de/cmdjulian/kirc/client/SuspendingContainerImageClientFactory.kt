@@ -8,7 +8,6 @@ import de.cmdjulian.kirc.impl.SuspendingContainerImageRegistryClientImpl
 import de.cmdjulian.kirc.impl.response.TokenResponse
 import de.cmdjulian.kirc.impl.serialization.JsonMapper
 import de.cmdjulian.kirc.impl.serialization.jacksonDeserializer
-import de.cmdjulian.kirc.spec.RegistryErrorResponse
 import im.toss.http.parser.HttpAuthCredentials
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.ProxyBuilder
@@ -29,7 +28,6 @@ import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
-import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.client.statement.request
 import io.ktor.http.ContentType
@@ -246,28 +244,6 @@ object SuspendingContainerImageClientFactory {
     private fun basicAuth(user: String, pass: String): String = "Basic " + Base64.encode("$user:$pass".toByteArray())
 
     private fun HttpStatusCode.isError(): Boolean = value !in 200..299
-
-    private suspend fun HttpResponse.toBearerError(): KircApiError = bodyAsText()
-        .runCatching(jacksonDeserializer<RegistryErrorResponse>()::deserialize)
-        .fold(
-            onSuccess = { registryErrorResponse ->
-                KircApiError.Registry(
-                    statusCode = status.value,
-                    url = request.url,
-                    method = request.method,
-                    body = registryErrorResponse,
-                )
-            },
-            onFailure = { deserializeException ->
-                KircApiError.Json(
-                    statusCode = status.value,
-                    url = request.url,
-                    method = request.method,
-                    cause = deserializeException,
-                    message = "Could not deserialize registry error response (body=${bodyAsText()})",
-                )
-            },
-        )
 
     @JvmStatic
     suspend fun create(

@@ -87,16 +87,20 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
     // Tries to parse the error response body, otherwise returns a generic JSON error.
     private suspend fun HttpResponse.toErrorResponse() = bodyAsText()
         .runCatching(jacksonDeserializer<RegistryErrorResponse>()::deserialize)
-        .map { KircApiError.Registry(statusCode = status.value, url = request.url, method = request.method, body = it) }
-        .getOrElse {
-            KircApiError.Json(
-                statusCode = status.value,
-                url = request.url,
-                method = request.method,
-                cause = it,
-                message = "Could not parse registry error response body (body=${bodyAsText()})",
-            )
-        }
+        .fold(
+            onSuccess = {
+                KircApiError.Registry(statusCode = status.value, url = request.url, method = request.method, body = it)
+            },
+            onFailure = {
+                KircApiError.Json(
+                    statusCode = status.value,
+                    url = request.url,
+                    method = request.method,
+                    cause = it,
+                    message = "Could not parse registry error response body (body=${bodyAsText()})",
+                )
+            },
+        )
 
     // Status
 
