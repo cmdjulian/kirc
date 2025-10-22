@@ -9,6 +9,7 @@ import de.cmdjulian.kirc.impl.response.TokenResponse
 import de.cmdjulian.kirc.impl.serialization.JsonMapper
 import de.cmdjulian.kirc.impl.serialization.jacksonDeserializer
 import im.toss.http.parser.HttpAuthCredentials
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.ProxyBuilder
 import io.ktor.client.engine.cio.CIO
@@ -24,6 +25,7 @@ import io.ktor.client.plugins.auth.providers.bearer
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.logging.LogLevel
+import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.request.get
 import io.ktor.client.request.header
@@ -45,6 +47,8 @@ import javax.net.ssl.X509TrustManager
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.io.path.Path
+
+private val kLogger = KotlinLogging.logger {}
 
 object SuspendingContainerImageClientFactory {
 
@@ -89,6 +93,9 @@ object SuspendingContainerImageClientFactory {
             }
             install(Logging) {
                 level = LogLevel.INFO
+                logger = object : Logger {
+                    override fun log(message: String) = kLogger.info { "Kirc API $message" }
+                }
             }
             defaultRequest {
                 url(url.toString())
@@ -103,8 +110,8 @@ object SuspendingContainerImageClientFactory {
     }
 
     private fun CIOEngineConfig.configureHttps(skipTlsVerify: Boolean, keystore: KeyStore?) {
-        if (skipTlsVerify) {
-            https {
+        when {
+            skipTlsVerify -> https {
                 trustManager = object : X509TrustManager {
                     override fun checkClientTrusted(chain: Array<X509Certificate>?, authType: String?) {}
 
@@ -113,11 +120,15 @@ object SuspendingContainerImageClientFactory {
                     override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
                 }
             }
-        } else if (keystore != null) {
-            https {
+
+            keystore != null -> https {
                 val tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
-                tmf.init(keystore)
-                trustManager = tmf.trustManagers.filterIsInstance<X509TrustManager>().first()
+                trustManager = runCatching {
+                    tmf.init(keystore)
+                    tmf.trustManagers.filterIsInstance<X509TrustManager>().first()
+                }.getOrElse { keyStoreException ->
+                    throw KircApiError.Unknown(keyStoreException)
+                }
             }
         }
     }

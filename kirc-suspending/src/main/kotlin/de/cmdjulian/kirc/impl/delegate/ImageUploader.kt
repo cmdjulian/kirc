@@ -32,6 +32,7 @@ import kotlinx.io.files.SystemFileSystem
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import java.nio.file.Path
 import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.pathString
@@ -43,22 +44,26 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
     @OptIn(ExperimentalPathApi::class, ExperimentalCoroutinesApi::class)
     suspend fun upload(repository: Repository, reference: Reference, tar: Source, mode: BlobUploadMode): Digest =
         coroutineScope {
-            // store data temporarily
+            // store data temporarily (sanitize name for cross-platform safety, replace ':' which is invalid on Windows)
+            val timePart =
+                OffsetDateTime.now().truncatedTo(ChronoUnit.SECONDS).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+            val safeRef = reference.toString().replace(':', '_')
             val tempDirectory = Path.of(
                 tmpPath.pathString,
-                "${OffsetDateTime.now().truncatedTo(ChronoUnit.SECONDS)}--$repository--$reference",
+                "${timePart}--$repository--$safeRef",
             )
             withContext(Dispatchers.IO) {
                 SystemFileSystem.createDirectories(tempDirectory.toKotlinPath())
             }
 
-            // read from temp file and deserialize
-            val uploadContainerImage = readFromTar(tar, tempDirectory)
-
-            // upload max three layers in parallel at most
-            val blobUploadDispatcher = Dispatchers.Default.limitedParallelism(3)
-            // upload architecture images
             try {
+                // read from tar and deserialize (can throw; ensure cleanup in finally)
+                val uploadContainerImage = readFromTar(tar, tempDirectory)
+
+                // upload max three blobs in parallel at most (mimic docker)
+                val blobUploadDispatcher = Dispatchers.Default.limitedParallelism(3)
+
+                // upload architecture images
                 for ((manifest, manifestDigest, blobs) in uploadContainerImage.images) {
                     // upload blobs in parallel, but only up to three at once to mimic how Docker does it
                     coroutineScope {
@@ -70,18 +75,20 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
                             }
                         }
                     }
-
                     client.uploadManifest(repository, manifestDigest, manifest)
                 }
-            } catch (e: Exception) {
-                handleError(e)
+
+                // upload index (manifest list) last
+                client.uploadManifest(repository, reference, uploadContainerImage.index)
+            } catch (e: RuntimeException) {
+                throw handleError(e)
             } finally {
                 // clear up temporary blob files
-                cleanupTempDirectory(tempDirectory)
+                runCatching { cleanupTempDirectory(tempDirectory) }
+                    .onFailure { t ->
+                        logger.info(t) { "Failed to fully cleanup temp directory: ${tempDirectory.pathString}" }
+                    }
             }
-
-            // upload index
-            client.uploadManifest(repository, reference, uploadContainerImage.index)
         }
 
     private suspend fun uploadBlob(repository: Repository, blob: UploadBlobPath, mode: BlobUploadMode) {
@@ -100,19 +107,19 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
         }
     }
 
-    private fun handleError(e: Exception) {
-        logger.error(e) { "Error uploading image to registry" }
-        when (e) {
-            is KircException, is RegistryException -> throw e
-            else -> throw KircException.UnexpectedError(
-                "Unexpected error, could not upload image to registry: ${e.cause}",
-                e,
-            )
-        }
+    private fun handleError(e: Exception): RuntimeException = when (e) {
+        is KircException, is RegistryException -> e
+        else -> KircException.UnexpectedError(
+            "Unexpected error, could not upload image to registry: ${e.cause}",
+            e,
+        )
+    }.also { kircException ->
+        logger.error(kircException) { "Error uploading image to registry" }
     }
 
     private suspend fun cleanupTempDirectory(tempDirectory: Path) {
         withContext(Dispatchers.IO) {
+            // current implementation stores blobs flatly; still, iterate and delete defensively
             SystemFileSystem.list(tempDirectory.toKotlinPath()).forEach(SystemFileSystem::delete)
             SystemFileSystem.delete(tempDirectory.toKotlinPath())
         }
