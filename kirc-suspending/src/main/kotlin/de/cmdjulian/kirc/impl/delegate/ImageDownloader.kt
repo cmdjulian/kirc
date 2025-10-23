@@ -17,6 +17,7 @@ import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestListEntry
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestListV1
+import de.cmdjulian.kirc.utils.createSafePath
 import de.cmdjulian.kirc.utils.toKotlinPath
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
@@ -34,11 +35,7 @@ import kotlinx.io.files.SystemFileSystem
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import java.nio.file.Path
-import java.time.OffsetDateTime
-import java.time.format.DateTimeFormatter
-import java.time.temporal.ChronoUnit
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.io.path.pathString
 
 private val downloaderLogger = KotlinLogging.logger {}
 
@@ -61,11 +58,7 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
     }
 
     suspend fun download(repository: Repository, reference: Reference): Source {
-        // Sanitize reference for filesystem safety (':' replaced) similar to uploader
-        val timePart =
-            OffsetDateTime.now().truncatedTo(ChronoUnit.SECONDS).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-        val safeRef = reference.toString().replace(':', '_')
-        val tempDataPath = Path.of(tmpPath.pathString, "$timePart--$repository--$safeRef.tar")
+        val tempDataPath = createSafePath(tmpPath, repository, reference, ".tar")
         val sink = withContext(Dispatchers.IO) {
             SystemFileSystem.sink(tempDataPath.toKotlinPath()).buffered()
         }

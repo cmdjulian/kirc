@@ -19,6 +19,7 @@ import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestListEntry
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
+import de.cmdjulian.kirc.utils.createSafePath
 import de.cmdjulian.kirc.utils.toKotlinPath
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
@@ -32,9 +33,6 @@ import kotlinx.io.buffered
 import kotlinx.io.files.SystemFileSystem
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import java.nio.file.Path
-import java.time.OffsetDateTime
-import java.time.format.DateTimeFormatter
-import java.time.temporal.ChronoUnit
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.pathString
 
@@ -45,11 +43,8 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
     @OptIn(ExperimentalPathApi::class, ExperimentalCoroutinesApi::class)
     suspend fun upload(repository: Repository, reference: Reference, tar: Source, mode: BlobUploadMode): Digest =
         coroutineScope {
-            // store data temporarily (sanitize name for cross-platform safety, replace ':' which is invalid on Windows)
-            val timePart = OffsetDateTime.now().truncatedTo(ChronoUnit.SECONDS)
-                .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-            val safeRef = reference.toString().replace(':', '_')
-            val tempDirectory = Path.of(tmpPath.pathString, "$timePart--$repository--$safeRef")
+            // store data temporarily (sanitize name for cross-platform safety)
+            val tempDirectory = createSafePath(tmpPath, repository, reference)
             withContext(Dispatchers.IO) {
                 SystemFileSystem.createDirectories(tempDirectory.toKotlinPath())
             }

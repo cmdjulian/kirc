@@ -184,7 +184,7 @@ internal class RegistryBasicAuthTest {
 
     @Test
     fun `download - from registry`() {
-        val repository = Repository("hello-world")
+        val repository = Repository("hello-world/123")
         val tag = Tag("latest")
 
         cliHelper.pushImage(repository, tag, helloWorldImage)
