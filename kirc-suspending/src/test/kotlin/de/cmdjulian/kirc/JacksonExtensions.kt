@@ -1,6 +1,6 @@
 package de.cmdjulian.kirc
 
-import de.cmdjulian.kirc.impl.JsonMapper
+import de.cmdjulian.kirc.impl.serialization.JsonMapper
 
 internal inline fun <reified T : Any> String.unmarshal(): T {
     return JsonMapper.readValue(this, T::class.java)

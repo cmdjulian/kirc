@@ -1,18 +1,54 @@
 package de.cmdjulian.kirc.client
 
-import com.github.kittinunf.fuel.core.FuelManager
 import de.cmdjulian.kirc.image.ContainerImageName
 import de.cmdjulian.kirc.impl.ContainerRegistryApiImpl
+import de.cmdjulian.kirc.impl.KircApiError
 import de.cmdjulian.kirc.impl.SuspendingContainerImageClientImpl
 import de.cmdjulian.kirc.impl.SuspendingContainerImageRegistryClientImpl
-import de.cmdjulian.kirc.utils.InsecureSSLSocketFactory
-import de.cmdjulian.kirc.utils.NoopHostnameVerifier
+import de.cmdjulian.kirc.impl.response.TokenResponse
+import de.cmdjulian.kirc.impl.serialization.JsonMapper
+import im.toss.http.parser.HttpAuthCredentials
+import io.github.oshai.kotlinlogging.KotlinLogging
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.engine.ProxyBuilder
+import io.ktor.client.engine.cio.CIO
+import io.ktor.client.engine.cio.CIOEngineConfig
+import io.ktor.client.engine.http
+import io.ktor.client.plugins.auth.Auth
+import io.ktor.client.plugins.auth.providers.BasicAuthCredentials
+import io.ktor.client.plugins.auth.providers.BearerTokens
+import io.ktor.client.plugins.auth.providers.RefreshTokensParams
+import io.ktor.client.plugins.auth.providers.basic
+import io.ktor.client.plugins.auth.providers.bearer
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.defaultRequest
+import io.ktor.client.plugins.logging.LogLevel
+import io.ktor.client.plugins.logging.Logger
+import io.ktor.client.plugins.logging.Logging
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.parameter
+import io.ktor.client.statement.bodyAsText
+import io.ktor.client.statement.request
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.serialization.jackson.JacksonConverter
+import java.net.InetSocketAddress
 import java.net.Proxy
 import java.net.URI
 import java.nio.file.Path
 import java.security.KeyStore
+import java.security.cert.X509Certificate
 import java.time.Duration
+import javax.net.ssl.TrustManagerFactory
+import javax.net.ssl.X509TrustManager
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.io.path.Path
+
+private val kLogger = KotlinLogging.logger {}
 
 object SuspendingContainerImageClientFactory {
 
@@ -29,38 +65,191 @@ object SuspendingContainerImageClientFactory {
         proxy: Proxy? = null,
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
-        timeout: Duration = Duration.ofSeconds(5),
+        timeout: Duration = Duration.ofSeconds(10),
         tmpPath: Path = Path(System.getProperty("java.io.tmpdir")),
     ): SuspendingContainerImageRegistryClient {
         require(keystore == null || !skipTlsVerify) { "can not skip tls verify if a keystore is set" }
         require(timeout.toMillis() in Int.MIN_VALUE..Int.MAX_VALUE) { "timeout in ms has to be a valid int" }
 
-        val fuel = FuelManager().apply {
-            this.basePath = url.toString()
-            this.proxy = proxy
-            this.keystore = keystore
-            this.timeoutInMillisecond = timeout.toMillis().toInt()
-            this.timeoutReadInMillisecond = timeout.toMillis().toInt()
-            /*
-             * From the official fuel library documentation it is stated:
-             *
-             * The default client is HttpClient which is a thin wrapper over java.net.HttpUrlConnection.
-             * java.net.HttpUrlConnection does not support a PATCH method.
-             * HttpClient converts PATCH requests to a POST request and adds a X-HTTP-Method-Override: PATCH header.
-             * While this is a semi-standard industry practice not all APIs are configured to accept this header by default.
-             *
-             * Therefore we have to set this flag
-             */
-            this.forceMethods = true
-
-            if (skipTlsVerify) {
-                hostnameVerifier = NoopHostnameVerifier
-                socketFactory = InsecureSSLSocketFactory
+        val client = HttpClient(CIO) {
+            engine {
+                requestTimeout = timeout.toMillis()
+                if (proxy != null) {
+                    val address = proxy.address()
+                    if (address is InetSocketAddress) {
+                        this.proxy = ProxyBuilder.http("http://${address.hostString}:${address.port}")
+                    }
+                }
+                configureHttps(skipTlsVerify, keystore)
+            }
+            install(ContentNegotiation) {
+                // re-use existing ObjectMapper instance
+                register(ContentType.Application.Json, JacksonConverter(JsonMapper))
+            }
+            install(Logging) {
+                level = LogLevel.INFO
+                logger = object : Logger {
+                    override fun log(message: String) = kLogger.info { "Kirc API $message" }
+                }
+            }
+            defaultRequest {
+                url(url.toString())
+            }
+            install(Auth) {
+                configureAuth(credentials)
             }
         }
 
-        return SuspendingContainerImageRegistryClientImpl(ContainerRegistryApiImpl(fuel, credentials), tmpPath)
+        val api = ContainerRegistryApiImpl(client)
+        return SuspendingContainerImageRegistryClientImpl(api, tmpPath)
     }
+
+    private fun CIOEngineConfig.configureHttps(skipTlsVerify: Boolean, keystore: KeyStore?) {
+        when {
+            skipTlsVerify -> https {
+                trustManager = object : X509TrustManager {
+                    override fun checkClientTrusted(chain: Array<X509Certificate>?, authType: String?) {}
+
+                    override fun checkServerTrusted(chain: Array<X509Certificate>?, authType: String?) {}
+
+                    override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
+                }
+            }
+
+            keystore != null -> https {
+                val tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+                trustManager = runCatching {
+                    tmf.init(keystore)
+                    tmf.trustManagers.filterIsInstance<X509TrustManager>().first()
+                }.getOrElse { keyStoreException ->
+                    throw KircApiError.Unknown(keyStoreException)
+                }
+            }
+        }
+    }
+
+    private fun Auth.configureAuth(credentials: RegistryCredentials?) {
+        basic {
+            credentials {
+                if (credentials != null) {
+                    BasicAuthCredentials(username = credentials.username, password = credentials.password)
+                } else {
+                    null
+                }
+            }
+            sendWithoutRequest { request ->
+                "v2" in request.url.pathSegments
+            }
+        }
+        bearer {
+            val bearerTokenStorage = mutableListOf<BearerTokens>()
+            loadTokens(bearerTokenStorage::lastOrNull)
+            refreshTokens {
+                if (credentials != null) {
+                    bearerAuth(credentials)?.also(bearerTokenStorage::add)
+                } else {
+                    null
+                }
+            }
+            sendWithoutRequest { request ->
+                "v2" in request.url.pathSegments
+            }
+        }
+    }
+
+    private suspend fun RefreshTokensParams.bearerAuth(credentials: RegistryCredentials): BearerTokens? {
+        val authHeader = if (response.headers.caseInsensitiveName) {
+            response.headers[HttpHeaders.WWWAuthenticate.lowercase()]
+        } else {
+            response.headers[HttpHeaders.WWWAuthenticate]
+        }
+
+        when {
+            response.status.value == 401 && authHeader == null -> throw KircApiError.Header(
+                statusCode = response.status.value,
+                url = response.request.url,
+                method = response.request.method,
+                message = "Received 401 Unauthorized but no WWW-Authenticate header present",
+            )
+
+            response.status.value != 401 ->
+                error("Unexpected status code ${response.status.value} when requesting bearer token")
+        }
+
+        val (realm, scope, service) = parseWWWAuthHeader(authHeader)
+
+        // request token via credentials if available
+        val result = getBearerToken(realm, scope, service, credentials)
+
+        return BearerTokens(result.token, result.token)
+    }
+
+    // HELPER
+
+    private data class RegistryAuthCredentials(
+        val realm: String,
+        val scope: String?,
+        val service: String?,
+    )
+
+    private fun RefreshTokensParams.parseWWWAuthHeader(header: String?): RegistryAuthCredentials {
+        val wwwAuth = header?.runCatching(HttpAuthCredentials::parse)?.getOrElse {
+            throw KircApiError.Header(
+                statusCode = response.status.value,
+                url = response.request.url,
+                method = response.request.method,
+                message = "Could not parse WWW-Authenticate header: $header",
+            )
+        }
+
+        val realm = wwwAuth?.singleValueParams["realm"]?.trim('"') ?: throw KircApiError.Header(
+            statusCode = response.status.value,
+            url = response.request.url,
+            method = response.request.method,
+            message = "WWW-Authenticate header does not contain realm: $header",
+        )
+        val scope = wwwAuth.singleValueParams["scope"]?.trim('"')
+        val service = wwwAuth.singleValueParams["service"]?.trim('"')
+
+        return RegistryAuthCredentials(realm = realm, scope = scope, service = service)
+    }
+
+    private suspend fun RefreshTokensParams.getBearerToken(
+        realm: String,
+        scope: String?,
+        service: String?,
+        credentials: RegistryCredentials,
+    ): TokenResponse = runCatching {
+        client.get(realm) {
+            if (scope != null) parameter("scope", scope)
+            if (service != null) parameter("service", service)
+            header(HttpHeaders.Authorization, basicAuth(credentials.username, credentials.password))
+            markAsRefreshTokenRequest()
+        }
+    }.map { response ->
+        if (response.status.isError()) {
+            throw KircApiError.Bearer(
+                statusCode = response.status.value,
+                url = response.request.url,
+                method = response.request.method,
+                message = "Could not retrieve bearer token (status=${response.bodyAsText()})",
+            )
+        }
+        runCatching { response.body<TokenResponse>() }.getOrElse {
+            throw KircApiError.Json(
+                statusCode = response.status.value,
+                url = response.request.url,
+                method = response.request.method,
+                message = "Could not deserialize bearer token response",
+                cause = it,
+            )
+        }
+    }.getOrThrow()
+
+    @OptIn(ExperimentalEncodingApi::class)
+    private fun basicAuth(user: String, pass: String): String = "Basic " + Base64.encode("$user:$pass".toByteArray())
+
+    private fun HttpStatusCode.isError(): Boolean = value !in 200..299
 
     @JvmStatic
     suspend fun create(
@@ -70,7 +259,7 @@ object SuspendingContainerImageClientFactory {
         insecure: Boolean = false,
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
-        timeout: Duration = Duration.ofSeconds(5),
+        timeout: Duration = Duration.ofSeconds(10),
         tmpPath: Path = Path(System.getProperty("java.io.tmpdir")),
     ): SuspendingContainerImageClient {
         val url = "${if (insecure) "http://" else "https://"}${image.registry}"

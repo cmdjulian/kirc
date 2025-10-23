@@ -28,7 +28,7 @@ object BlockingContainerImageClientFactory {
         proxy: Proxy? = null,
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
-        timeout: Duration = Duration.ofSeconds(5),
+        timeout: Duration = Duration.ofSeconds(10),
         tmpPath: Path = Path(SystemTemporaryDirectory.toString()),
     ): BlockingContainerImageRegistryClient {
         return SuspendingContainerImageClientFactory
@@ -45,7 +45,7 @@ object BlockingContainerImageClientFactory {
         insecure: Boolean = false,
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
-        timeout: Duration = Duration.ofSeconds(5),
+        timeout: Duration = Duration.ofSeconds(10),
         tmpPath: Path = Path(SystemTemporaryDirectory.toString()),
     ): BlockingContainerImageClient = runBlocking(Dispatchers.Default) {
         SuspendingContainerImageClientFactory
