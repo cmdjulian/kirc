@@ -1,0 +1,18 @@
+server:
+  addr: ":5001"
+
+acl:
+  - match: { account: "changeIt" }
+    actions: [ "*" ]
+    comment: "Allow all actions for test user"
+
+# Optional: issue settings
+token:
+  issuer: "auth_service"
+  expiration: 900
+  certificate: "config/cert.pem"
+  key: "config/cert.key"
+
+users:
+  "changeIt":
+    password: "$2y$05$VBoOxXiNPRLbVvbgtXNNyuM3b1MjX2oLFfXtFTb3I1sYTRNbwYC3."

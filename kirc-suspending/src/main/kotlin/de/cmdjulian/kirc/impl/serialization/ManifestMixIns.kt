@@ -1,4 +1,4 @@
-package de.cmdjulian.kirc.impl
+package de.cmdjulian.kirc.impl.serialization
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo

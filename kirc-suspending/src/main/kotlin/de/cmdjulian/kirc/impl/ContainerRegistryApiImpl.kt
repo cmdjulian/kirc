@@ -1,16 +1,8 @@
 package de.cmdjulian.kirc.impl
 
-import com.github.kittinunf.fuel.core.FuelError
-import com.github.kittinunf.fuel.core.FuelManager
-import com.github.kittinunf.fuel.core.Headers
-import com.github.kittinunf.fuel.core.Parameters
-import com.github.kittinunf.fuel.core.awaitResponseResult
-import com.github.kittinunf.fuel.core.deserializers.ByteArrayDeserializer
-import com.github.kittinunf.fuel.core.deserializers.EmptyDeserializer
 import com.github.kittinunf.result.Result
 import com.github.kittinunf.result.flatMap
 import com.github.kittinunf.result.map
-import de.cmdjulian.kirc.client.RegistryCredentials
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
@@ -19,6 +11,8 @@ import de.cmdjulian.kirc.impl.response.Catalog
 import de.cmdjulian.kirc.impl.response.ResultSource
 import de.cmdjulian.kirc.impl.response.TagList
 import de.cmdjulian.kirc.impl.response.UploadSession
+import de.cmdjulian.kirc.impl.serialization.JsonMapper
+import de.cmdjulian.kirc.spec.RegistryErrorResponse
 import de.cmdjulian.kirc.spec.blob.DockerBlobMediaType
 import de.cmdjulian.kirc.spec.blob.OciBlobMediaTypeGzip
 import de.cmdjulian.kirc.spec.blob.OciBlobMediaTypeTar
@@ -29,74 +23,116 @@ import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestListV1
 import de.cmdjulian.kirc.spec.manifest.OciManifestV1
-import de.cmdjulian.kirc.utils.SourceDeserializer
-import de.cmdjulian.kirc.utils.mapToDigest
-import de.cmdjulian.kirc.utils.mapToRange
-import de.cmdjulian.kirc.utils.mapToResultSource
-import de.cmdjulian.kirc.utils.mapToUploadSession
+import de.cmdjulian.kirc.utils.mapSuspending
+import de.cmdjulian.kirc.utils.toDigest
+import de.cmdjulian.kirc.utils.toRange
+import de.cmdjulian.kirc.utils.toResultSource
+import de.cmdjulian.kirc.utils.toUploadSession
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.request.delete
+import io.ktor.client.request.get
+import io.ktor.client.request.head
+import io.ktor.client.request.header
+import io.ktor.client.request.parameter
+import io.ktor.client.request.patch
+import io.ktor.client.request.post
+import io.ktor.client.request.put
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsChannel
+import io.ktor.client.statement.bodyAsText
+import io.ktor.client.statement.request
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.utils.io.jvm.javaio.toInputStream
 import kotlinx.io.Buffer
 import kotlinx.io.Source
-import kotlinx.io.asInputStream
+import kotlinx.io.asSource
+import kotlinx.io.buffered
 import kotlinx.io.readByteArray
+import java.nio.file.Path
 
 private const val APPLICATION_JSON = "application/json"
 private const val APPLICATION_OCTET_STREAM = "application/octet-stream"
 
-internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, credentials: RegistryCredentials?) :
-    ContainerRegistryApi {
+internal class ContainerRegistryApiImpl(private val client: HttpClient) : ContainerRegistryApi {
 
-    private val handler = ResponseRetryWithAuthentication(credentials, fuelManager)
+    /**
+     * Executes the given [block] and maps exceptions to [KircApiError].
+     *
+     * At best, all exceptions thrown by the [block] are of type [KircApiError] already
+     *  (including exceptions thrown during bearer auth message exchange).
+     *
+     * If not, a [KircApiError.Unknown] is created with the original exception
+     */
+    private suspend fun execute(block: suspend () -> HttpResponse): Result<HttpResponse, KircApiError> = runCatching {
+        val result = block()
+        if (result.status.isSuccess()) result else throw result.toErrorResponse()
+    }.fold(
+        onSuccess = { Result.success(it) },
+        onFailure = { throwable ->
+            if (throwable is KircApiError) {
+                Result.failure(throwable)
+            } else {
+                Result.failure(KircApiError.Unknown(throwable))
+            }
+        },
+    )
+
+    private fun HttpStatusCode.isSuccess() = value in 200..299
+
+    // Tries to parse the error response body, otherwise returns a generic JSON error.
+    private suspend fun HttpResponse.toErrorResponse() = runCatching { body<RegistryErrorResponse>() }
+        .fold(
+            onSuccess = {
+                KircApiError.Registry(
+                    statusCode = status.value,
+                    url = request.url,
+                    method = request.method,
+                    body = it,
+                )
+            },
+            onFailure = {
+                KircApiError.Json(
+                    statusCode = status.value,
+                    url = request.url,
+                    method = request.method,
+                    cause = it,
+                    message = "Could not parse registry error response body (body=${bodyAsText()})",
+                )
+            },
+        )
 
     // Status
 
-    override suspend fun ping(): Result<*, FuelError> = fuelManager.get("/v2/")
-        .awaitResponseResult(EmptyDeserializer)
-        .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-        .third
+    override suspend fun ping(): Result<*, KircApiError> = execute { client.get("/v2/") }
 
-    override suspend fun repositories(limit: Int?, last: Int?): Result<Catalog, FuelError> {
-        val parameter: Parameters = buildList {
-            if (limit != null) add("n" to limit)
-            if (last != null) add("last" to last)
+    override suspend fun repositories(limit: Int?, last: Int?): Result<Catalog, KircApiError> = execute {
+        client.get("/v2/_catalog") {
+            if (limit != null) parameter("n", limit)
+            if (last != null) parameter("last", last)
+            acceptJson()
         }
+    }.mapSuspending(HttpResponse::body)
 
-        val deserializable = jacksonDeserializer<Catalog>()
-        return fuelManager.get("/v2/_catalog", parameter)
-            .appendHeader(Headers.ACCEPT, APPLICATION_JSON)
-            .awaitResponseResult(deserializable)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
-            .third
-    }
+    override suspend fun tags(repository: Repository, limit: Int?, last: Int?): Result<TagList, KircApiError> =
+        execute {
+            client.get("/v2/$repository/tags/list") {
+                if (limit != null) parameter("n", limit)
+                if (last != null) parameter("last", last)
+                acceptJson()
+            }
+        }.mapSuspending(HttpResponse::body)
 
-    override suspend fun tags(repository: Repository, limit: Int?, last: Int?): Result<TagList, FuelError> {
-        val parameter: Parameters = buildList {
-            if (limit != null) add("n" to limit)
-            if (last != null) add("last" to last)
+    override suspend fun digest(repository: Repository, reference: Reference): Result<Digest, KircApiError> =
+        when (reference) {
+            is Digest -> Result.success(reference)
+            is Tag -> execute {
+                client.head("/v2/$repository/manifests/$reference") { acceptManifestTypes() }
+            }.map(HttpResponse::toDigest)
         }
-
-        val deserializable = jacksonDeserializer<TagList>()
-        return fuelManager.get("/v2/$repository/tags/list", parameter)
-            .appendHeader(Headers.ACCEPT, APPLICATION_JSON)
-            .awaitResponseResult(deserializable)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
-            .third
-    }
-
-    override suspend fun digest(repository: Repository, reference: Reference) = when (reference) {
-        is Digest -> Result.success(reference)
-        is Tag -> fuelManager.head("/v2/$repository/manifests/$reference")
-            .appendHeader(
-                Headers.ACCEPT,
-                APPLICATION_JSON,
-                DockerManifestV2.MediaType,
-                DockerManifestListV1.MediaType,
-                OciManifestV1.MediaType,
-                OciManifestListV1.MediaType,
-            )
-            .awaitResponseResult(EmptyDeserializer)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-            .mapToDigest()
-    }
 
     // Manifest
 
@@ -104,59 +140,37 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
         repository: Repository,
         reference: Reference,
         accept: String,
-    ): Result<*, FuelError> = fuelManager.head("/v2/$repository/manifests/$reference")
-        .appendHeader(Headers.ACCEPT, accept)
-        .awaitResponseResult(EmptyDeserializer)
-        .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-        .third
-
-    override suspend fun manifests(repository: Repository, reference: Reference): Result<Manifest, FuelError> {
-        val deserializable = jacksonDeserializer<Manifest>()
-        return fuelManager.get("/v2/$repository/manifests/$reference")
-            .appendHeader(
-                Headers.ACCEPT,
-                APPLICATION_JSON,
-                OciManifestV1.MediaType,
-                OciManifestListV1.MediaType,
-                DockerManifestV2.MediaType,
-                DockerManifestListV1.MediaType,
-            )
-            .awaitResponseResult(deserializable)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
-            .third
+    ): Result<*, KircApiError> = execute {
+        client.head("/v2/$repository/manifests/$reference") {
+            header(HttpHeaders.Accept, accept)
+        }
     }
 
-    override suspend fun manifestStream(repository: Repository, reference: Reference): Result<ResultSource, FuelError> {
-        val deserializable = SourceDeserializer()
-        return fuelManager.get("/v2/$repository/manifests/$reference")
-            .appendHeader(
-                Headers.ACCEPT,
-                APPLICATION_JSON,
-                OciManifestV1.MediaType,
-                OciManifestListV1.MediaType,
-                DockerManifestV2.MediaType,
-                DockerManifestListV1.MediaType,
-            )
-            .awaitResponseResult(deserializable)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
-            .mapToResultSource()
-    }
+    override suspend fun manifests(repository: Repository, reference: Reference): Result<Manifest, KircApiError> =
+        execute {
+            client.get("/v2/$repository/manifests/$reference") { acceptManifestTypes() }
+        }.mapSuspending(HttpResponse::body)
 
-    override suspend fun manifest(repository: Repository, reference: Reference): Result<ManifestSingle, FuelError> {
-        val deserializable = jacksonDeserializer<ManifestSingle>()
-        return fuelManager.get("/v2/$repository/manifests/$reference")
-            .appendHeader(Headers.ACCEPT, APPLICATION_JSON, OciManifestV1.MediaType, DockerManifestV2.MediaType)
-            .awaitResponseResult(deserializable)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
-            .third
-    }
+    override suspend fun manifestStream(
+        repository: Repository,
+        reference: Reference,
+    ): Result<ResultSource, KircApiError> = execute {
+        client.get("/v2/$repository/manifests/$reference") { acceptManifestTypes() }
+    }.mapSuspending(HttpResponse::toResultSource)
+
+    override suspend fun manifest(repository: Repository, reference: Reference): Result<ManifestSingle, KircApiError> =
+        execute {
+            client.get("/v2/$repository/manifests/$reference") {
+                acceptSingleManifestTypes()
+            }
+        }.mapSuspending(HttpResponse::body)
 
     override suspend fun uploadManifest(
         repository: Repository,
         reference: Reference,
         manifest: Manifest,
-    ): Result<Digest, FuelError> {
-        val urlReference = when (reference) {
+    ): Result<Digest, KircApiError> = execute {
+        val urlRef = when (reference) {
             is Digest -> reference.hash
             is Tag -> reference
         }
@@ -166,121 +180,110 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
             is OciManifestV1 -> OciManifestV1.MediaType
             is OciManifestListV1 -> OciManifestListV1.MediaType
         }
-        return fuelManager.put("/v2/$repository/manifests/$urlReference")
-            .appendHeader(Headers.CONTENT_TYPE, contentType)
-            .body(JsonMapper.writeValueAsString(manifest))
-            .awaitResponseResult(EmptyDeserializer)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-            .mapToDigest()
-    }
-
-    override suspend fun deleteManifest(repository: Repository, reference: Reference): Result<Digest, FuelError> {
-        return digest(repository, reference).flatMap { digest ->
-            fuelManager.delete("/v2/$repository/manifests/$digest")
-                .appendHeader(
-                    Headers.ACCEPT,
-                    APPLICATION_JSON,
-                    DockerManifestV2.MediaType,
-                    DockerManifestListV1.MediaType,
-                    OciManifestV1.MediaType,
-                    OciManifestListV1.MediaType,
-                )
-                .awaitResponseResult(EmptyDeserializer)
-                .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-                .third
-                .map { digest }
+        client.put("/v2/$repository/manifests/$urlRef") {
+            header(HttpHeaders.ContentType, contentType)
+            setBody(JsonMapper.writeValueAsString(manifest))
         }
-    }
+    }.map(HttpResponse::toDigest)
+
+    override suspend fun deleteManifest(repository: Repository, reference: Reference): Result<Digest, KircApiError> =
+        digest(repository, reference).flatMap { dg ->
+            execute {
+                client.delete("/v2/$repository/manifests/$dg") { acceptManifestTypes() }
+            }.map { dg }
+        }
 
     // Blob
 
-    override suspend fun existsBlob(repository: Repository, digest: Digest): Result<*, FuelError> =
-        fuelManager.head("/v2/$repository/blobs/$digest")
-            .awaitResponseResult(EmptyDeserializer)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-            .third
-
-    override suspend fun blob(repository: Repository, digest: Digest): Result<ByteArray, FuelError> {
-        val deserializable = ByteArrayDeserializer()
-        return fuelManager.get("/v2/$repository/blobs/$digest")
-            .appendHeader(
-                Headers.ACCEPT,
-                APPLICATION_JSON,
-                APPLICATION_OCTET_STREAM,
-                DockerBlobMediaType,
-                OciBlobMediaTypeTar,
-                OciBlobMediaTypeGzip,
-                OciBlobMediaTypeZstd,
-            )
-            .awaitResponseResult(deserializable)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
-            .third
+    override suspend fun existsBlob(repository: Repository, digest: Digest): Result<*, KircApiError> = execute {
+        client.head("/v2/$repository/blobs/$digest")
     }
 
-    override suspend fun blobStream(repository: Repository, digest: Digest): Result<Source, FuelError> {
-        val deserializable = SourceDeserializer()
-        return fuelManager.get("/v2/$repository/blobs/$digest")
-            .appendHeader(
-                Headers.ACCEPT,
-                APPLICATION_JSON,
-                APPLICATION_OCTET_STREAM,
-                DockerBlobMediaType,
-                OciBlobMediaTypeTar,
-                OciBlobMediaTypeGzip,
-                OciBlobMediaTypeZstd,
-            )
-            .awaitResponseResult(deserializable)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
-            .third
+    override suspend fun blob(repository: Repository, digest: Digest): Result<ByteArray, KircApiError> = execute {
+        client.get("/v2/$repository/blobs/$digest") { acceptBlobTypes() }
+    }.mapSuspending(HttpResponse::body)
+
+    override suspend fun blobStream(repository: Repository, digest: Digest): Result<Source, KircApiError> = execute {
+        client.get("/v2/$repository/blobs/$digest") { acceptBlobTypes() }
+    }.mapSuspending { resp ->
+        resp.bodyAsChannel().toInputStream().asSource().buffered()
     }
 
-    override suspend fun initiateUpload(repository: Repository): Result<UploadSession, FuelError> =
-        fuelManager.post("/v2/$repository/blobs/uploads/")
-            .awaitResponseResult(EmptyDeserializer)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-            .mapToUploadSession()
+    override suspend fun initiateUpload(repository: Repository): Result<UploadSession, KircApiError> = execute {
+        client.post("/v2/$repository/blobs/uploads/")
+    }.map(HttpResponse::toUploadSession)
 
-    override suspend fun finishBlobUpload(session: UploadSession, digest: Digest): Result<Digest, FuelError> {
-        val parameters = listOf("digest" to digest)
-
-        return fuelManager.put(session.location, parameters)
-            .awaitResponseResult(EmptyDeserializer)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-            .mapToDigest()
-    }
+    override suspend fun finishBlobUpload(session: UploadSession, digest: Digest): Result<Digest, KircApiError> =
+        execute {
+            client.put(session.location) { parameter("digest", digest.toString()) }
+        }.map(HttpResponse::toDigest)
 
     override suspend fun uploadBlobChunked(
         session: UploadSession,
         buffer: Buffer,
         startRange: Long,
         endRange: Long,
-    ): Result<UploadSession, FuelError> = fuelManager.patch(session.location)
-        .appendHeader(Headers.CONTENT_LENGTH, buffer.size)
-        .appendHeader("Content-Range", "$startRange-$endRange")
-        .appendHeader(Headers.CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-        .body(buffer.readByteArray())
-        .awaitResponseResult(EmptyDeserializer)
-        .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-        .mapToUploadSession()
+    ): Result<UploadSession, KircApiError> = execute {
+        client.patch(session.location) {
+            header(HttpHeaders.ContentLength, buffer.size)
+            header(HttpHeaders.ContentRange, "$startRange-$endRange")
+            header(HttpHeaders.ContentType, APPLICATION_OCTET_STREAM)
+            setBody(buffer.readByteArray())
+        }
+    }.map(HttpResponse::toUploadSession)
 
-    // Currently not working as intended, because internal fuel buffer has an overflow
-    override suspend fun uploadBlobStream(session: UploadSession, source: Source): Result<UploadSession, FuelError> =
-        fuelManager.patch(session.location)
-            .appendHeader(Headers.CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-            .body(source::asInputStream)
-            .awaitResponseResult(EmptyDeserializer)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-            .mapToUploadSession()
+    override suspend fun uploadBlobStream(
+        session: UploadSession,
+        digest: Digest,
+        path: Path,
+        size: Long,
+    ): Result<Digest, KircApiError> = execute {
+        client.put(session.location) {
+            parameter("digest", digest.toString())
+            header(HttpHeaders.ContentType, APPLICATION_OCTET_STREAM)
+            header(HttpHeaders.ContentLength, size)
+            setBody(RepeatableFileContent(path))
+        }
+    }.map(HttpResponse::toDigest)
 
-    override suspend fun uploadStatus(session: UploadSession): Result<Pair<Long, Long>, FuelError> =
-        fuelManager.get(session.location)
-            .awaitResponseResult(EmptyDeserializer)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-            .mapToRange()
+    override suspend fun uploadStatus(session: UploadSession): Result<Pair<Long, Long>, KircApiError> = execute {
+        client.get(session.location)
+    }.map(HttpResponse::toRange)
 
-    override suspend fun cancelBlobUpload(session: UploadSession): Result<*, FuelError> =
-        fuelManager.delete(session.location)
-            .awaitResponseResult(EmptyDeserializer)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-            .third
+    override suspend fun cancelBlobUpload(session: UploadSession): Result<*, KircApiError> = execute {
+        client.delete(session.location)
+    }
+
+    private fun HttpRequestBuilder.acceptJson() = header(HttpHeaders.Accept, APPLICATION_JSON)
+    private fun HttpRequestBuilder.acceptManifestTypes() = header(
+        HttpHeaders.Accept,
+        listOf(
+            APPLICATION_JSON,
+            OciManifestV1.MediaType,
+            OciManifestListV1.MediaType,
+            DockerManifestV2.MediaType,
+            DockerManifestListV1.MediaType,
+        ).joinToString(","),
+    )
+
+    private fun HttpRequestBuilder.acceptSingleManifestTypes() = header(
+        HttpHeaders.Accept,
+        listOf(
+            APPLICATION_JSON,
+            OciManifestV1.MediaType,
+            DockerManifestV2.MediaType,
+        ).joinToString(","),
+    )
+
+    private fun HttpRequestBuilder.acceptBlobTypes() = header(
+        HttpHeaders.Accept,
+        listOf(
+            APPLICATION_JSON,
+            APPLICATION_OCTET_STREAM,
+            DockerBlobMediaType,
+            OciBlobMediaTypeTar,
+            OciBlobMediaTypeGzip,
+            OciBlobMediaTypeZstd,
+        ).joinToString(","),
+    )
 }

@@ -1,6 +1,7 @@
 package de.cmdjulian.kirc.impl.delegate
 
-import de.cmdjulian.kirc.impl.jacksonDeserializer
+import de.cmdjulian.kirc.impl.serialization.JsonMapper
+import de.cmdjulian.kirc.impl.serialization.deserialize
 import de.cmdjulian.kirc.utils.toKotlinPath
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -17,7 +18,8 @@ internal suspend fun TarArchiveInputStream.readEntry(entry: TarArchiveEntry): By
 
 // We deserialize entries which aren't blobs. They are small enough to be loaded to memory
 internal suspend inline fun <reified T : Any> TarArchiveInputStream.deserializeEntry(entry: TarArchiveEntry): T =
-    jacksonDeserializer<T>().deserialize(readEntry(entry))
+    runCatching { JsonMapper.deserialize<T>(readEntry(entry)) }
+        .getOrElse { throw IllegalStateException("Failed to deserialize tar entry '${entry.name}'", it) }
 
 internal suspend fun TarArchiveInputStream.processBlobEntry(entry: TarArchiveEntry, tempDirectory: Path): Path {
     val blobDigest = entry.name.removePrefix("blobs/sha256/")
