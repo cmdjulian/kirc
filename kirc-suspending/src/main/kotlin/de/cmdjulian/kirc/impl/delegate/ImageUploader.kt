@@ -174,7 +174,8 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
                     val blobs = (manifest.layers + manifest.config).map { layer ->
                         val blobPath = resolveBlobPath(blobPaths, layer.digest.hash)
                             ?: throw KircUploadException(
-                                "Could not resolve blob for layer or config with digest '${layer.digest}' during upload",
+                                "Could not resolve blob for layer or " +
+                                    "config with digest '${layer.digest}' during upload",
                             )
 
                         UploadBlobPath(layer.digest, layer.mediaType, blobPath, layer.size)
