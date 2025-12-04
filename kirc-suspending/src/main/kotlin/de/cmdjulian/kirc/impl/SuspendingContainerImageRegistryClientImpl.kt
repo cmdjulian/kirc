@@ -130,28 +130,20 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
         withContext(Dispatchers.IO) {
             SystemFileSystem.source(path.toKotlinPath()).buffered()
         }.use { stream ->
-            var currentSession = session
+            var returnedSession = session
             var startRange = 0L
+            var endRange: Long
 
             while (!stream.exhausted()) {
                 val buffer = Buffer()
-                var readTotal = 0L
-                // Accumulate up to chunkSize bytes (may span multiple 8192-byte segments)
-                while (readTotal < chunkSize && !stream.exhausted()) {
-                    val read = stream.readAtMostTo(buffer, chunkSize - readTotal)
-                    if (read == 0L) break
-                    readTotal += read
-                }
-                if (buffer.size == 0L) break
-
-                val endRange = startRange + buffer.size - 1
-                currentSession = api.uploadBlobChunked(currentSession, buffer, startRange, endRange)
+                stream.readAtMostTo(buffer, chunkSize)
+                endRange = startRange + buffer.size - 1
+                returnedSession = api.uploadBlobChunked(returnedSession, buffer, startRange, endRange)
                     .getOrElse { throw it.toRegistryClientError() }
-
-                startRange = endRange + 1 // advance past last byte of previous chunk
+                startRange = endRange
             }
 
-            currentSession
+            returnedSession
         }
 
     override suspend fun finishBlobUpload(session: UploadSession, digest: Digest): Digest =

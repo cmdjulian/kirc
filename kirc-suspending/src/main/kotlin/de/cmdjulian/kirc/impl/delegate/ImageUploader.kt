@@ -14,7 +14,6 @@ import de.cmdjulian.kirc.spec.UploadContainerImage
 import de.cmdjulian.kirc.spec.UploadSingleImage
 import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
-import de.cmdjulian.kirc.spec.manifest.ManifestListEntry
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.utils.toKotlinPath
 import kotlinx.coroutines.Dispatchers
@@ -133,13 +132,13 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
         blobs.keys.first { blobName -> namePart in blobName }.let(blobs::get)
             ?: throw KircUploadException("Could not find blob file containing '$namePart' in deserialized list")
 
-    private suspend fun resolveManifest(blobs: Map<String, Path>, manifestEntry: ManifestListEntry): ManifestSingle {
-        val blobPath = resolveBlobPath(blobs, "blobs/sha256/${manifestEntry.digest.hash}")
+    private suspend fun resolveManifest(blobs: Map<String, Path>, manifestDigest: Digest): Manifest {
+        val blobPath = resolveBlobPath(blobs, "blobs/sha256/${manifestDigest.hash}")
 
         val manifestStream = withContext(Dispatchers.IO) {
             SystemFileSystem.source(blobPath.toKotlinPath()).buffered().asInputStream()
         }
-        return jacksonDeserializer<ManifestSingle>().deserialize(manifestStream)
+        return jacksonDeserializer<Manifest>().deserialize(manifestStream)
     }
 
     /**
@@ -147,38 +146,31 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
      */
     private suspend fun associateManifestsWithBlobs(
         index: ManifestList,
-        blobs: Map<String, Path>,
-    ): List<UploadSingleImage> = index.manifests.map { manifestEntry ->
-        // resolve manifests from index
-        val manifest = resolveManifest(blobs, manifestEntry)
-        val manifestDigest = manifestEntry.digest
+        blobPaths: Map<String, Path>,
+    ): List<UploadSingleImage> = buildList {
+        index.manifests.forEach { (mediaType, entryDigest, size, _) ->
+            // resolve manifests from index
+            val manifestBlobPath = resolveBlobPath(blobPaths, entryDigest.hash)
+            val manifestBlob = UploadBlobPath(entryDigest, mediaType, manifestBlobPath, size)
 
-        // associate manifests to their blobs and config
-        val layerBlobs = manifest.layers.map { layer ->
-            val blobPath = resolveBlobPath(blobs, layer.digest.hash)
-            UploadBlobPath(layer.digest, layer.mediaType, blobPath, layer.size)
+            when (val manifest = resolveManifest(blobPaths, entryDigest)) {
+                is ManifestList -> {
+                    // recursively resolve manifests
+                    addAll(associateManifestsWithBlobs(manifest, blobPaths))
+                    // add the manifest list itself as an image too, so that it can be referenced elsewhere
+                    add(UploadSingleImage(manifest, entryDigest, listOf(manifestBlob)))
+                }
+
+                is ManifestSingle -> {
+                    // associate manifests to their layer blobs and config blob
+                    val blobs = (manifest.layers + manifest.config).map { layer ->
+                        val blobPath = resolveBlobPath(blobPaths, layer.digest.hash)
+                        UploadBlobPath(layer.digest, layer.mediaType, blobPath, layer.size)
+                    }
+
+                    add(UploadSingleImage(manifest, entryDigest, blobs + manifestBlob))
+                }
+            }
         }
-        val configBlob = manifest.config.let { config ->
-            val blobPath = resolveBlobPath(blobs, config.digest.hash)
-            // technically no layer blob but handled as blob when uploaded
-            UploadBlobPath(config.digest, config.mediaType, blobPath, config.size)
-        }
-        val manifestBlob = manifestBlobPath(blobs, manifestDigest, manifest)
-
-        UploadSingleImage(manifest, manifestDigest, layerBlobs + configBlob + manifestBlob)
-    }
-
-    private suspend fun manifestBlobPath(
-        blobs: Map<String, Path>,
-        manifestDigest: Digest,
-        manifest: Manifest,
-    ): UploadBlobPath {
-        val manifestPath = resolveBlobPath(blobs, manifestDigest.hash)
-        val size = withContext(Dispatchers.IO) {
-            SystemFileSystem.metadataOrNull(manifestPath.toKotlinPath())?.size
-        } ?: throw KircUploadException("Could not determine file metadata for manifest '$manifestDigest'")
-        val mediaType = manifest.mediaType
-            ?: throw KircUploadException("Could not determine media type of manifest $manifestDigest")
-        return UploadBlobPath(manifestDigest, mediaType, manifestPath, size)
     }
 }
