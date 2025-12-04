@@ -19,3 +19,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 - Fix chunked image upload to be faster
+
+## [v1.3.2] - 2025-10-01
+
+### Fixed
+
+- Update build integration
+
+## [v1.3.1] - 2025-10-01
+
+### Changed
+
+- Allow simultaneous upload of max. 3 blobs
+
+### Fix
+
+- Fix image extractor
+
+## [v1.3.0] - 2025-08-21
+
+### Added
+
+- Image Upload feature
+- Image download feature
