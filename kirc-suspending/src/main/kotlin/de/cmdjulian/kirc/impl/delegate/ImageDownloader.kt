@@ -67,9 +67,7 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
         index: ManifestList,
         sink: Sink,
     ) {
-        val manifests = index.manifests.associate { manifest ->
-            manifest.digest to client.manifest(repository, manifest.digest) as ManifestSingle
-        }
+        val manifests = resolveManifests(index, repository)
         val manifestSize = index.manifests.associate { manifest ->
             manifest.digest to manifest.size
         }
@@ -118,6 +116,23 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
         }
     }
 
+    // recursively resolve all single manifests from a manifest list
+    private suspend fun resolveManifests(index: ManifestList, repository: Repository): Map<Digest, ManifestSingle> =
+        buildMap {
+            for (manifestEntry in index.manifests) {
+                val manifest = runCatching {
+                    client.manifest(repository, manifestEntry.digest)
+                }.getOrElse {
+                    // Some attestation manifests are not retrievable, skip those as they aren't important for an image to run
+                    if (manifestEntry.isAttestation()) continue else throw it
+                }
+                when (manifest) {
+                    is ManifestSingle -> put(manifestEntry.digest, manifest)
+                    is ManifestList -> putAll(resolveManifests(manifest, repository))
+                }
+            }
+        }
+
     private suspend fun downloadSingleImage(
         repository: Repository,
         reference: Reference,
@@ -143,8 +158,9 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
             digest = digest,
             size = manifestStream.size,
             platform = ManifestListEntry.Platform(config.os, config.architecture, emptyList()),
+            annotations = emptyMap(),
         ).let {
-            OciManifestListV1(2, OciManifestListV1.MediaType, listOf(it), mapOf())
+            OciManifestListV1(2, OciManifestListV1.MediaType, mutableListOf(it), mapOf())
         }
 
         val manifestJson = createManifestJson(

@@ -128,12 +128,12 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
         }
     }
 
-    private fun resolveBlobPath(blobs: Map<String, Path>, namePart: String): Path =
-        blobs.keys.first { blobName -> namePart in blobName }.let(blobs::get)
-            ?: throw KircUploadException("Could not find blob file containing '$namePart' in deserialized list")
+    // Resolve blob path gracefully by searching for name part in blob names
+    private fun resolveBlobPath(blobs: Map<String, Path>, namePart: String): Path? =
+        blobs.entries.find { namePart in it.key }?.value
 
-    private suspend fun resolveManifest(blobs: Map<String, Path>, manifestDigest: Digest): Manifest {
-        val blobPath = resolveBlobPath(blobs, "blobs/sha256/${manifestDigest.hash}")
+    private suspend fun resolveManifest(blobs: Map<String, Path>, manifestDigest: Digest): Manifest? {
+        val blobPath = resolveBlobPath(blobs, "blobs/sha256/${manifestDigest.hash}") ?: return null
 
         val manifestStream = withContext(Dispatchers.IO) {
             SystemFileSystem.source(blobPath.toKotlinPath()).buffered().asInputStream()
@@ -148,12 +148,20 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
         index: ManifestList,
         blobPaths: Map<String, Path>,
     ): List<UploadSingleImage> = buildList {
-        index.manifests.forEach { (mediaType, entryDigest, size, _) ->
+        val notFoundAttestations = mutableListOf<Digest>()
+
+        for ((mediaType, entryDigest, size, _) in index.manifests) {
             // resolve manifests from index
             val manifestBlobPath = resolveBlobPath(blobPaths, entryDigest.hash)
+            if (manifestBlobPath == null) {
+                notFoundAttestations.add(entryDigest)
+                continue
+            }
             val manifestBlob = UploadBlobPath(entryDigest, mediaType, manifestBlobPath, size)
 
             when (val manifest = resolveManifest(blobPaths, entryDigest)) {
+                null -> continue
+
                 is ManifestList -> {
                     // recursively resolve manifests
                     addAll(associateManifestsWithBlobs(manifest, blobPaths))
@@ -165,6 +173,10 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
                     // associate manifests to their layer blobs and config blob
                     val blobs = (manifest.layers + manifest.config).map { layer ->
                         val blobPath = resolveBlobPath(blobPaths, layer.digest.hash)
+                            ?: throw KircUploadException(
+                                "Could not resolve blob for layer or config with digest '${layer.digest}' during upload",
+                            )
+
                         UploadBlobPath(layer.digest, layer.mediaType, blobPath, layer.size)
                     }
 
@@ -172,5 +184,7 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
                 }
             }
         }
+
+        index.manifests.removeIf { it.digest in notFoundAttestations }
     }
 }
