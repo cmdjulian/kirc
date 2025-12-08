@@ -34,5 +34,5 @@ sealed interface ManifestSingle : Manifest {
  */
 @ReflectionHint
 sealed interface ManifestList : Manifest {
-    val manifests: MutableList<ManifestListEntry>
+    val manifests: List<ManifestListEntry>
 }

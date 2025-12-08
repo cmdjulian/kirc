@@ -7,7 +7,7 @@ import io.goodforgod.graalvm.hint.annotation.ReflectionHint
 data class DockerManifestListV1(
     override val schemaVersion: Byte,
     override val mediaType: String,
-    override val manifests: MutableList<ManifestListEntry>,
+    override val manifests: List<ManifestListEntry>,
 ) : ManifestList {
     @ReflectionHint
     @Suppress("ktlint:standard:property-naming")

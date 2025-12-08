@@ -7,7 +7,7 @@ import io.goodforgod.graalvm.hint.annotation.ReflectionHint
 data class OciManifestListV1(
     override val schemaVersion: Byte,
     override val mediaType: String?,
-    override val manifests: MutableList<ManifestListEntry>,
+    override val manifests: List<ManifestListEntry>,
     val annotations: Map<String, String>,
 ) : ManifestList {
     @ReflectionHint
