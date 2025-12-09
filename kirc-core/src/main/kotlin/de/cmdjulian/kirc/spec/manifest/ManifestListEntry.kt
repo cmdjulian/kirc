@@ -1,5 +1,6 @@
 package de.cmdjulian.kirc.spec.manifest
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.spec.Architecture
 import de.cmdjulian.kirc.spec.OS
@@ -15,6 +16,7 @@ data class ManifestListEntry(
 ) {
     data class Platform(val os: OS, val architecture: Architecture, val features: List<String>)
 
+    @JsonIgnore
     fun isAttestation(): Boolean {
         val annotationsContainKey = if (annotations != null) {
             annotations["vnd.docker.reference.type"] == "attestation-manifest"

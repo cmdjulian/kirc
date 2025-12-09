@@ -140,7 +140,8 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
                 endRange = startRange + buffer.size - 1
                 returnedSession = api.uploadBlobChunked(returnedSession, buffer, startRange, endRange)
                     .getOrElse { throw it.toRegistryClientError() }
-                startRange = endRange
+                // since content ranges are inclusive, advance past last byte of previous chunk
+                startRange = endRange + 1
             }
 
             returnedSession
