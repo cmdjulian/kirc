@@ -28,6 +28,7 @@ import de.cmdjulian.kirc.utils.toRegistryClientError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.io.Buffer
+import kotlinx.io.EOFException
 import kotlinx.io.Sink
 import kotlinx.io.Source
 import kotlinx.io.asInputStream
@@ -127,24 +128,27 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
         api.uploadBlobStream(session, stream).getOrElse { throw it.toRegistryClientError() }
 
     override suspend fun uploadBlobChunks(session: UploadSession, path: Path, chunkSize: Long): UploadSession =
-        withContext(Dispatchers.IO) {
-            SystemFileSystem.source(path.toKotlinPath()).buffered()
-        }.use { stream ->
-            var returnedSession = session
+        withContext(Dispatchers.IO) { SystemFileSystem.source(path.toKotlinPath()).buffered() }.use { stream ->
+            var currentSession = session
             var startRange = 0L
-            var endRange: Long
 
             while (!stream.exhausted()) {
                 val buffer = Buffer()
-                stream.readAtMostTo(buffer, chunkSize)
-                endRange = startRange + buffer.size - 1
-                returnedSession = api.uploadBlobChunked(returnedSession, buffer, startRange, endRange)
-                    .getOrElse { throw it.toRegistryClientError() }
-                // since content ranges are inclusive, advance past last byte of previous chunk
-                startRange = endRange + 1
+                // read up to chunkSize bytes into buffer
+                try {
+                    // readTo exhausts stream when EOF is reached and then throws EOFException
+                    stream.readTo(buffer, chunkSize)
+                } catch (_: EOFException) {
+                    // expected behavior when EOF is reached
+                } finally {
+                    val bytesRead = buffer.size
+                    val endRange = startRange + bytesRead - 1
+                    currentSession = api.uploadBlobChunked(currentSession, buffer, startRange, endRange)
+                        .getOrElse { throw it.toRegistryClientError() }
+                    startRange = endRange + 1
+                }
             }
-
-            returnedSession
+            currentSession
         }
 
     override suspend fun finishBlobUpload(session: UploadSession, digest: Digest): Digest =
