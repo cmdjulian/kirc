@@ -23,7 +23,8 @@ instance of `RegistryClientException` for all errors. These errors are than divi
 2. network related errors (`NetworkError`) like HostNotFound or SSL related errors
 3. unexpected errors (`UnknownError`)
 
-As an authentication schema, JWT auth and BasicAuth are supported. Currently, there are no plans to implement certificate
+As an authentication schema, JWT auth and BasicAuth are supported. Currently, there are no plans to implement
+certificate
 based authentication.
 
 The Registry communication can be done using either `HTTP` or `HTTPS`. The library is also able to use a proxy for the
@@ -42,6 +43,10 @@ communication.
 - delete manifest
 - download image
 - inspect image
+
+### Missing
+
+- manifest attachments, such as attestations and other non-manifest data are currently not supported and are ignored
 
 ## Modules
 
@@ -254,7 +259,7 @@ dependencies {
 ### Image
 
 This module is transitively included from all the above modules. It's main purpose is to provide the components to parse
-container image names. It's mainly packaged in its own module to be included without any of the aforementioned modules. 
+container image names. It's mainly packaged in its own module to be included without any of the aforementioned modules.
 
 <details>
 <summary>Gradle</summary>

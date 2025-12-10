@@ -135,9 +135,9 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
 
     /**
      * Recursively resolves all Manifests from blobs and associates manifest with its layer blobs and config blobs.
-     * Removes manifest attestations from manifests in the process if they are unknown.
+     * Removes manifest attachments from manifests in the process if their platform contains UNKNOWN.
      *
-     * Returns the resolved images as well as the index provided, stripped from non-resolvable attestations
+     * Returns the resolved images as well as the index provided, stripped from all attachments (attestations, cache, etc.).
      *
      * [index] - the provided [ManifestList] for which manifests should be resolved
      * [blobPaths] - a mapping of blob digests to their source path
@@ -146,20 +146,23 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
         index: ManifestList,
         blobPaths: Map<Digest, Path>,
     ): Pair<ManifestList, List<UploadSingleImage>> {
-        val notFoundAttestations = mutableListOf<Digest>()
+        val attachments = mutableListOf<Digest>()
         val manifestBlobs = buildList {
-            for ((mediaType, entryDigest, size, _) in index.manifests) {
-                // resolve manifests from index
-                val manifestBlobPath = blobPaths[entryDigest]
-                if (manifestBlobPath == null) {
-                    notFoundAttestations.add(entryDigest)
-                } else {
-                    val manifestBlob = UploadBlobPath(entryDigest, mediaType, manifestBlobPath, size)
-                    addAll(resolveManifestsRecursively(entryDigest, blobPaths, manifestBlob))
+            for (manifestEntry in index.manifests) {
+                val entryDigest = manifestEntry.digest
+                // skip manifests with unknown platform (attestations, cache, etc.), they will be filtered out
+                if (manifestEntry.platformIsUnknown()) {
+                    attachments.add(entryDigest)
+                    continue
                 }
+                // resolve manifests from index
+                val manifestBlobPath = blobPaths[entryDigest] ?: continue
+                val manifestBlob =
+                    UploadBlobPath(entryDigest, manifestEntry.mediaType, manifestBlobPath, manifestEntry.size)
+                addAll(resolveManifestsRecursively(entryDigest, blobPaths, manifestBlob))
             }
         }
-        val manifests = index.manifests.filterNot { it.digest in notFoundAttestations }
+        val manifests = index.manifests.filterNot { it.digest in attachments }
         val index = when (index) {
             is DockerManifestListV1 -> index.copy(manifests = manifests)
             is OciManifestListV1 -> index.copy(manifests = manifests)

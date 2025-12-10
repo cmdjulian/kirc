@@ -117,13 +117,9 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
     private suspend fun resolveManifests(index: ManifestList, repository: Repository): List<ResolvedManifest> =
         buildList {
             for (manifestEntry in index.manifests) {
-                val manifest = runCatching {
-                    client.manifest(repository, manifestEntry.digest)
-                }.getOrElse {
-                    // Some attestation manifests are not retrievable, skip those as they aren't important for an image to run
-                    if (manifestEntry.isAttestation()) continue else throw it
-                }
-                when (manifest) {
+                // Some manifest attachments are not retrievable, skip those as they aren't currently supported in kirc
+                if (manifestEntry.platformIsUnknown()) continue
+                when (val manifest = client.manifest(repository, manifestEntry.digest)) {
                     is ManifestSingle -> {
                         val configStream = client.blobStream(repository, manifest.config.digest)
                         add(ResolvedManifest.Single(manifest, manifestEntry.digest, manifestEntry.size, configStream))
