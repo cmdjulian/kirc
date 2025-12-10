@@ -25,7 +25,7 @@ object ReactiveContainerImageClientFactory {
         proxy: Proxy? = null,
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
-        timeout: Duration = Duration.ofSeconds(5),
+        timeout: Duration = Duration.ofSeconds(15),
         tmpPath: Path,
     ): ReactiveContainerImageRegistryClient =
         SuspendingContainerImageClientFactory.create(url, credentials, proxy, skipTlsVerify, keystore, timeout, tmpPath)
@@ -40,7 +40,7 @@ object ReactiveContainerImageClientFactory {
         insecure: Boolean = false,
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
-        timeout: Duration = Duration.ofSeconds(5),
+        timeout: Duration = Duration.ofSeconds(15),
         tmpPath: Path,
     ): ReactiveContainerImageClient = runBlocking {
         SuspendingContainerImageClientFactory

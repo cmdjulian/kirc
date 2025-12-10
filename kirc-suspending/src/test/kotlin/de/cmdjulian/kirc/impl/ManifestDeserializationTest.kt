@@ -35,12 +35,14 @@ internal class ManifestDeserializationTest {
                     Digest("sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f"),
                     7143,
                     ManifestListEntry.Platform(OS.LINUX, Architecture.PPC64LE, emptyList()),
+                    emptyMap(),
                 ),
                 ManifestListEntry(
                     "application/vnd.docker.distribution.manifest.v2+json",
                     Digest("sha256:5b0bcabd1ed22e9fb1310cf6c2dec7cdef19f0ad69efa1f392e94a4333501270"),
                     7682,
                     ManifestListEntry.Platform(OS.LINUX, Architecture.AMD64, listOf("sse4")),
+                    emptyMap(),
                 ),
             )
         }
@@ -89,12 +91,14 @@ internal class ManifestDeserializationTest {
                     Digest("sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f"),
                     7143,
                     ManifestListEntry.Platform(OS.LINUX, Architecture.PPC64LE, emptyList()),
+                    emptyMap(),
                 ),
                 ManifestListEntry(
                     "application/vnd.oci.image.manifest.v1+json",
                     Digest("sha256:5b0bcabd1ed22e9fb1310cf6c2dec7cdef19f0ad69efa1f392e94a4333501270"),
                     7682,
                     ManifestListEntry.Platform(OS.LINUX, Architecture.AMD64, emptyList()),
+                    emptyMap(),
                 ),
             )
             annotations

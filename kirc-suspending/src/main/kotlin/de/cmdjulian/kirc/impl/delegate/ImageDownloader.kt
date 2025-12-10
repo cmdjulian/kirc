@@ -12,6 +12,7 @@ import de.cmdjulian.kirc.spec.ManifestJsonEntry
 import de.cmdjulian.kirc.spec.OciLayout
 import de.cmdjulian.kirc.spec.Repositories
 import de.cmdjulian.kirc.spec.manifest.LayerReference
+import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestListEntry
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
@@ -67,25 +68,18 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
         index: ManifestList,
         sink: Sink,
     ) {
-        val manifests = index.manifests.associate { manifest ->
-            manifest.digest to client.manifest(repository, manifest.digest) as ManifestSingle
-        }
-        val manifestSize = index.manifests.associate { manifest ->
-            manifest.digest to manifest.size
-        }
-        val manifestConfig =
-            manifests.mapValues { (_, manifest) -> client.blobStream(repository, manifest.config.digest) }
-        val manifestLayers = manifests.mapValues { (_, manifest) -> manifest.layers }
+        val manifests = resolveManifests(index, repository)
         val digest = (reference as? Digest) ?: client.manifestDigest(repository, reference)
         val tags = client.tags(repository, digest)
 
+        val singleManifests = manifests.filterIsInstance<ResolvedManifest.Single>()
         val manifestJson = createManifestJson(
             repository,
             tags,
-            manifestLayers.mapValues { (_, values) -> values },
-            manifests.mapValues { (_, manifest) -> manifest.config.digest },
+            singleManifests.associate { resolved -> resolved.digest to resolved.manifest.layers },
+            singleManifests.associate { resolved -> resolved.digest to resolved.manifest.config.digest },
         )
-        val repositories = createRepositories(repository, *manifests.keys.toTypedArray())
+        val repositories = createRepositories(repository, *manifests.map(ResolvedManifest::digest).toTypedArray())
 
         // write data
         sink.writeTarEntry("index.json", index)
@@ -93,30 +87,51 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
         sink.writeTarEntry("repositories.json", repositories)
         sink.writeTarEntry("oci-layout", OciLayout())
 
-        manifestSize.forEach { (digest, size) ->
-            val manifestStream = client.manifestStream(repository, digest)
-            sink.writeTarEntryFromSource("blobs/sha256/${digest.hash}", manifestStream.source, size)
-        }
-
-        manifestConfig.forEach { (manifestDigest, configBlob) ->
-            val manifest = manifests[manifestDigest] ?: throw KircDownloadException(
-                "Could not resolve config digest for manifest '$manifestDigest' during download",
+        for (resolved in manifests) {
+            // write manifest blob
+            val manifestStream = client.manifestStream(repository, resolved.digest)
+            sink.writeTarEntryFromSource(
+                "blobs/sha256/${resolved.digest.hash}",
+                manifestStream.source,
+                resolved.size,
             )
-            val digestHash = manifest.config.digest.hash
-            val configSize = manifest.config.size
-            sink.writeTarEntryFromSource("blobs/sha256/$digestHash", configBlob, configSize)
-        }
 
-        manifestLayers.forEach { (_, layers) ->
-            layers.forEach { layer ->
-                sink.writeTarEntryFromSource(
-                    "blobs/sha256/${layer.digest.hash}",
-                    client.blobStream(repository, layer.digest),
-                    layer.size,
-                )
+            if (resolved is ResolvedManifest.Single) {
+                // write config blob
+                val config = resolved.manifest.config
+                sink.writeTarEntryFromSource("blobs/sha256/${config.digest.hash}", resolved.configStream, config.size)
+
+                // write layer blobs
+                for (layer in resolved.manifest.layers) {
+                    sink.writeTarEntryFromSource(
+                        "blobs/sha256/${layer.digest.hash}",
+                        client.blobStream(repository, layer.digest),
+                        layer.size,
+                    )
+                }
             }
         }
     }
+
+    // recursively resolve all manifests from a manifest list
+    private suspend fun resolveManifests(index: ManifestList, repository: Repository): List<ResolvedManifest> =
+        buildList {
+            for (manifestEntry in index.manifests) {
+                // Some manifest attachments are not retrievable, skip those as they aren't currently supported in kirc
+                if (manifestEntry.platformIsUnknown()) continue
+                when (val manifest = client.manifest(repository, manifestEntry.digest)) {
+                    is ManifestSingle -> {
+                        val configStream = client.blobStream(repository, manifest.config.digest)
+                        add(ResolvedManifest.Single(manifest, manifestEntry.digest, manifestEntry.size, configStream))
+                    }
+
+                    is ManifestList -> {
+                        add(ResolvedManifest.List(manifest, manifestEntry.digest, manifestEntry.size))
+                        addAll(resolveManifests(manifest, repository))
+                    }
+                }
+            }
+        }
 
     private suspend fun downloadSingleImage(
         repository: Repository,
@@ -143,8 +158,9 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
             digest = digest,
             size = manifestStream.size,
             platform = ManifestListEntry.Platform(config.os, config.architecture, emptyList()),
+            annotations = emptyMap(),
         ).let {
-            OciManifestListV1(2, OciManifestListV1.MediaType, listOf(it), mapOf())
+            OciManifestListV1(2, OciManifestListV1.MediaType, mutableListOf(it), mapOf())
         }
 
         val manifestJson = createManifestJson(
@@ -225,4 +241,23 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
             layerSources = layerSources,
         )
     }.toTypedArray()
+
+    private interface ResolvedManifest {
+        val manifest: Manifest
+        val digest: Digest
+        val size: Long
+
+        data class Single(
+            override val manifest: ManifestSingle,
+            override val digest: Digest,
+            override val size: Long,
+            val configStream: Source,
+        ) : ResolvedManifest
+
+        data class List(
+            override val manifest: ManifestList,
+            override val digest: Digest,
+            override val size: Long,
+        ) : ResolvedManifest
+    }
 }

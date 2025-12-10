@@ -12,10 +12,11 @@ import de.cmdjulian.kirc.spec.Repositories
 import de.cmdjulian.kirc.spec.UploadBlobPath
 import de.cmdjulian.kirc.spec.UploadContainerImage
 import de.cmdjulian.kirc.spec.UploadSingleImage
+import de.cmdjulian.kirc.spec.manifest.DockerManifestListV1
 import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
-import de.cmdjulian.kirc.spec.manifest.ManifestListEntry
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
+import de.cmdjulian.kirc.spec.manifest.OciManifestListV1
 import de.cmdjulian.kirc.utils.toKotlinPath
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -87,7 +88,7 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
 
     private suspend fun readFromTar(tarSource: Source, tempDirectory: Path) = tarSource.use { source ->
         TarArchiveInputStream(source.asInputStream()).use { stream ->
-            val blobs = mutableMapOf<String, Path>()
+            val blobs = mutableMapOf<Digest, Path>()
             var indexFile: ManifestList? = null
             var repositoriesFile: Repositories? = null
             var manifestJsonFile: ManifestJson? = null
@@ -97,8 +98,10 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
                 when {
                     entry.isDirectory -> stream.skip(entry.size)
 
-                    entry.name.startsWith("blobs/sha256/") -> blobs[entry.name] =
-                        stream.processBlobEntry(entry, tempDirectory)
+                    entry.name.startsWith("blobs/sha256/") -> {
+                        val digest = Digest.of("sha256:" + entry.name.removePrefix("blobs/sha256/"))
+                        blobs[digest] = stream.processBlobEntry(entry, tempDirectory)
+                    }
 
                     "index.json" == entry.name -> indexFile = stream.deserializeEntry<ManifestList>(entry)
 
@@ -119,9 +122,10 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
                     throw KircUploadException("'oci-layout' file should be present inside the provided docker image")
             }
 
+            val (processedIndex, resolvedManifests) = resolveManifestsAndBlobs(indexFile, blobs)
             UploadContainerImage(
-                index = indexFile,
-                images = associateManifestsWithBlobs(indexFile, blobs),
+                index = processedIndex,
+                images = resolvedManifests,
                 manifest = manifestJsonFile,
                 repositories = repositoriesFile,
                 layout = ociLayoutFile,
@@ -129,56 +133,78 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
         }
     }
 
-    private fun resolveBlobPath(blobs: Map<String, Path>, namePart: String): Path =
-        blobs.keys.first { blobName -> namePart in blobName }.let(blobs::get)
-            ?: throw KircUploadException("Could not find blob file containing '$namePart' in deserialized list")
+    /**
+     * Recursively resolves all Manifests from blobs and associates manifest with its layer blobs and config blobs.
+     * Removes manifest attachments from manifests in the process if their platform contains UNKNOWN.
+     *
+     * Returns the resolved images as well as the index provided, stripped from all attachments (attestations, cache, etc.).
+     *
+     * [index] - the provided [ManifestList] for which manifests should be resolved
+     * [blobPaths] - a mapping of blob digests to their source path
+     */
+    private suspend fun resolveManifestsAndBlobs(
+        index: ManifestList,
+        blobPaths: Map<Digest, Path>,
+    ): Pair<ManifestList, List<UploadSingleImage>> {
+        val attachments = mutableListOf<Digest>()
+        val manifestBlobs = buildList {
+            for (manifestEntry in index.manifests) {
+                val entryDigest = manifestEntry.digest
+                // skip manifests with unknown platform (attestations, cache, etc.), they will be filtered out
+                if (manifestEntry.platformIsUnknown()) {
+                    attachments.add(entryDigest)
+                    continue
+                }
+                // resolve manifests from index
+                val manifestBlobPath = blobPaths[entryDigest] ?: continue
+                val manifestBlob =
+                    UploadBlobPath(entryDigest, manifestEntry.mediaType, manifestBlobPath, manifestEntry.size)
+                addAll(resolveManifestsRecursively(entryDigest, blobPaths, manifestBlob))
+            }
+        }
+        val manifests = index.manifests.filterNot { it.digest in attachments }
+        val index = when (index) {
+            is DockerManifestListV1 -> index.copy(manifests = manifests)
+            is OciManifestListV1 -> index.copy(manifests = manifests)
+        }
+        return index to manifestBlobs
+    }
 
-    private suspend fun resolveManifest(blobs: Map<String, Path>, manifestEntry: ManifestListEntry): ManifestSingle {
-        val blobPath = resolveBlobPath(blobs, "blobs/sha256/${manifestEntry.digest.hash}")
+    private suspend fun resolveManifestsRecursively(
+        entryDigest: Digest,
+        blobPaths: Map<Digest, Path>,
+        manifestBlob: UploadBlobPath,
+    ) = buildList {
+        when (val manifest = resolveManifest(blobPaths, entryDigest)) {
+            null -> Unit
+            is ManifestList -> {
+                // recursively resolve manifests
+                val (processedManifestList, processedManifests) = resolveManifestsAndBlobs(manifest, blobPaths)
+                addAll(processedManifests)
+                // add the manifest list itself as an image too, so that it can be referenced elsewhere
+                add(UploadSingleImage(processedManifestList, entryDigest, listOf(manifestBlob)))
+            }
+
+            is ManifestSingle -> {
+                // associate manifests to their layer blobs and config blob
+                val blobs = (manifest.layers + manifest.config).map { layer ->
+                    val blobPath = blobPaths[layer.digest] ?: throw KircUploadException(
+                        "Could not resolve blob for layer or " +
+                            "config with digest '${layer.digest}' during upload",
+                    )
+                    UploadBlobPath(layer.digest, layer.mediaType, blobPath, layer.size)
+                }
+                add(UploadSingleImage(manifest, entryDigest, blobs + manifestBlob))
+            }
+        }
+    }
+
+    private suspend fun resolveManifest(blobs: Map<Digest, Path>, manifestDigest: Digest): Manifest? {
+        val blobPath = blobs[manifestDigest] ?: return null
 
         val manifestStream = withContext(Dispatchers.IO) {
             SystemFileSystem.source(blobPath.toKotlinPath()).buffered().asInputStream()
         }
-        return jacksonDeserializer<ManifestSingle>().deserialize(manifestStream)
-    }
-
-    /**
-     * Associates manifest with their layer blobs and config blobs
-     */
-    private suspend fun associateManifestsWithBlobs(
-        index: ManifestList,
-        blobs: Map<String, Path>,
-    ): List<UploadSingleImage> = index.manifests.map { manifestEntry ->
-        // resolve manifests from index
-        val manifest = resolveManifest(blobs, manifestEntry)
-        val manifestDigest = manifestEntry.digest
-
-        // associate manifests to their blobs and config
-        val layerBlobs = manifest.layers.map { layer ->
-            val blobPath = resolveBlobPath(blobs, layer.digest.hash)
-            UploadBlobPath(layer.digest, layer.mediaType, blobPath, layer.size)
-        }
-        val configBlob = manifest.config.let { config ->
-            val blobPath = resolveBlobPath(blobs, config.digest.hash)
-            // technically no layer blob but handled as blob when uploaded
-            UploadBlobPath(config.digest, config.mediaType, blobPath, config.size)
-        }
-        val manifestBlob = manifestBlobPath(blobs, manifestDigest, manifest)
-
-        UploadSingleImage(manifest, manifestDigest, layerBlobs + configBlob + manifestBlob)
-    }
-
-    private suspend fun manifestBlobPath(
-        blobs: Map<String, Path>,
-        manifestDigest: Digest,
-        manifest: Manifest,
-    ): UploadBlobPath {
-        val manifestPath = resolveBlobPath(blobs, manifestDigest.hash)
-        val size = withContext(Dispatchers.IO) {
-            SystemFileSystem.metadataOrNull(manifestPath.toKotlinPath())?.size
-        } ?: throw KircUploadException("Could not determine file metadata for manifest '$manifestDigest'")
-        val mediaType = manifest.mediaType
-            ?: throw KircUploadException("Could not determine media type of manifest $manifestDigest")
-        return UploadBlobPath(manifestDigest, mediaType, manifestPath, size)
+        return jacksonDeserializer<Manifest>().deserialize(manifestStream)
     }
 }
