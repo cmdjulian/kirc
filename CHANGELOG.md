@@ -6,13 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [v1.3.4] - 2025-12-10
+
 ### Added
 
 - Support for nested manifests, e.g. index containing another index (aka list image)
 
-### Changed
+### Fixed
 
-- Revert chunked image upload changes due to issues in production
+- Fix chunked image upload
 
 ## [v1.3.3] - 2025-10-17
 
