@@ -53,7 +53,7 @@ dependencies {
     testImplementation("io.hosuaby:inject-resources-junit-jupiter:0.3.5")
 
     // test container
-    testImplementation("org.testcontainers:testcontainers:2.0.1")
+    testImplementation("org.testcontainers:testcontainers:2.0.2")
 }
 
 tasks.jar {
