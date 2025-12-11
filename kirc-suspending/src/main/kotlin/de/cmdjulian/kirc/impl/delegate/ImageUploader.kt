@@ -19,9 +19,10 @@ import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestListV1
 import de.cmdjulian.kirc.utils.toKotlinPath
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.io.Source
 import kotlinx.io.asInputStream
@@ -31,12 +32,10 @@ import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import java.nio.file.Path
 import java.time.OffsetDateTime
 import java.time.temporal.ChronoUnit
-import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.pathString
 
 internal class ImageUploader(private val client: SuspendingContainerImageRegistryClient, private val tmpPath: Path) {
 
-    @OptIn(ExperimentalPathApi::class, ExperimentalCoroutinesApi::class)
     suspend fun upload(repository: Repository, reference: Reference, tar: Source): Digest = coroutineScope {
         // store data temporarily
         val tempDirectory = Path.of(
@@ -51,15 +50,15 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
         val uploadContainerImage = readFromTar(tar, tempDirectory)
 
         // upload architecture images
-        // upload max three layers in parallel at most
-        val blobUploadDispatcher = Dispatchers.Default.limitedParallelism(3)
         try {
             for ((manifest, manifestDigest, blobs) in uploadContainerImage.images) {
                 // upload blobs in parallel, but only up to three at once to mimic how Docker does it
                 coroutineScope {
-                    withContext(blobUploadDispatcher) {
-                        for (blob in blobs.distinctBy(UploadBlobPath::digest)) {
-                            launch {
+                    val semaphore = Semaphore(3)
+
+                    for (blob in blobs.distinctBy(UploadBlobPath::digest)) {
+                        launch {
+                            semaphore.withPermit {
                                 if (!client.existsBlob(repository, blob.digest)) {
                                     val session = client.initiateBlobUpload(repository)
 
