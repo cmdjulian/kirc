@@ -11,7 +11,7 @@ plugins {
     kotlin("jvm") version "2.2.21" apply false
     kotlin("kapt") version "2.2.21" apply false
     kotlin("libs.publisher") version "0.0.61-dev-34"
-    id("org.jlleitschuh.gradle.ktlint") version "13.1.0" apply false
+    id("org.jlleitschuh.gradle.ktlint") version "14.0.1" apply false
     id("org.owasp.dependencycheck") version "12.1.9" apply false // "dependencyCheckAnalyze"
     id("com.github.ben-manes.versions") version "0.53.0" apply false // "dependencyUpdates --refresh-dependencies"
     id("me.qoomon.git-versioning") version "6.4.4"
