@@ -7,7 +7,6 @@ import de.cmdjulian.kirc.client.UploadMode
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
-
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import io.kotest.assertions.throwables.shouldNotThrowAny
 import io.kotest.matchers.booleans.shouldBeTrue
