@@ -3,6 +3,7 @@ package de.cmdjulian.kirc.impl
 import com.github.kittinunf.fuel.core.FuelError
 import com.github.kittinunf.fuel.core.FuelManager
 import com.github.kittinunf.fuel.core.Headers
+import com.github.kittinunf.fuel.core.Method
 import com.github.kittinunf.fuel.core.Parameters
 import com.github.kittinunf.fuel.core.awaitResponseResult
 import com.github.kittinunf.fuel.core.deserializers.ByteArrayDeserializer
@@ -38,6 +39,9 @@ import kotlinx.io.Buffer
 import kotlinx.io.Source
 import kotlinx.io.asInputStream
 import kotlinx.io.readByteArray
+import java.nio.file.Path
+import kotlin.io.path.fileSize
+import kotlin.io.path.inputStream
 
 private const val APPLICATION_JSON = "application/json"
 private const val APPLICATION_OCTET_STREAM = "application/octet-stream"
@@ -263,14 +267,13 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
         .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
         .mapToUploadSession()
 
-    // Currently not working as intended, because internal fuel buffer has an overflow
-    override suspend fun uploadBlobStream(session: UploadSession, source: Source): Result<UploadSession, FuelError> =
-        fuelManager.patch(session.location)
+    override suspend fun uploadBlobStream(session: UploadSession, path: Path, size: Long, digest: Digest): Result<Digest, FuelError> =
+        fuelManager.put(session.location, listOf("digest" to digest))
             .appendHeader(Headers.CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-            .body(source::asInputStream)
+            .body(path::inputStream, { size }, repeatable = true)
             .awaitResponseResult(EmptyDeserializer)
             .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-            .mapToUploadSession()
+            .mapToDigest()
 
     override suspend fun uploadStatus(session: UploadSession): Result<Pair<Long, Long>, FuelError> =
         fuelManager.get(session.location)

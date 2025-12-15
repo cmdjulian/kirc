@@ -4,8 +4,10 @@ import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
+
 import de.cmdjulian.kirc.impl.response.ResultSource
 import de.cmdjulian.kirc.impl.response.UploadSession
+import de.cmdjulian.kirc.spec.UploadBlobPath
 import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
@@ -113,9 +115,17 @@ interface SuspendingContainerImageRegistryClient {
     suspend fun uploadBlobChunks(session: UploadSession, path: Path, chunkSize: Long = 10 * 1048576L): UploadSession
 
     /**
-     * Uploads an entire blob by stream
+     * Uploads an entire blob chunk-wise for reduced memory load
      */
-    suspend fun uploadBlobStream(session: UploadSession, stream: Source): UploadSession
+    @Deprecated("Use chunked upload instead")
+    suspend fun uploadBlobCompatibility(session: UploadSession, path: Path): UploadSession
+
+    /**
+     * Uploads an entire [blob] by stream
+     *
+     * Closes [session] by uploading the whole blob in one monolithic upload and returns its digest upon success.
+     */
+    suspend fun uploadBlobStream(session: UploadSession, blob: UploadBlobPath): Digest
 
     /**
      * Upload a manifest
@@ -140,7 +150,7 @@ interface SuspendingContainerImageRegistryClient {
      *
      * @return the digest of uploaded image
      */
-    suspend fun upload(repository: Repository, reference: Reference, tar: Source): Digest
+    suspend fun upload(repository: Repository, reference: Reference, tar: Source, mode: UploadMode = UploadMode.Stream): Digest
 
     /**
      * Downloads a docker image for certain [reference].

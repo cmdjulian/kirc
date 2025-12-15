@@ -5,6 +5,7 @@ import com.github.kittinunf.result.map
 import com.github.kittinunf.result.onError
 import de.cmdjulian.kirc.client.SuspendingContainerImageClient
 import de.cmdjulian.kirc.client.SuspendingContainerImageRegistryClient
+import de.cmdjulian.kirc.client.UploadMode
 import de.cmdjulian.kirc.image.ContainerImageName
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
@@ -12,10 +13,12 @@ import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
 import de.cmdjulian.kirc.impl.delegate.ImageDownloader
 import de.cmdjulian.kirc.impl.delegate.ImageUploader
+
 import de.cmdjulian.kirc.impl.response.Catalog
 import de.cmdjulian.kirc.impl.response.ResultSource
 import de.cmdjulian.kirc.impl.response.TagList
 import de.cmdjulian.kirc.impl.response.UploadSession
+import de.cmdjulian.kirc.spec.UploadBlobPath
 import de.cmdjulian.kirc.spec.image.DockerImageConfigV1
 import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.image.OciImageConfigV1
@@ -34,6 +37,7 @@ import kotlinx.io.Source
 import kotlinx.io.asInputStream
 import kotlinx.io.buffered
 import kotlinx.io.files.SystemFileSystem
+import kotlinx.io.readAtMostTo
 import java.nio.file.Path
 
 internal class SuspendingContainerImageRegistryClientImpl(private val api: ContainerRegistryApi, tmpPath: Path) :
@@ -124,8 +128,8 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
     override suspend fun initiateBlobUpload(repository: Repository): UploadSession =
         api.initiateUpload(repository).getOrElse { throw it.toRegistryClientError(repository, null) }
 
-    override suspend fun uploadBlobStream(session: UploadSession, stream: Source): UploadSession =
-        api.uploadBlobStream(session, stream).getOrElse { throw it.toRegistryClientError() }
+    override suspend fun uploadBlobStream(session: UploadSession, blob: UploadBlobPath): Digest =
+        api.uploadBlobStream(session, blob.path, blob.size, blob.digest).getOrElse { throw it.toRegistryClientError() }
 
     override suspend fun uploadBlobChunks(session: UploadSession, path: Path, chunkSize: Long): UploadSession =
         withContext(Dispatchers.IO) { SystemFileSystem.source(path.toKotlinPath()).buffered() }.use { stream ->
@@ -151,6 +155,28 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
             currentSession
         }
 
+    @Deprecated("Use chunked upload instead")
+    override suspend fun uploadBlobCompatibility(session: UploadSession, path: Path): UploadSession =
+        withContext(Dispatchers.IO) {
+            SystemFileSystem.source(path.toKotlinPath()).buffered()
+        }.use { stream ->
+            var returnedSession = session
+            var startRange = 0L
+            var endRange: Long
+
+            while (!stream.exhausted()) {
+                val buffer = Buffer()
+                // will not read more than 8KB into buffer but this version worked always
+                stream.readAtMostTo(buffer, 10 * 1048576L)
+                endRange = startRange + buffer.size - 1
+                returnedSession = api.uploadBlobChunked(returnedSession, buffer, startRange, endRange)
+                    .getOrElse { throw it.toRegistryClientError() }
+                startRange = endRange
+            }
+
+            returnedSession
+        }
+
     override suspend fun finishBlobUpload(session: UploadSession, digest: Digest): Digest =
         api.finishBlobUpload(session, digest)
             .getOrElse { throw it.toRegistryClientError(null, digest) }
@@ -166,8 +192,8 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
         api.uploadManifest(repository, reference, manifest)
             .getOrElse { throw it.toRegistryClientError(repository, reference) }
 
-    override suspend fun upload(repository: Repository, reference: Reference, tar: Source): Digest =
-        uploader.upload(repository, reference, tar)
+    override suspend fun upload(repository: Repository, reference: Reference, tar: Source, mode: UploadMode): Digest =
+        uploader.upload(repository, reference, tar, mode)
 
     override suspend fun download(repository: Repository, reference: Reference): Source =
         downloader.download(repository, reference)
