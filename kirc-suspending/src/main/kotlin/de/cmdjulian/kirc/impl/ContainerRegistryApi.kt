@@ -83,7 +83,12 @@ internal interface ContainerRegistryApi {
      *
      * Upon success, should return the same [digest] and closes [session]
      */
-    suspend fun uploadBlobStream(session: UploadSession, path: Path, size: Long, digest: Digest): Result<Digest, FuelError>
+    suspend fun uploadBlobStream(
+        session: UploadSession,
+        path: Path,
+        size: Long,
+        digest: Digest,
+    ): Result<Digest, FuelError>
 
     /** Retrieve the status of provided [session], returning the range of already uploaded data (start, end) */
     suspend fun uploadStatus(session: UploadSession): Result<Pair<Long, Long>, FuelError>

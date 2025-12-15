@@ -90,7 +90,12 @@ interface ReactiveContainerImageRegistryClient {
      *
      * @return the digest of uploaded image
      */
-    fun upload(repository: Repository, reference: Reference, tar: Flux<Byte>, mode: UploadMode = UploadMode.Stream): Mono<Digest>
+    fun upload(
+        repository: Repository,
+        reference: Reference,
+        tar: Flux<Byte>,
+        mode: UploadMode = UploadMode.Stream,
+    ): Mono<Digest>
 
     /**
      * Downloads a docker image for certain [reference].
@@ -142,10 +147,11 @@ fun SuspendingContainerImageRegistryClient.toReactiveClient() = object : Reactiv
         }
     }
 
-    override fun upload(repository: Repository, reference: Reference, tar: Flux<Byte>, mode: UploadMode): Mono<Digest> = mono {
-        val buffer = Buffer().also { buffer -> tar.collect(buffer::writeByte) }
-        this@toReactiveClient.upload(repository, reference, buffer, mode)
-    }
+    override fun upload(repository: Repository, reference: Reference, tar: Flux<Byte>, mode: UploadMode): Mono<Digest> =
+        mono {
+            val buffer = Buffer().also { buffer -> tar.collect(buffer::writeByte) }
+            this@toReactiveClient.upload(repository, reference, buffer, mode)
+        }
 
     override fun download(repository: Repository, reference: Reference): Flux<Byte> = flux {
         this@toReactiveClient.download(repository, reference).use { result ->

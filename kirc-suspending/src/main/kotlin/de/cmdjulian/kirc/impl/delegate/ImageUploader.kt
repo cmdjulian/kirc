@@ -37,7 +37,12 @@ import kotlin.io.path.pathString
 
 internal class ImageUploader(private val client: SuspendingContainerImageRegistryClient, private val tmpPath: Path) {
 
-    suspend fun upload(repository: Repository, reference: Reference, tar: Source, upload: UploadMode = UploadMode.Stream): Digest = coroutineScope {
+    suspend fun upload(
+        repository: Repository,
+        reference: Reference,
+        tar: Source,
+        upload: UploadMode = UploadMode.Stream,
+    ): Digest = coroutineScope {
         // store data temporarily
         val tempDirectory = Path.of(
             tmpPath.pathString,
@@ -63,15 +68,18 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
                                 if (!client.existsBlob(repository, blob.digest)) {
                                     val session = client.initiateBlobUpload(repository)
 
-                                    when(upload) {
+                                    when (upload) {
                                         is UploadMode.Chunked -> {
-                                            val endSession = client.uploadBlobChunks(session, blob.path, upload.chunkSize)
+                                            val endSession =
+                                                client.uploadBlobChunks(session, blob.path, upload.chunkSize)
                                             client.finishBlobUpload(endSession, blob.digest)
                                         }
+
                                         is UploadMode.Compatibility -> {
                                             val endSession = client.uploadBlobCompatibility(session, blob.path)
                                             client.finishBlobUpload(endSession, blob.digest)
                                         }
+
                                         is UploadMode.Stream -> client.uploadBlobStream(session, blob)
                                     }
                                 }

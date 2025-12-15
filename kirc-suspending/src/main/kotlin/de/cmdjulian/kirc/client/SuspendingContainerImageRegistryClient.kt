@@ -150,7 +150,12 @@ interface SuspendingContainerImageRegistryClient {
      *
      * @return the digest of uploaded image
      */
-    suspend fun upload(repository: Repository, reference: Reference, tar: Source, mode: UploadMode = UploadMode.Stream): Digest
+    suspend fun upload(
+        repository: Repository,
+        reference: Reference,
+        tar: Source,
+        mode: UploadMode = UploadMode.Stream,
+    ): Digest
 
     /**
      * Downloads a docker image for certain [reference].

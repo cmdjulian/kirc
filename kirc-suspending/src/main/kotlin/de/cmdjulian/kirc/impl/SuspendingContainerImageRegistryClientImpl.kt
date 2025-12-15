@@ -13,7 +13,6 @@ import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
 import de.cmdjulian.kirc.impl.delegate.ImageDownloader
 import de.cmdjulian.kirc.impl.delegate.ImageUploader
-
 import de.cmdjulian.kirc.impl.response.Catalog
 import de.cmdjulian.kirc.impl.response.ResultSource
 import de.cmdjulian.kirc.impl.response.TagList
@@ -37,7 +36,6 @@ import kotlinx.io.Source
 import kotlinx.io.asInputStream
 import kotlinx.io.buffered
 import kotlinx.io.files.SystemFileSystem
-import kotlinx.io.readAtMostTo
 import java.nio.file.Path
 
 internal class SuspendingContainerImageRegistryClientImpl(private val api: ContainerRegistryApi, tmpPath: Path) :
