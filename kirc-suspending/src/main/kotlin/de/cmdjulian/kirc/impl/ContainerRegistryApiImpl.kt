@@ -4,9 +4,11 @@ import com.github.kittinunf.fuel.core.FuelError
 import com.github.kittinunf.fuel.core.FuelManager
 import com.github.kittinunf.fuel.core.Headers
 import com.github.kittinunf.fuel.core.Parameters
+import com.github.kittinunf.fuel.core.Request
 import com.github.kittinunf.fuel.core.awaitResponseResult
 import com.github.kittinunf.fuel.core.deserializers.ByteArrayDeserializer
 import com.github.kittinunf.fuel.core.deserializers.EmptyDeserializer
+import com.github.kittinunf.fuel.core.extensions.authentication
 import com.github.kittinunf.result.Result
 import com.github.kittinunf.result.flatMap
 import com.github.kittinunf.result.map
@@ -43,14 +45,22 @@ import kotlin.io.path.inputStream
 private const val APPLICATION_JSON = "application/json"
 private const val APPLICATION_OCTET_STREAM = "application/octet-stream"
 
-internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, credentials: RegistryCredentials?) :
+internal class ContainerRegistryApiImpl(
+    private val fuelManager: FuelManager,
+    private val credentials: RegistryCredentials?,
+) :
     ContainerRegistryApi {
 
     private val handler = ResponseRetryWithAuthentication(credentials, fuelManager)
 
+    private fun Request.addBasicAuth() = apply {
+        credentials?.let { credentials -> authentication().basic(credentials.username, credentials.password) }
+    }
+
     // Status
 
     override suspend fun ping(): Result<*, FuelError> = fuelManager.get("/v2/")
+        .addBasicAuth()
         .awaitResponseResult(EmptyDeserializer)
         .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
         .third
@@ -63,6 +73,7 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
 
         val deserializable = jacksonDeserializer<Catalog>()
         return fuelManager.get("/v2/_catalog", parameter)
+            .addBasicAuth()
             .appendHeader(Headers.ACCEPT, APPLICATION_JSON)
             .awaitResponseResult(deserializable)
             .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
@@ -77,6 +88,7 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
 
         val deserializable = jacksonDeserializer<TagList>()
         return fuelManager.get("/v2/$repository/tags/list", parameter)
+            .addBasicAuth()
             .appendHeader(Headers.ACCEPT, APPLICATION_JSON)
             .awaitResponseResult(deserializable)
             .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
@@ -86,6 +98,7 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
     override suspend fun digest(repository: Repository, reference: Reference) = when (reference) {
         is Digest -> Result.success(reference)
         is Tag -> fuelManager.head("/v2/$repository/manifests/$reference")
+            .addBasicAuth()
             .appendHeader(
                 Headers.ACCEPT,
                 APPLICATION_JSON,
@@ -106,6 +119,7 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
         reference: Reference,
         accept: String,
     ): Result<*, FuelError> = fuelManager.head("/v2/$repository/manifests/$reference")
+        .addBasicAuth()
         .appendHeader(Headers.ACCEPT, accept)
         .awaitResponseResult(EmptyDeserializer)
         .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
@@ -114,6 +128,7 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
     override suspend fun manifests(repository: Repository, reference: Reference): Result<Manifest, FuelError> {
         val deserializable = jacksonDeserializer<Manifest>()
         return fuelManager.get("/v2/$repository/manifests/$reference")
+            .addBasicAuth()
             .appendHeader(
                 Headers.ACCEPT,
                 APPLICATION_JSON,
@@ -130,6 +145,7 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
     override suspend fun manifestStream(repository: Repository, reference: Reference): Result<ResultSource, FuelError> {
         val deserializable = SourceDeserializer()
         return fuelManager.get("/v2/$repository/manifests/$reference")
+            .addBasicAuth()
             .appendHeader(
                 Headers.ACCEPT,
                 APPLICATION_JSON,
@@ -146,6 +162,7 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
     override suspend fun manifest(repository: Repository, reference: Reference): Result<ManifestSingle, FuelError> {
         val deserializable = jacksonDeserializer<ManifestSingle>()
         return fuelManager.get("/v2/$repository/manifests/$reference")
+            .addBasicAuth()
             .appendHeader(Headers.ACCEPT, APPLICATION_JSON, OciManifestV1.MediaType, DockerManifestV2.MediaType)
             .awaitResponseResult(deserializable)
             .let { responseResult -> handler.retryOnUnauthorized(responseResult, deserializable) }
@@ -168,6 +185,7 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
             is OciManifestListV1 -> OciManifestListV1.MediaType
         }
         return fuelManager.put("/v2/$repository/manifests/$urlReference")
+            .addBasicAuth()
             .appendHeader(Headers.CONTENT_TYPE, contentType)
             .body(JsonMapper.writeValueAsString(manifest))
             .awaitResponseResult(EmptyDeserializer)
@@ -178,6 +196,7 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
     override suspend fun deleteManifest(repository: Repository, reference: Reference): Result<Digest, FuelError> {
         return digest(repository, reference).flatMap { digest ->
             fuelManager.delete("/v2/$repository/manifests/$digest")
+                .addBasicAuth()
                 .appendHeader(
                     Headers.ACCEPT,
                     APPLICATION_JSON,
@@ -197,6 +216,7 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
 
     override suspend fun existsBlob(repository: Repository, digest: Digest): Result<*, FuelError> =
         fuelManager.head("/v2/$repository/blobs/$digest")
+            .addBasicAuth()
             .awaitResponseResult(EmptyDeserializer)
             .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
             .third
@@ -204,6 +224,7 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
     override suspend fun blob(repository: Repository, digest: Digest): Result<ByteArray, FuelError> {
         val deserializable = ByteArrayDeserializer()
         return fuelManager.get("/v2/$repository/blobs/$digest")
+            .addBasicAuth()
             .appendHeader(
                 Headers.ACCEPT,
                 APPLICATION_JSON,
@@ -221,6 +242,7 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
     override suspend fun blobStream(repository: Repository, digest: Digest): Result<Source, FuelError> {
         val deserializable = SourceDeserializer()
         return fuelManager.get("/v2/$repository/blobs/$digest")
+            .addBasicAuth()
             .appendHeader(
                 Headers.ACCEPT,
                 APPLICATION_JSON,
@@ -237,6 +259,7 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
 
     override suspend fun initiateUpload(repository: Repository): Result<UploadSession, FuelError> =
         fuelManager.post("/v2/$repository/blobs/uploads/")
+            .addBasicAuth()
             .awaitResponseResult(EmptyDeserializer)
             .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
             .mapToUploadSession()
@@ -245,6 +268,7 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
         val parameters = listOf("digest" to digest)
 
         return fuelManager.put(session.location, parameters)
+            .addBasicAuth()
             .awaitResponseResult(EmptyDeserializer)
             .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
             .mapToDigest()
@@ -256,6 +280,7 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
         startRange: Long,
         endRange: Long,
     ): Result<UploadSession, FuelError> = fuelManager.patch(session.location)
+        .addBasicAuth()
         .appendHeader(Headers.CONTENT_LENGTH, buffer.size)
         .appendHeader("Content-Range", "$startRange-$endRange")
         .appendHeader(Headers.CONTENT_TYPE, APPLICATION_OCTET_STREAM)
@@ -269,22 +294,30 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
         path: Path,
         size: Long,
         digest: Digest,
-    ): Result<Digest, FuelError> =
-        fuelManager.put(session.location, listOf("digest" to digest))
-            .appendHeader(Headers.CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-            .body(path::inputStream, { size }, repeatable = true)
-            .awaitResponseResult(EmptyDeserializer)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-            .mapToDigest()
+    ): Result<Digest, FuelError> = fuelManager.put(session.location, listOf("digest" to digest))
+        .addBasicAuth()
+        .appendHeader(Headers.CONTENT_TYPE, APPLICATION_OCTET_STREAM)
+        .body(path::inputStream, { size })
+        .awaitResponseResult(EmptyDeserializer)
+        .let { responseResult ->
+            handler.retryOnUnauthorized(
+                responseResult,
+                EmptyDeserializer,
+                RetryMode.Stream(path::inputStream, size),
+            )
+        }
+        .mapToDigest()
 
     override suspend fun uploadStatus(session: UploadSession): Result<Pair<Long, Long>, FuelError> =
         fuelManager.get(session.location)
+            .addBasicAuth()
             .awaitResponseResult(EmptyDeserializer)
             .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
             .mapToRange()
 
     override suspend fun cancelBlobUpload(session: UploadSession): Result<*, FuelError> =
         fuelManager.delete(session.location)
+            .addBasicAuth()
             .awaitResponseResult(EmptyDeserializer)
             .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
             .third
