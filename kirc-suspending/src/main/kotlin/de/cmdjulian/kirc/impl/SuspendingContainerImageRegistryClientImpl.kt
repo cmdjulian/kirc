@@ -143,11 +143,13 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
                 } catch (_: EOFException) {
                     // expected behavior when EOF is reached
                 } finally {
-                    val bytesRead = buffer.size
-                    val endRange = startRange + bytesRead - 1
-                    currentSession = api.uploadBlobChunked(currentSession, buffer, startRange, endRange)
-                        .getOrElse { throw it.toRegistryClientError() }
-                    startRange = endRange + 1
+                    if (buffer.size > 0) {
+                        val bytesRead = buffer.size
+                        val endRange = startRange + bytesRead - 1
+                        currentSession = api.uploadBlobChunked(currentSession, buffer, startRange, endRange)
+                            .getOrElse { throw it.toRegistryClientError() }
+                        startRange = endRange + 1
+                    }
                 }
             }
             currentSession
