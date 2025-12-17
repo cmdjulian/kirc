@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Streamed upload
+
+### Changed
+
+- Upload modes available: Stream, Chunked, Compatibility (old slow version)
+
+### Fixed
+
+- Requests only retry upon bearer authentication
+- Streamed upload isn't stored in memory when request retries
+
 ## [v1.3.4] - 2025-12-10
 
 ### Added

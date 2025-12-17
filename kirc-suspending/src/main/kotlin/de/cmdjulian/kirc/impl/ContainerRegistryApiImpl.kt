@@ -36,8 +36,9 @@ import de.cmdjulian.kirc.utils.mapToResultSource
 import de.cmdjulian.kirc.utils.mapToUploadSession
 import kotlinx.io.Buffer
 import kotlinx.io.Source
-import kotlinx.io.asInputStream
 import kotlinx.io.readByteArray
+import java.nio.file.Path
+import kotlin.io.path.inputStream
 
 private const val APPLICATION_JSON = "application/json"
 private const val APPLICATION_OCTET_STREAM = "application/octet-stream"
@@ -263,14 +264,23 @@ internal class ContainerRegistryApiImpl(private val fuelManager: FuelManager, cr
         .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
         .mapToUploadSession()
 
-    // Currently not working as intended, because internal fuel buffer has an overflow
-    override suspend fun uploadBlobStream(session: UploadSession, source: Source): Result<UploadSession, FuelError> =
-        fuelManager.patch(session.location)
-            .appendHeader(Headers.CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-            .body(source::asInputStream)
-            .awaitResponseResult(EmptyDeserializer)
-            .let { responseResult -> handler.retryOnUnauthorized(responseResult, EmptyDeserializer) }
-            .mapToUploadSession()
+    override suspend fun uploadBlobStream(
+        session: UploadSession,
+        path: Path,
+        size: Long,
+        digest: Digest,
+    ): Result<Digest, FuelError> = fuelManager.put(session.location, listOf("digest" to digest))
+        .appendHeader(Headers.CONTENT_TYPE, APPLICATION_OCTET_STREAM)
+        .body(path::inputStream, { size })
+        .awaitResponseResult(EmptyDeserializer)
+        .let { responseResult ->
+            handler.retryOnUnauthorized(
+                responseResult,
+                EmptyDeserializer,
+                RetryMode.Stream(path::inputStream, size),
+            )
+        }
+        .mapToDigest()
 
     override suspend fun uploadStatus(session: UploadSession): Result<Pair<Long, Long>, FuelError> =
         fuelManager.get(session.location)

@@ -3,6 +3,7 @@ package de.cmdjulian.kirc
 import de.cmdjulian.kirc.client.BlockingContainerImageClientFactory
 import de.cmdjulian.kirc.client.BlockingContainerImageRegistryClient
 import de.cmdjulian.kirc.client.RegistryCredentials
+import de.cmdjulian.kirc.client.UploadMode
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
@@ -26,7 +27,7 @@ class DockerRegistryCliHelper(addressName: String, credentials: RegistryCredenti
     fun pushImage(repository: Repository, reference: Reference, url: URL): Digest {
         images.add(UploadReference(repository, reference))
         val source = runBlocking(Dispatchers.IO) { SystemFileSystem.source(Path(url.path)) }
-        return client.upload(repository, reference, source.buffered().asInputStream())
+        return client.upload(repository, reference, source.buffered().asInputStream(), UploadMode.Stream)
     }
 
     fun deleteAll() {

@@ -14,6 +14,18 @@ import de.cmdjulian.kirc.client.RegistryCredentials
 import de.cmdjulian.kirc.utils.CaseInsensitiveMap
 import im.toss.http.parser.HttpAuthCredentials
 import io.goodforgod.graalvm.hint.annotation.ReflectionHint
+import java.io.InputStream
+
+/**
+ * Defines body source for the retry method:
+ *
+ * - [Default]: copies body from original request
+ * - [Stream]: adds InputStream as body from provided lambda
+ */
+internal sealed class RetryMode {
+    data object Default : RetryMode()
+    data class Stream(val stream: () -> InputStream, val size: Long) : RetryMode()
+}
 
 internal class ResponseRetryWithAuthentication(
     private val credentials: RegistryCredentials?,
@@ -22,12 +34,17 @@ internal class ResponseRetryWithAuthentication(
     suspend fun <T : Any> retryOnUnauthorized(
         responseResult: ResponseResultOf<T>,
         deserializer: Deserializable<T>,
+        mode: RetryMode = RetryMode.Default,
     ): ResponseResultOf<T> {
         val (request, response, _) = responseResult
         val headers = CaseInsensitiveMap(response.headers)
 
         if (response.statusCode == 401 && "www-authenticate" in headers) {
             val retryableRequest = retryRequest(headers["www-authenticate"]?.first(), request)
+            when (mode) {
+                is RetryMode.Default -> Unit
+                is RetryMode.Stream -> retryableRequest?.body(mode.stream, { mode.size })
+            }
             retryableRequest?.let { return it.awaitResponseResult(deserializer) }
         }
 

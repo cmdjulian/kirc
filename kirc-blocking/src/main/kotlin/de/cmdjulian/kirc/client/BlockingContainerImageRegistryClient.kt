@@ -88,7 +88,12 @@ interface BlockingContainerImageRegistryClient {
      *
      * @return the digest of uploaded image
      */
-    fun upload(repository: Repository, reference: Reference, tar: InputStream): Digest
+    fun upload(
+        repository: Repository,
+        reference: Reference,
+        tar: InputStream,
+        mode: UploadMode = UploadMode.Stream,
+    ): Digest
 
     /**
      * Downloads a docker image for certain [reference].
@@ -144,12 +149,13 @@ fun SuspendingContainerImageRegistryClient.toBlockingClient() = object : Blockin
         return client.toBlockingClient()
     }
 
-    override fun upload(repository: Repository, reference: Reference, tar: InputStream): Digest =
+    override fun upload(repository: Repository, reference: Reference, tar: InputStream, mode: UploadMode): Digest =
         runBlocking(Dispatchers.Default) {
             this@toBlockingClient.upload(
                 repository,
                 reference,
                 tar.asSource().buffered(),
+                mode,
             )
         }
 

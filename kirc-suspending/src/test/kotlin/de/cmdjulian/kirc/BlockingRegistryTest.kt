@@ -3,6 +3,7 @@ package de.cmdjulian.kirc
 import de.cmdjulian.kirc.client.BlockingContainerImageClientFactory
 import de.cmdjulian.kirc.client.BlockingContainerImageRegistryClient
 import de.cmdjulian.kirc.client.RegistryCredentials
+import de.cmdjulian.kirc.client.UploadMode
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
@@ -151,7 +152,7 @@ internal class BlockingRegistryTest {
     }
 
     @Test
-    fun `upload - to registry`() {
+    fun `upload stream - to registry`() {
         val data = SystemFileSystem.source(Path(helloWorldImage.path))
         val repository = Repository("python")
         val tag = Tag("test")
@@ -159,7 +160,38 @@ internal class BlockingRegistryTest {
         client.exists(repository, tag) shouldBe false
 
         shouldNotThrowAny {
-            client.upload(repository, tag, data.buffered().asInputStream())
+            client.upload(repository, tag, data.buffered().asInputStream(), UploadMode.Stream)
+        }
+
+        client.exists(repository, tag) shouldBe true
+    }
+
+    @Test
+    fun `upload chunked - to registry`() {
+        val data = SystemFileSystem.source(Path(helloWorldImage.path))
+        val repository = Repository("python")
+        val tag = Tag("test")
+        val upload = UploadMode.Chunked(10 * 1048576L) // 10MB
+
+        client.exists(repository, tag) shouldBe false
+
+        shouldNotThrowAny {
+            client.upload(repository, tag, data.buffered().asInputStream(), upload)
+        }
+
+        client.exists(repository, tag) shouldBe true
+    }
+
+    @Test
+    fun `upload compatibility - to registry`() {
+        val data = SystemFileSystem.source(Path(helloWorldImage.path))
+        val repository = Repository("python")
+        val tag = Tag("test")
+
+        client.exists(repository, tag) shouldBe false
+
+        shouldNotThrowAny {
+            client.upload(repository, tag, data.buffered().asInputStream(), UploadMode.Compatibility)
         }
 
         client.exists(repository, tag) shouldBe true
@@ -175,7 +207,7 @@ internal class BlockingRegistryTest {
         val result = client.download(repository, tag)
         shouldNotThrowAny {
             // check if upload of downloaded data possible
-            client.upload(Repository("test"), Tag("upload"), result)
+            client.upload(Repository("test"), Tag("upload"), result, UploadMode.Stream)
         }
     }
 

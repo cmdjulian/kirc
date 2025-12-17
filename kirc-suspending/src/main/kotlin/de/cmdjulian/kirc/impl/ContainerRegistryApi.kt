@@ -13,6 +13,7 @@ import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import kotlinx.io.Buffer
 import kotlinx.io.Source
+import java.nio.file.Path
 
 /**
  * Defines the calls to the container registry API
@@ -77,8 +78,17 @@ internal interface ContainerRegistryApi {
         endRange: Long,
     ): Result<UploadSession, FuelError>
 
-    /** Uploads the whole blob data [Source] as stream */
-    suspend fun uploadBlobStream(session: UploadSession, source: Source): Result<UploadSession, FuelError>
+    /**
+     * Uploads the whole blob data from [path] with [size] and its [digest] as stream
+     *
+     * Upon success, should return the same [digest] and closes [session]
+     */
+    suspend fun uploadBlobStream(
+        session: UploadSession,
+        path: Path,
+        size: Long,
+        digest: Digest,
+    ): Result<Digest, FuelError>
 
     /** Retrieve the status of provided [session], returning the range of already uploaded data (start, end) */
     suspend fun uploadStatus(session: UploadSession): Result<Pair<Long, Long>, FuelError>

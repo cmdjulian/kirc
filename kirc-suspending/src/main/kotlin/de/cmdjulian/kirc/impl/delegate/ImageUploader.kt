@@ -2,6 +2,7 @@ package de.cmdjulian.kirc.impl.delegate
 
 import de.cmdjulian.kirc.KircUploadException
 import de.cmdjulian.kirc.client.SuspendingContainerImageRegistryClient
+import de.cmdjulian.kirc.client.UploadMode
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
@@ -36,7 +37,12 @@ import kotlin.io.path.pathString
 
 internal class ImageUploader(private val client: SuspendingContainerImageRegistryClient, private val tmpPath: Path) {
 
-    suspend fun upload(repository: Repository, reference: Reference, tar: Source): Digest = coroutineScope {
+    suspend fun upload(
+        repository: Repository,
+        reference: Reference,
+        tar: Source,
+        upload: UploadMode = UploadMode.Stream,
+    ): Digest = coroutineScope {
         // store data temporarily
         val tempDirectory = Path.of(
             tmpPath.pathString,
@@ -62,9 +68,20 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
                                 if (!client.existsBlob(repository, blob.digest)) {
                                     val session = client.initiateBlobUpload(repository)
 
-                                    val endSession = client.uploadBlobChunks(session, blob.path)
+                                    when (upload) {
+                                        is UploadMode.Chunked -> {
+                                            val endSession =
+                                                client.uploadBlobChunks(session, blob.path, upload.chunkSize)
+                                            client.finishBlobUpload(endSession, blob.digest)
+                                        }
 
-                                    client.finishBlobUpload(endSession, blob.digest)
+                                        is UploadMode.Compatibility -> {
+                                            val endSession = client.uploadBlobCompatibility(session, blob.path)
+                                            client.finishBlobUpload(endSession, blob.digest)
+                                        }
+
+                                        is UploadMode.Stream -> client.uploadBlobStream(session, blob)
+                                    }
                                 }
                             }
                         }
