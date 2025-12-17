@@ -36,8 +36,7 @@ sealed class RegistryException(
         reference: Reference?,
         message: String,
         cause: Throwable,
-    ) :
-        RegistryException(url, repository, reference, "Invalid response header: $message", cause) {
+    ) : RegistryException(url, repository, reference, "Invalid response header: $message", cause) {
 
         override fun toString() = "RegistryException.HeaderMissing -> $message"
     }
