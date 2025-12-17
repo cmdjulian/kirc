@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [v1.4.0] - 2025-12-17
+
+### Added
+
+- Switching between Streamed and Chunked upload modes for image upload
+
+### Changed
+
+- Replaced Fuel http library with Ktor http client
+- Error handling improvements
+- Improved logging
+- Improved basic / bearer authentication handling
+
+### Fixed
+
+- Problems related to fuel library
+
 ## [v1.3.4] - 2025-12-10
 
 ### Added

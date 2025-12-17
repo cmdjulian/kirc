@@ -3,10 +3,12 @@ package de.cmdjulian.kirc
 import de.cmdjulian.kirc.client.BlockingContainerImageClientFactory
 import de.cmdjulian.kirc.client.BlockingContainerImageRegistryClient
 import de.cmdjulian.kirc.client.RegistryCredentials
+import de.cmdjulian.kirc.client.UploadMode
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
 import de.cmdjulian.kirc.spec.manifest.ManifestList
+import de.cmdjulian.kirc.testcontainer.RegistryTestContainer
 import io.kotest.assertions.throwables.shouldNotThrowAny
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -27,7 +29,7 @@ import org.junit.jupiter.api.TestInstance
 import java.net.URI
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-internal class BlockingRegistryTest {
+internal class RegistryBasicAuthTest {
     private lateinit var client: BlockingContainerImageRegistryClient
     private lateinit var registry: RegistryTestContainer
     private lateinit var cliHelper: DockerRegistryCliHelper
@@ -151,7 +153,7 @@ internal class BlockingRegistryTest {
     }
 
     @Test
-    fun `upload - to registry`() {
+    fun `upload - stream`() {
         val data = SystemFileSystem.source(Path(helloWorldImage.path))
         val repository = Repository("python")
         val tag = Tag("test")
@@ -159,7 +161,22 @@ internal class BlockingRegistryTest {
         client.exists(repository, tag) shouldBe false
 
         shouldNotThrowAny {
-            client.upload(repository, tag, data.buffered().asInputStream())
+            client.upload(repository, tag, data.buffered().asInputStream(), UploadMode.Stream)
+        }
+
+        client.exists(repository, tag) shouldBe true
+    }
+
+    @Test
+    fun `upload - chunked`() {
+        val data = SystemFileSystem.source(Path(helloWorldImage.path))
+        val repository = Repository("python")
+        val tag = Tag("test")
+
+        client.exists(repository, tag) shouldBe false
+
+        shouldNotThrowAny {
+            client.upload(repository, tag, data.buffered().asInputStream(), UploadMode.Chunks(1024))
         }
 
         client.exists(repository, tag) shouldBe true
@@ -167,7 +184,7 @@ internal class BlockingRegistryTest {
 
     @Test
     fun `download - from registry`() {
-        val repository = Repository("hello-world")
+        val repository = Repository("hello-world/123")
         val tag = Tag("latest")
 
         cliHelper.pushImage(repository, tag, helloWorldImage)

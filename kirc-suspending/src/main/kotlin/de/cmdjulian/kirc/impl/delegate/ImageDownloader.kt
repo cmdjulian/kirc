@@ -1,12 +1,13 @@
 package de.cmdjulian.kirc.impl.delegate
 
-import de.cmdjulian.kirc.KircDownloadException
 import de.cmdjulian.kirc.client.SuspendingContainerImageRegistryClient
+import de.cmdjulian.kirc.exception.KircException
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
-import de.cmdjulian.kirc.impl.JsonMapper
+import de.cmdjulian.kirc.impl.KircApiError
+import de.cmdjulian.kirc.impl.serialization.JsonMapper
 import de.cmdjulian.kirc.spec.ManifestJson
 import de.cmdjulian.kirc.spec.ManifestJsonEntry
 import de.cmdjulian.kirc.spec.OciLayout
@@ -17,7 +18,9 @@ import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestListEntry
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestListV1
+import de.cmdjulian.kirc.utils.createSafePath
 import de.cmdjulian.kirc.utils.toKotlinPath
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -33,26 +36,29 @@ import kotlinx.io.files.SystemFileSystem
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import java.nio.file.Path
-import java.time.OffsetDateTime
-import java.time.temporal.ChronoUnit
-import kotlin.io.path.pathString
+
+private val downloaderLogger = KotlinLogging.logger {}
 
 internal class ImageDownloader(private val client: SuspendingContainerImageRegistryClient, private val tmpPath: Path) {
 
     suspend fun download(repository: Repository, reference: Reference, destination: Sink) {
         destination.use { sink ->
-            when (val manifest = client.manifest(repository, reference)) {
-                is ManifestSingle -> downloadSingleImage(repository, reference, manifest, sink)
-                is ManifestList -> downloadListImage(repository, reference, manifest, sink)
+            try {
+                val manifest = client.manifest(repository, reference)
+                TarArchiveOutputStream(sink.asOutputStream()).use { tarStream ->
+                    when (manifest) {
+                        is ManifestSingle -> downloadSingleImage(repository, reference, manifest, tarStream)
+                        is ManifestList -> downloadListImage(repository, reference, manifest, tarStream)
+                    }
+                }
+            } catch (e: Exception) {
+                handleError(e)
             }
         }
     }
 
     suspend fun download(repository: Repository, reference: Reference): Source {
-        val tempDataPath = Path.of(
-            tmpPath.pathString,
-            "${OffsetDateTime.now().truncatedTo(ChronoUnit.SECONDS)}--$repository--$reference.tar",
-        )
+        val tempDataPath = createSafePath(tmpPath, repository, reference, ".tar")
         val sink = withContext(Dispatchers.IO) {
             SystemFileSystem.sink(tempDataPath.toKotlinPath()).buffered()
         }
@@ -66,7 +72,7 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
         repository: Repository,
         reference: Reference,
         index: ManifestList,
-        sink: Sink,
+        tarStream: TarArchiveOutputStream,
     ) {
         val manifests = resolveManifests(index, repository)
         val digest = (reference as? Digest) ?: client.manifestDigest(repository, reference)
@@ -81,16 +87,16 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
         )
         val repositories = createRepositories(repository, *manifests.map(ResolvedManifest::digest).toTypedArray())
 
-        // write data
-        sink.writeTarEntry("index.json", index)
-        sink.writeTarEntry("manifest.json", manifestJson)
-        sink.writeTarEntry("repositories.json", repositories)
-        sink.writeTarEntry("oci-layout", OciLayout())
+        // Write meta entries
+        tarStream.writeJsonEntry("index.json", index)
+        tarStream.writeJsonEntry("manifest.json", manifestJson)
+        tarStream.writeJsonEntry("repositories.json", repositories)
+        tarStream.writeJsonEntry("oci-layout", OciLayout())
 
         for (resolved in manifests) {
             // write manifest blob
             val manifestStream = client.manifestStream(repository, resolved.digest)
-            sink.writeTarEntryFromSource(
+            tarStream.writeSourceEntry(
                 "blobs/sha256/${resolved.digest.hash}",
                 manifestStream.source,
                 resolved.size,
@@ -99,11 +105,11 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
             if (resolved is ResolvedManifest.Single) {
                 // write config blob
                 val config = resolved.manifest.config
-                sink.writeTarEntryFromSource("blobs/sha256/${config.digest.hash}", resolved.configStream, config.size)
+                tarStream.writeSourceEntry("blobs/sha256/${config.digest.hash}", resolved.configStream, config.size)
 
                 // write layer blobs
                 for (layer in resolved.manifest.layers) {
-                    sink.writeTarEntryFromSource(
+                    tarStream.writeSourceEntry(
                         "blobs/sha256/${layer.digest.hash}",
                         client.blobStream(repository, layer.digest),
                         layer.size,
@@ -137,7 +143,7 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
         repository: Repository,
         reference: Reference,
         manifest: ManifestSingle,
-        sink: Sink,
+        tarStream: TarArchiveOutputStream,
     ): Unit = coroutineScope {
         val config = client.config(repository, reference)
         val configBlob = client.blobStream(repository, manifest.config.digest)
@@ -171,42 +177,41 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
         )
         val repositories = createRepositories(repository, digest)
 
-        // write data
+        // Write meta entries
+        tarStream.writeJsonEntry("index.json", indexManifest)
+        tarStream.writeJsonEntry("manifest.json", manifestJson)
+        tarStream.writeJsonEntry("repositories.json", repositories)
+        tarStream.writeJsonEntry("oci-layout", OciLayout())
 
-        sink.writeTarEntry("index.json", indexManifest)
-        sink.writeTarEntry("manifest.json", manifestJson)
-        sink.writeTarEntry("repositories.json", repositories)
-        sink.writeTarEntry("oci-layout", OciLayout())
+        // Write manifest blob, config blob
+        tarStream.writeSourceEntry("blobs/sha256/${digest.hash}", manifestStream.source, manifestStream.size)
+        tarStream.writeSourceEntry("blobs/sha256/${manifest.config.digest.hash}", configBlob, manifest.config.size)
 
-        sink.writeTarEntryFromSource("blobs/sha256/${digest.hash}", manifestStream.source, manifestStream.size)
-        sink.writeTarEntryFromSource("blobs/sha256/${manifest.config.digest.hash}", configBlob, manifest.config.size)
+        // Write layer blobs
         layerBlobs.forEach { (layer, blobSource) ->
-            sink.writeTarEntryFromSource("blobs/sha256/${layer.digest.hash}", blobSource.await(), layer.size)
+            tarStream.writeSourceEntry("blobs/sha256/${layer.digest.hash}", blobSource.await(), layer.size)
         }
     }
 
-    private suspend fun Sink.writeTarEntry(name: String, data: Any) {
-        TarArchiveOutputStream(asOutputStream()).also { tarStream ->
-            val indexEntry = TarArchiveEntry(name)
-            val indexBytes = JsonMapper.writeValueAsBytes(data)
-            indexEntry.size = indexBytes.size.toLong()
-            withContext(Dispatchers.IO) {
-                tarStream.putArchiveEntry(indexEntry)
-                tarStream.write(indexBytes)
-                tarStream.closeArchiveEntry()
-            }
+    // ---- Tar writing helpers ----
+
+    private suspend fun TarArchiveOutputStream.writeJsonEntry(name: String, data: Any) {
+        val entryBytes = JsonMapper.writeValueAsBytes(data)
+        val entry = TarArchiveEntry(name).apply { size = entryBytes.size.toLong() }
+        withContext(Dispatchers.IO) {
+            putArchiveEntry(entry)
+            write(entryBytes)
+            closeArchiveEntry()
+            // TarArchiveOutputStream flush is implicit on underlying stream via write
         }
     }
 
-    private suspend fun Sink.writeTarEntryFromSource(name: String, data: Source, size: Long) {
-        TarArchiveOutputStream(asOutputStream()).also { tarStream ->
-            val indexEntry = TarArchiveEntry(name)
-            indexEntry.size = size
-            withContext(Dispatchers.IO) {
-                tarStream.putArchiveEntry(indexEntry)
-                data.transferTo(tarStream.asSink())
-                tarStream.closeArchiveEntry()
-            }
+    private suspend fun TarArchiveOutputStream.writeSourceEntry(name: String, data: Source, size: Long) {
+        val entry = TarArchiveEntry(name).apply { this.size = size }
+        withContext(Dispatchers.IO) {
+            putArchiveEntry(entry)
+            data.transferTo(asSink())
+            closeArchiveEntry()
         }
     }
 
@@ -218,7 +223,6 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
                 }
             }
         }
-
         return mapOf(repository to tagDigests)
     }
 
@@ -230,7 +234,7 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
     ): ManifestJson = manifestLayers.map { (manifestDigest, layers) ->
         val layerPaths = layers.map { layer -> "blobs/sha256/${layer.digest.hash}" }
         val layerSources = layers.associateBy(LayerReference::digest)
-        val configDigest = manifestConfig[manifestDigest]?.hash ?: throw KircDownloadException(
+        val configDigest = manifestConfig[manifestDigest]?.hash ?: throw KircException.InvalidState(
             "Could not resolve manifest config for manifest digest '$manifestDigest' during download",
         )
 
@@ -242,9 +246,21 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
         )
     }.toTypedArray()
 
+    private fun handleError(e: Exception): Nothing {
+        downloaderLogger.error(e) { "Error downloading image from registry" }
+        when (e) {
+            is KircException, is KircApiError -> throw e
+            else -> throw KircException.UnexpectedError(
+                "Could not download image from registry: ${e.cause}",
+                e,
+            )
+        }
+    }
+
     private interface ResolvedManifest {
         val manifest: Manifest
         val digest: Digest
+
         val size: Long
 
         data class Single(

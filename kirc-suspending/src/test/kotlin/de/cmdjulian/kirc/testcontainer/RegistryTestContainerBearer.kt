@@ -1,21 +1,27 @@
-package de.cmdjulian.kirc
+package de.cmdjulian.kirc.testcontainer
 
 import org.testcontainers.containers.GenericContainer
+import org.testcontainers.containers.Network
 import org.testcontainers.containers.wait.strategy.Wait
-import org.testcontainers.utility.MountableFile.forClasspathResource
+import org.testcontainers.utility.MountableFile
 
-class RegistryTestContainer() : GenericContainer<RegistryTestContainer>("registry:2") {
+class RegistryTestContainerBearer(network: Network, authServiceUrl: String) :
+    GenericContainer<RegistryTestContainerBearer>("registry:2") {
 
     private val registryDataFolder = "/var/lib/registry"
 
     init {
-        withNetworkAliases("localhost")
+        withNetwork(network)
+        withNetworkAliases("registry")
         withExposedPorts(5000)
-        withCopyFileToContainer(forClasspathResource("htpasswd"), "/auth/htpasswd")
+        withCopyFileToContainer(MountableFile.forClasspathResource("cert.pem"), "/auth/cert.pem")
 
-        withEnv("REGISTRY_AUTH", "htpasswd")
-        withEnv("REGISTRY_AUTH_HTPASSWD_PATH", "/auth/htpasswd")
-        withEnv("REGISTRY_AUTH_HTPASSWD_REALM", "Registry Realm")
+        // auth
+        withEnv("REGISTRY_AUTH_TOKEN_REALM", "$authServiceUrl/auth")
+        withEnv("REGISTRY_AUTH_TOKEN_SERVICE", "registry")
+        withEnv("REGISTRY_AUTH_TOKEN_ISSUER", "auth_service")
+        withEnv("REGISTRY_AUTH_TOKEN_ROOTCERTBUNDLE", "auth/cert.pem")
+        // http
         withEnv("REGISTRY_HTTP_ADDR", "0.0.0.0:5000")
         withEnv("REGISTRY_HTTP_SECRET", "shared")
         withEnv("REGISTRY_STORAGE_DELETE_ENABLED", "${true}")

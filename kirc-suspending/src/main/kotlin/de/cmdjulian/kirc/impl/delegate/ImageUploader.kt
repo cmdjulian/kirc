@@ -1,11 +1,14 @@
 package de.cmdjulian.kirc.impl.delegate
 
-import de.cmdjulian.kirc.KircUploadException
 import de.cmdjulian.kirc.client.SuspendingContainerImageRegistryClient
+import de.cmdjulian.kirc.client.UploadMode
+import de.cmdjulian.kirc.exception.KircException
+import de.cmdjulian.kirc.exception.RegistryException
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
-import de.cmdjulian.kirc.impl.jacksonDeserializer
+import de.cmdjulian.kirc.impl.serialization.JsonMapper
+import de.cmdjulian.kirc.impl.serialization.deserialize
 import de.cmdjulian.kirc.spec.ManifestJson
 import de.cmdjulian.kirc.spec.OciLayout
 import de.cmdjulian.kirc.spec.Repositories
@@ -17,7 +20,9 @@ import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestListV1
+import de.cmdjulian.kirc.utils.createSafePath
 import de.cmdjulian.kirc.utils.toKotlinPath
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -30,60 +35,89 @@ import kotlinx.io.buffered
 import kotlinx.io.files.SystemFileSystem
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import java.nio.file.Path
-import java.time.OffsetDateTime
-import java.time.temporal.ChronoUnit
 import kotlin.io.path.pathString
 
+private val logger = KotlinLogging.logger {}
+
 internal class ImageUploader(private val client: SuspendingContainerImageRegistryClient, private val tmpPath: Path) {
+    suspend fun upload(repository: Repository, reference: Reference, tar: Source, mode: UploadMode): Digest =
+        coroutineScope {
+            // store data temporarily (sanitize name for cross-platform safety)
+            val tempDirectory = createSafePath(tmpPath, repository, reference)
+            withContext(Dispatchers.IO) {
+                SystemFileSystem.createDirectories(tempDirectory.toKotlinPath())
+            }
 
-    suspend fun upload(repository: Repository, reference: Reference, tar: Source): Digest = coroutineScope {
-        // store data temporarily
-        val tempDirectory = Path.of(
-            tmpPath.pathString,
-            "${OffsetDateTime.now().truncatedTo(ChronoUnit.SECONDS)}--$repository--$reference",
-        )
-        withContext(Dispatchers.IO) {
-            SystemFileSystem.createDirectories(tempDirectory.toKotlinPath())
-        }
+            try {
+                // read from tar and deserialize (can throw; ensure cleanup in finally)
+                val uploadContainerImage = readFromTar(tar, tempDirectory)
 
-        // read from temp file and deserialize
-        val uploadContainerImage = readFromTar(tar, tempDirectory)
+                // upload architecture images
+                for ((manifest, manifestDigest, blobs) in uploadContainerImage.images) {
+                    // upload blobs in parallel, but only up to three at once to mimic how Docker does it
+                    coroutineScope {
+                        val semaphore = Semaphore(3)
 
-        // upload architecture images
-        try {
-            for ((manifest, manifestDigest, blobs) in uploadContainerImage.images) {
-                // upload blobs in parallel, but only up to three at once to mimic how Docker does it
-                coroutineScope {
-                    val semaphore = Semaphore(3)
-
-                    for (blob in blobs.distinctBy(UploadBlobPath::digest)) {
-                        launch {
-                            semaphore.withPermit {
-                                if (!client.existsBlob(repository, blob.digest)) {
-                                    val session = client.initiateBlobUpload(repository)
-
-                                    val endSession = client.uploadBlobChunks(session, blob.path)
-
-                                    client.finishBlobUpload(endSession, blob.digest)
+                        for (blob in blobs.distinctBy(UploadBlobPath::digest)) {
+                            launch {
+                                semaphore.withPermit {
+                                    uploadBlob(repository, blob, mode)
                                 }
                             }
                         }
                     }
+                    client.uploadManifest(repository, manifestDigest, manifest)
                 }
-
-                client.uploadManifest(repository, manifestDigest, manifest)
-            }
-        } finally {
-            // clear up temporary blob files
-            withContext(Dispatchers.IO) {
-                SystemFileSystem.list(tempDirectory.toKotlinPath()).forEach(SystemFileSystem::delete)
-                SystemFileSystem.delete(tempDirectory.toKotlinPath())
+                // upload index (manifest list) last
+                client.uploadManifest(repository, reference, uploadContainerImage.index)
+            } catch (e: RuntimeException) {
+                handleError(e)
+            } finally {
+                // clear up temporary blob files
+                runCatching { cleanupTempDirectory(tempDirectory) }
+                    .onFailure { t ->
+                        logger.info(t) { "Failed to fully cleanup temp directory: ${tempDirectory.pathString}" }
+                    }
             }
         }
 
-        // upload index
-        client.uploadManifest(repository, reference, uploadContainerImage.index)
+    private suspend fun uploadBlob(repository: Repository, blob: UploadBlobPath, mode: UploadMode) {
+        if (!client.existsBlob(repository, blob.digest)) {
+            val session = client.initiateBlobUpload(repository)
+
+            when (mode) {
+                UploadMode.Stream -> client.uploadBlobStream(session, blob.digest, blob.path, blob.size)
+
+                is UploadMode.Chunks -> {
+                    val endSession = client.uploadBlobChunks(session, blob.path, mode.chunkSize)
+                    // chunked upload requires a final request
+                    client.finishBlobUpload(endSession, blob.digest)
+                }
+            }
+        }
     }
+
+    private fun handleError(e: Exception): Nothing {
+        val sanitizedError = when (e) {
+            is KircException, is RegistryException -> e
+            else -> KircException.UnexpectedError(
+                "Unexpected error, could not upload image to registry: ${e.cause}",
+                e,
+            )
+        }
+        logger.error(sanitizedError) { "Error uploading image to registry" }
+        throw sanitizedError
+    }
+
+    private suspend fun cleanupTempDirectory(tempDirectory: Path) {
+        withContext(Dispatchers.IO) {
+            // current implementation stores blobs flatly; still, iterate and delete defensively
+            SystemFileSystem.list(tempDirectory.toKotlinPath()).forEach(SystemFileSystem::delete)
+            SystemFileSystem.delete(tempDirectory.toKotlinPath())
+        }
+    }
+
+    // PARSE INPUT TAR
 
     private suspend fun readFromTar(tarSource: Source, tempDirectory: Path) = tarSource.use { source ->
         TarArchiveInputStream(source.asInputStream()).use { stream ->
@@ -115,10 +149,13 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
             }
 
             when {
-                indexFile == null -> throw KircUploadException("index should be present inside provided docker image")
+                indexFile == null -> throw KircException.CorruptArchiveError(
+                    "index should be present inside provided docker image",
+                )
 
-                ociLayoutFile == null ->
-                    throw KircUploadException("'oci-layout' file should be present inside the provided docker image")
+                ociLayoutFile == null -> throw KircException.CorruptArchiveError(
+                    "'oci-layout' file should be present inside the provided docker image",
+                )
             }
 
             val (processedIndex, resolvedManifests) = resolveManifestsAndBlobs(indexFile, blobs)
@@ -187,7 +224,7 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
             is ManifestSingle -> {
                 // associate manifests to their layer blobs and config blob
                 val blobs = (manifest.layers + manifest.config).map { layer ->
-                    val blobPath = blobPaths[layer.digest] ?: throw KircUploadException(
+                    val blobPath = blobPaths[layer.digest] ?: throw KircException.CorruptArchiveError(
                         "Could not resolve blob for layer or " +
                             "config with digest '${layer.digest}' during upload",
                     )
@@ -204,6 +241,10 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
         val manifestStream = withContext(Dispatchers.IO) {
             SystemFileSystem.source(blobPath.toKotlinPath()).buffered().asInputStream()
         }
-        return jacksonDeserializer<Manifest>().deserialize(manifestStream)
+        return runCatching {
+            JsonMapper.deserialize<Manifest>(manifestStream)
+        }.getOrElse {
+            throw KircException.CorruptArchiveError("Could not deserialize manifest (digest=$manifestDigest)", it)
+        }
     }
 }

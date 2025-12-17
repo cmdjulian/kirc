@@ -115,7 +115,7 @@ interface SuspendingContainerImageRegistryClient {
     /**
      * Uploads an entire blob by stream
      */
-    suspend fun uploadBlobStream(session: UploadSession, stream: Source): UploadSession
+    suspend fun uploadBlobStream(session: UploadSession, digest: Digest, path: Path, size: Long): Digest
 
     /**
      * Upload a manifest
@@ -138,9 +138,16 @@ interface SuspendingContainerImageRegistryClient {
     /**
      * Uploads [tar] image archive to container registry at [repository] with [reference]
      *
+     * [uploadMode] defines whether blobs are uploaded chunked or streamed directly
+     *
      * @return the digest of uploaded image
      */
-    suspend fun upload(repository: Repository, reference: Reference, tar: Source): Digest
+    suspend fun upload(
+        repository: Repository,
+        reference: Reference,
+        tar: Source,
+        uploadMode: UploadMode = UploadMode.Stream,
+    ): Digest
 
     /**
      * Downloads a docker image for certain [reference].

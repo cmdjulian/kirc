@@ -1,18 +1,35 @@
 package de.cmdjulian.kirc.client
 
-import com.github.kittinunf.fuel.core.FuelManager
 import de.cmdjulian.kirc.image.ContainerImageName
 import de.cmdjulian.kirc.impl.ContainerRegistryApiImpl
 import de.cmdjulian.kirc.impl.SuspendingContainerImageClientImpl
 import de.cmdjulian.kirc.impl.SuspendingContainerImageRegistryClientImpl
-import de.cmdjulian.kirc.utils.InsecureSSLSocketFactory
-import de.cmdjulian.kirc.utils.NoopHostnameVerifier
+import de.cmdjulian.kirc.impl.serialization.JsonMapper
+import de.cmdjulian.kirc.utils.configureAuth
+import de.cmdjulian.kirc.utils.configureHttps
+import io.github.oshai.kotlinlogging.KotlinLogging
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.ProxyBuilder
+import io.ktor.client.engine.cio.CIO
+import io.ktor.client.engine.http
+import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.auth.Auth
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.defaultRequest
+import io.ktor.client.plugins.logging.LogLevel
+import io.ktor.client.plugins.logging.Logger
+import io.ktor.client.plugins.logging.Logging
+import io.ktor.http.ContentType
+import io.ktor.serialization.jackson.JacksonConverter
+import java.net.InetSocketAddress
 import java.net.Proxy
 import java.net.URI
 import java.nio.file.Path
 import java.security.KeyStore
 import java.time.Duration
 import kotlin.io.path.Path
+
+private val kLogger = KotlinLogging.logger {}
 
 object SuspendingContainerImageClientFactory {
 
@@ -35,31 +52,39 @@ object SuspendingContainerImageClientFactory {
         require(keystore == null || !skipTlsVerify) { "can not skip tls verify if a keystore is set" }
         require(timeout.toMillis() in Int.MIN_VALUE..Int.MAX_VALUE) { "timeout in ms has to be a valid int" }
 
-        val fuel = FuelManager().apply {
-            this.basePath = url.toString()
-            this.proxy = proxy
-            this.keystore = keystore
-            this.timeoutInMillisecond = timeout.toMillis().toInt()
-            this.timeoutReadInMillisecond = timeout.toMillis().toInt()
-            /*
-             * From the official fuel library documentation it is stated:
-             *
-             * The default client is HttpClient which is a thin wrapper over java.net.HttpUrlConnection.
-             * java.net.HttpUrlConnection does not support a PATCH method.
-             * HttpClient converts PATCH requests to a POST request and adds a X-HTTP-Method-Override: PATCH header.
-             * While this is a semi-standard industry practice not all APIs are configured to accept this header by default.
-             *
-             * Therefore we have to set this flag
-             */
-            this.forceMethods = true
-
-            if (skipTlsVerify) {
-                hostnameVerifier = NoopHostnameVerifier
-                socketFactory = InsecureSSLSocketFactory
+        val client = HttpClient(CIO) {
+            engine {
+                if (proxy != null) {
+                    val address = proxy.address()
+                    if (address is InetSocketAddress) {
+                        this.proxy = ProxyBuilder.http("http://${address.hostString}:${address.port}")
+                    }
+                }
+                configureHttps(skipTlsVerify, keystore)
+            }
+            install(HttpTimeout) {
+                connectTimeoutMillis = timeout.toMillis()
+            }
+            install(ContentNegotiation) {
+                // re-use existing ObjectMapper instance
+                register(ContentType.Application.Json, JacksonConverter(JsonMapper))
+            }
+            install(Logging) {
+                level = LogLevel.INFO
+                logger = object : Logger {
+                    override fun log(message: String) = kLogger.info { "Kirc API $message" }
+                }
+            }
+            defaultRequest {
+                url(url.toString())
+            }
+            install(Auth) {
+                configureAuth(credentials)
             }
         }
 
-        return SuspendingContainerImageRegistryClientImpl(ContainerRegistryApiImpl(fuel, credentials), tmpPath)
+        val api = ContainerRegistryApiImpl(client)
+        return SuspendingContainerImageRegistryClientImpl(api, tmpPath)
     }
 
     @JvmStatic
