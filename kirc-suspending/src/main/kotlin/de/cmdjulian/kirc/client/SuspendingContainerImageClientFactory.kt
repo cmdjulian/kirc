@@ -12,6 +12,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.ProxyBuilder
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.engine.http
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.auth.Auth
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
@@ -53,7 +54,6 @@ object SuspendingContainerImageClientFactory {
 
         val client = HttpClient(CIO) {
             engine {
-                requestTimeout = timeout.toMillis()
                 if (proxy != null) {
                     val address = proxy.address()
                     if (address is InetSocketAddress) {
@@ -61,6 +61,9 @@ object SuspendingContainerImageClientFactory {
                     }
                 }
                 configureHttps(skipTlsVerify, keystore)
+            }
+            install(HttpTimeout) {
+                connectTimeoutMillis = timeout.toMillis()
             }
             install(ContentNegotiation) {
                 // re-use existing ObjectMapper instance

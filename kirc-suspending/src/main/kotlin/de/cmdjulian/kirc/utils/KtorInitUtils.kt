@@ -19,6 +19,8 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.client.statement.request
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import java.security.KeyStore
 import java.security.cert.X509Certificate
 import javax.net.ssl.TrustManagerFactory
@@ -57,27 +59,28 @@ internal fun Auth.configureAuth(credentials: RegistryCredentials?) {
                 null
             }
         }
-        sendWithoutRequest { request ->
-            "v2" in request.url.pathSegments
-        }
     }
     bearer {
+        val semaphore = Semaphore(1)
         val bearerTokenStorage = mutableListOf<BearerTokens>()
-        loadTokens(bearerTokenStorage::lastOrNull)
+        loadTokens {
+            semaphore.withPermit {
+                bearerTokenStorage.firstOrNull()
+            }
+        }
         refreshTokens {
             if (credentials != null) {
-                bearerAuth(credentials)?.also(bearerTokenStorage::add)
+                semaphore.withPermit {
+                    bearerAuth(credentials).also(bearerTokenStorage::add)
+                }
             } else {
                 null
             }
         }
-        sendWithoutRequest { request ->
-            "v2" in request.url.pathSegments
-        }
     }
 }
 
-private suspend fun RefreshTokensParams.bearerAuth(credentials: RegistryCredentials): BearerTokens? {
+private suspend fun RefreshTokensParams.bearerAuth(credentials: RegistryCredentials): BearerTokens {
     val authHeader = if (response.headers.caseInsensitiveName) {
         response.headers[HttpHeaders.WWWAuthenticate.lowercase()]
     } else {
