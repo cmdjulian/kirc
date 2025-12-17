@@ -4,7 +4,6 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.kotlinx.publisher.apache2
 import org.jetbrains.kotlinx.publisher.developer
 import org.jetbrains.kotlinx.publisher.githubRepo
-import org.jlleitschuh.gradle.ktlint.KtlintExtension
 import java.util.*
 
 plugins {
@@ -78,12 +77,7 @@ subprojects {
     }
 
     configure<KotlinJvmProjectExtension> {
-        jvmToolchain(11)
-    }
-
-    configure<KtlintExtension> {
-        version = "1.2.1"
-        enableExperimentalRules = true
+        jvmToolchain(17)
     }
 
     tasks.withType<DependencyUpdatesTask>().configureEach {

@@ -1,1 +1,3 @@
-jdk: openjdk11
+# Use JDK 17 for Gradle 9.x compatibility
+jdk:
+  - openjdk17
