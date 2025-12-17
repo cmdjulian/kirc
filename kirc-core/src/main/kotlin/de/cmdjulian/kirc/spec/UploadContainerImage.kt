@@ -1,8 +1,8 @@
 package de.cmdjulian.kirc.spec
 
 import de.cmdjulian.kirc.image.Digest
+import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
-import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import java.nio.file.Path
 
 /**
@@ -31,7 +31,7 @@ data class UploadContainerImage(
  * @param digest digest of platform image manifest
  * @param blobs layer blobs + config blob ready for upload
  */
-data class UploadSingleImage(val manifest: ManifestSingle, val digest: Digest, val blobs: List<UploadBlobPath>)
+data class UploadSingleImage(val manifest: Manifest, val digest: Digest, val blobs: List<UploadBlobPath>)
 
 class UploadBlobPath(val digest: Digest, val mediaType: String, val path: Path, val size: Long) {
     override fun equals(other: Any?): Boolean = when {

@@ -41,10 +41,10 @@ dependencies {
     implementation("io.github.oshai:kotlin-logging-jvm:7.0.13")
 
     // insecure connections
-    implementation("io.github.hakky54:sslcontext-kickstart:8.3.7")
+    implementation("io.github.hakky54:ayza:10.0.2")
 
     // tar file handling
-    implementation("org.apache.commons:commons-compress:1.26.1")
+    implementation("org.apache.commons:commons-compress:1.28.0")
 
     // tests
     testImplementation(project(":kirc-blocking"))
@@ -54,13 +54,13 @@ dependencies {
     testImplementation(tests.bundles.kotest)
 
     // logback logger for tests
-    testImplementation("ch.qos.logback:logback-classic:1.5.18")
+    testImplementation("ch.qos.logback:logback-classic:1.5.21")
 
     // resource injection
-    testImplementation("io.hosuaby:inject-resources-junit-jupiter:0.3.3")
+    testImplementation("io.hosuaby:inject-resources-junit-jupiter:0.3.5")
 
     // test container
-    testImplementation("org.testcontainers:testcontainers:1.21.3")
+    testImplementation("org.testcontainers:testcontainers:2.0.2")
 }
 
 tasks.jar {

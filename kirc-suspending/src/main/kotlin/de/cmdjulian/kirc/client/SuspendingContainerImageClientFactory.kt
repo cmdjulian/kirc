@@ -65,7 +65,7 @@ object SuspendingContainerImageClientFactory {
         proxy: Proxy? = null,
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
-        timeout: Duration = Duration.ofSeconds(10),
+        timeout: Duration = Duration.ofSeconds(15),
         tmpPath: Path = Path(System.getProperty("java.io.tmpdir")),
     ): SuspendingContainerImageRegistryClient {
         require(keystore == null || !skipTlsVerify) { "can not skip tls verify if a keystore is set" }
@@ -259,7 +259,7 @@ object SuspendingContainerImageClientFactory {
         insecure: Boolean = false,
         skipTlsVerify: Boolean = false,
         keystore: KeyStore? = null,
-        timeout: Duration = Duration.ofSeconds(10),
+        timeout: Duration = Duration.ofSeconds(15),
         tmpPath: Path = Path(System.getProperty("java.io.tmpdir")),
     ): SuspendingContainerImageClient {
         val url = "${if (insecure) "http://" else "https://"}${image.registry}"
