@@ -26,7 +26,7 @@ dependencies {
     implementation("io.ktor:ktor-serialization-jackson:2.3.12")
 
     // explicit result library
-    implementation("com.github.kittinunf.result:result:5.0.0")
+    implementation("com.github.kittinunf.result:result:5.6.0")
 
     // auth header parsing
     implementation("im.toss:http-auth-parser:0.1.2")
