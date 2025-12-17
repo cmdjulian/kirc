@@ -133,12 +133,10 @@ fun SuspendingContainerImageRegistryClient.toReactiveClient() = object : Reactiv
         repository: Repository,
         reference: Reference,
         manifest: ManifestSingle?,
-    ): Mono<ReactiveContainerImageClient> {
-        return if (manifest == null) {
-            mono { this@toReactiveClient.toImageClient(repository, reference).toReactiveClient() }
-        } else {
-            Mono.just(this@toReactiveClient.toImageClient(repository, reference, manifest).toReactiveClient())
-        }
+    ): Mono<ReactiveContainerImageClient> = if (manifest == null) {
+        mono { this@toReactiveClient.toImageClient(repository, reference).toReactiveClient() }
+    } else {
+        Mono.just(this@toReactiveClient.toImageClient(repository, reference, manifest).toReactiveClient())
     }
 
     override fun upload(

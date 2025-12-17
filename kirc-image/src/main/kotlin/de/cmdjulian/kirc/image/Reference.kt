@@ -26,7 +26,9 @@ sealed interface Reference {
  * Example: "repository:latest"
  */
 @ReflectionHint
-class Tag(@JsonValue private val value: String) : Reference, Comparable<Tag> {
+class Tag(@JsonValue private val value: String) :
+    Reference,
+    Comparable<Tag> {
     init {
         require(value.matches(Regex("\\w[\\w.\\-]{0,127}"))) { "invalid tag" }
     }
@@ -64,7 +66,9 @@ class Tag(@JsonValue private val value: String) : Reference, Comparable<Tag> {
  * Example: "repository@sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf"
  */
 @ReflectionHint
-class Digest(@JsonValue private val value: String) : Reference, Comparable<Digest> {
+class Digest(@JsonValue private val value: String) :
+    Reference,
+    Comparable<Digest> {
     init {
         require(value.matches(Regex("sha256:[\\da-fA-F]{32,}"))) { "invalid digest" }
     }

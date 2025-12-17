@@ -30,11 +30,9 @@ object BlockingContainerImageClientFactory {
         keystore: KeyStore? = null,
         timeout: Duration = Duration.ofSeconds(15),
         tmpPath: Path = Path(SystemTemporaryDirectory.toString()),
-    ): BlockingContainerImageRegistryClient {
-        return SuspendingContainerImageClientFactory
-            .create(url, credentials, proxy, skipTlsVerify, keystore, timeout, tmpPath)
-            .toBlockingClient()
-    }
+    ): BlockingContainerImageRegistryClient = SuspendingContainerImageClientFactory
+        .create(url, credentials, proxy, skipTlsVerify, keystore, timeout, tmpPath)
+        .toBlockingClient()
 
     @JvmStatic
     @JvmOverloads

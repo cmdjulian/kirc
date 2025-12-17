@@ -270,10 +270,7 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
             val configStream: Source,
         ) : ResolvedManifest
 
-        data class List(
-            override val manifest: ManifestList,
-            override val digest: Digest,
-            override val size: Long,
-        ) : ResolvedManifest
+        data class List(override val manifest: ManifestList, override val digest: Digest, override val size: Long) :
+            ResolvedManifest
     }
 }

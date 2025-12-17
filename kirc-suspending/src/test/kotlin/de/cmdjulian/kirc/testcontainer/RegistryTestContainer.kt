@@ -4,7 +4,7 @@ import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.utility.MountableFile
 
-class RegistryTestContainer() : GenericContainer<RegistryTestContainer>("registry:2") {
+class RegistryTestContainer : GenericContainer<RegistryTestContainer>("registry:2") {
 
     private val registryDataFolder = "/var/lib/registry"
 

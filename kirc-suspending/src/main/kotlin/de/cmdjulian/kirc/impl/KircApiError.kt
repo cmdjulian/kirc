@@ -17,32 +17,25 @@ internal sealed class KircApiError(
     val detailMessage = "$message (HTTP statusCode=$statusCode method=$method url=$url)"
 
     /** Error as returned by the registry. */
-    class Registry(
-        statusCode: Int,
-        url: Url,
-        method: HttpMethod,
-        val body: RegistryErrorResponse,
-    ) : KircApiError(
-        statusCode,
-        url,
-        method,
-        null,
-        "Registry error: [${
-            body.errors.joinToString(
-                prefix = "(",
-                postfix = ")",
-            ) { "code=${it.code}, message=${it.message}, detail=${it.detail}" }
-        }]",
-    ) {
+    class Registry(statusCode: Int, url: Url, method: HttpMethod, val body: RegistryErrorResponse) :
+        KircApiError(
+            statusCode,
+            url,
+            method,
+            null,
+            "Registry error: [${
+                body.errors.joinToString(
+                    prefix = "(",
+                    postfix = ")",
+                ) { "code=${it.code}, message=${it.message}, detail=${it.detail}" }
+            }]",
+        ) {
         override fun toString(): String = "KircApiError.Registry -> ${this@Registry.message}"
     }
 
     /** Error caused by network issues, e.g. no connection, timeout, etc. */
-    class Network(
-        url: Url,
-        method: HttpMethod,
-        override val cause: Throwable,
-    ) : KircApiError(-1, url, method, cause, cause.message ?: "Unknown network error") {
+    class Network(url: Url, method: HttpMethod, override val cause: Throwable) :
+        KircApiError(-1, url, method, cause, cause.message ?: "Unknown network error") {
         override fun toString(): String = "KircApiError.Network -> ${this@Network.message}"
     }
 
@@ -53,12 +46,8 @@ internal sealed class KircApiError(
      *
      * Appears while manually extracting fields from responses (no deserialization)
      */
-    class Header(
-        statusCode: Int,
-        url: Url,
-        method: HttpMethod,
-        override val message: String,
-    ) : KircApiError(statusCode, url, method, null, message) {
+    class Header(statusCode: Int, url: Url, method: HttpMethod, override val message: String) :
+        KircApiError(statusCode, url, method, null, message) {
         override fun toString(): String = "KircApiError.Header -> ${this@Header.message}"
     }
 
@@ -67,25 +56,16 @@ internal sealed class KircApiError(
      *
      * E.g. when deserializing error responses from the registry or the token response from the auth server.
      */
-    class Json(
-        statusCode: Int,
-        url: Url,
-        method: HttpMethod,
-        override val cause: Throwable,
-        message: String,
-    ) : KircApiError(statusCode, url, method, cause, message) {
+    class Json(statusCode: Int, url: Url, method: HttpMethod, override val cause: Throwable, message: String) :
+        KircApiError(statusCode, url, method, cause, message) {
         override fun toString(): String = "KircApiError.Json -> ${this@Json.message}"
     }
 
     /**
      * Thrown when an authentication bearer token could not be retrieved from the auth server.
      */
-    class Bearer(
-        statusCode: Int,
-        url: Url,
-        method: HttpMethod,
-        override val message: String,
-    ) : KircApiError(statusCode, url, method, null, message) {
+    class Bearer(statusCode: Int, url: Url, method: HttpMethod, override val message: String) :
+        KircApiError(statusCode, url, method, null, message) {
         override fun toString(): String = "KircApiError.Bearer -> ${this@Bearer.message}"
     }
 

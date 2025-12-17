@@ -109,11 +109,7 @@ private suspend fun RefreshTokensParams.bearerAuth(credentials: RegistryCredenti
 
 // HELPER
 
-private data class RegistryAuthCredentials(
-    val realm: String,
-    val scope: String?,
-    val service: String?,
-)
+private data class RegistryAuthCredentials(val realm: String, val scope: String?, val service: String?)
 
 private fun RefreshTokensParams.parseWWWAuthHeader(header: String?): RegistryAuthCredentials {
     val wwwAuth = header?.runCatching(HttpAuthCredentials::parse)?.getOrElse {

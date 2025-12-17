@@ -5,9 +5,7 @@ import org.testcontainers.containers.Network
 import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.utility.MountableFile
 
-class AuthServerTestContainer(
-    network: Network,
-) : GenericContainer<AuthServerTestContainer>("cesanta/docker_auth:1") {
+class AuthServerTestContainer(network: Network) : GenericContainer<AuthServerTestContainer>("cesanta/docker_auth:1") {
 
     init {
         withNetwork(network)
