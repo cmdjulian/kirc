@@ -17,7 +17,7 @@ dependencyResolutionManagement {
     versionCatalogs {
         create("libs") {
             version("coroutines", "1.10.2")
-            library("kotlinx-io", "org.jetbrains.kotlinx", "kotlinx-io-core").version("0.8.0")
+            library("kotlinx-io", "org.jetbrains.kotlinx", "kotlinx-io-core").version("0.8.2")
             library("coroutines", "org.jetbrains.kotlinx", "kotlinx-coroutines-core").versionRef("coroutines")
             library("coroutines-reactor", "org.jetbrains.kotlinx", "kotlinx-coroutines-reactor").versionRef("coroutines")
         }
