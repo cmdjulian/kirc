@@ -3,9 +3,9 @@ package de.cmdjulian.kirc.impl
 import com.github.kittinunf.result.getOrElse
 import com.github.kittinunf.result.map
 import com.github.kittinunf.result.onFailure
-import de.cmdjulian.kirc.client.BlobUploadMode
 import de.cmdjulian.kirc.client.SuspendingContainerImageClient
 import de.cmdjulian.kirc.client.SuspendingContainerImageRegistryClient
+import de.cmdjulian.kirc.client.UploadMode
 import de.cmdjulian.kirc.exception.KircException
 import de.cmdjulian.kirc.image.ContainerImageName
 import de.cmdjulian.kirc.image.Digest
@@ -152,11 +152,13 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
                 } catch (_: EOFException) {
                     // expected behavior when EOF is reached
                 } finally {
-                    val bytesRead = buffer.size
-                    val endRange = startRange + bytesRead - 1
-                    currentSession = api.uploadBlobChunked(currentSession, buffer, startRange, endRange)
-                        .getOrElse { throw it.toRegistryClientError() }
-                    startRange = endRange + 1
+                    if (buffer.size > 0) {
+                        val bytesRead = buffer.size
+                        val endRange = startRange + bytesRead - 1
+                        currentSession = api.uploadBlobChunked(currentSession, buffer, startRange, endRange)
+                            .getOrElse { throw it.toRegistryClientError() }
+                        startRange = endRange + 1
+                    }
                 }
             }
             currentSession
@@ -181,7 +183,7 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
         repository: Repository,
         reference: Reference,
         tar: Source,
-        uploadMode: BlobUploadMode,
+        uploadMode: UploadMode,
     ): Digest = uploader.upload(repository, reference, tar, uploadMode)
 
     override suspend fun download(repository: Repository, reference: Reference): Source =

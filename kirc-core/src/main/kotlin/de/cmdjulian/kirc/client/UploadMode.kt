@@ -5,10 +5,10 @@ package de.cmdjulian.kirc.client
  * - [Stream] - upload the blob in a single request. Doesn't load all data into memory at once.
  * - [Chunks] - upload the blob in multiple requests. Loads the provided [Chunks.chunkSize] into memory.
  */
-sealed class BlobUploadMode {
+sealed class UploadMode {
     /** Upload the blob in a single request. */
-    data object Stream : BlobUploadMode()
+    data object Stream : UploadMode()
 
     /** Upload the blob in multiple requests */
-    data class Chunks(val chunkSize: Long = 10 * 1048576L) : BlobUploadMode()
+    data class Chunks(val chunkSize: Long = 10 * 1048576L) : UploadMode()
 }

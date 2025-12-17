@@ -1,9 +1,9 @@
 package de.cmdjulian.kirc
 
-import de.cmdjulian.kirc.client.BlobUploadMode
 import de.cmdjulian.kirc.client.BlockingContainerImageClientFactory
 import de.cmdjulian.kirc.client.BlockingContainerImageRegistryClient
 import de.cmdjulian.kirc.client.RegistryCredentials
+import de.cmdjulian.kirc.client.UploadMode
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
@@ -161,7 +161,7 @@ internal class RegistryBasicAuthTest {
         client.exists(repository, tag) shouldBe false
 
         shouldNotThrowAny {
-            client.upload(repository, tag, data.buffered().asInputStream(), BlobUploadMode.Stream)
+            client.upload(repository, tag, data.buffered().asInputStream(), UploadMode.Stream)
         }
 
         client.exists(repository, tag) shouldBe true
@@ -176,7 +176,7 @@ internal class RegistryBasicAuthTest {
         client.exists(repository, tag) shouldBe false
 
         shouldNotThrowAny {
-            client.upload(repository, tag, data.buffered().asInputStream(), BlobUploadMode.Chunks(1024))
+            client.upload(repository, tag, data.buffered().asInputStream(), UploadMode.Chunks(1024))
         }
 
         client.exists(repository, tag) shouldBe true

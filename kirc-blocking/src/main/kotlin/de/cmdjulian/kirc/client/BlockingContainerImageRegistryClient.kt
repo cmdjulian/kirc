@@ -94,7 +94,7 @@ interface BlockingContainerImageRegistryClient {
         repository: Repository,
         reference: Reference,
         tar: InputStream,
-        uploadMode: BlobUploadMode = BlobUploadMode.Stream,
+        uploadMode: UploadMode = UploadMode.Stream,
     ): Digest
 
     /**
@@ -155,7 +155,7 @@ fun SuspendingContainerImageRegistryClient.toBlockingClient() = object : Blockin
         repository: Repository,
         reference: Reference,
         tar: InputStream,
-        uploadMode: BlobUploadMode,
+        uploadMode: UploadMode,
     ): Digest = runBlocking(Dispatchers.Default) {
         this@toBlockingClient.upload(repository, reference, tar.asSource().buffered(), uploadMode)
     }

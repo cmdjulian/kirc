@@ -36,7 +36,6 @@ import kotlinx.io.files.SystemFileSystem
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import java.nio.file.Path
-import java.util.concurrent.ConcurrentHashMap
 
 private val downloaderLogger = KotlinLogging.logger {}
 
@@ -270,6 +269,7 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
             override val size: Long,
             val configStream: Source,
         ) : ResolvedManifest
+
         data class List(
             override val manifest: ManifestList,
             override val digest: Digest,

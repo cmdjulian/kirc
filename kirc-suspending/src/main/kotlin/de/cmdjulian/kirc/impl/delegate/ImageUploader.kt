@@ -1,13 +1,12 @@
 package de.cmdjulian.kirc.impl.delegate
 
-import de.cmdjulian.kirc.client.BlobUploadMode
 import de.cmdjulian.kirc.client.SuspendingContainerImageRegistryClient
+import de.cmdjulian.kirc.client.UploadMode
 import de.cmdjulian.kirc.exception.KircException
 import de.cmdjulian.kirc.exception.RegistryException
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
-import de.cmdjulian.kirc.impl.KircApiError
 import de.cmdjulian.kirc.impl.serialization.JsonMapper
 import de.cmdjulian.kirc.impl.serialization.deserialize
 import de.cmdjulian.kirc.spec.ManifestJson
@@ -36,62 +35,60 @@ import kotlinx.io.buffered
 import kotlinx.io.files.SystemFileSystem
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import java.nio.file.Path
-import java.time.OffsetDateTime
-import java.time.temporal.ChronoUnit
 import kotlin.io.path.pathString
 
 private val logger = KotlinLogging.logger {}
 
 internal class ImageUploader(private val client: SuspendingContainerImageRegistryClient, private val tmpPath: Path) {
-
-    suspend fun upload(repository: Repository, reference: Reference, tar: Source, mode: BlobUploadMode): Digest = coroutineScope {
-        // store data temporarily (sanitize name for cross-platform safety)
-        val tempDirectory = createSafePath(tmpPath, repository, reference)
-        withContext(Dispatchers.IO) {
-            SystemFileSystem.createDirectories(tempDirectory.toKotlinPath())
-        }
+    suspend fun upload(repository: Repository, reference: Reference, tar: Source, mode: UploadMode): Digest =
+        coroutineScope {
+            // store data temporarily (sanitize name for cross-platform safety)
+            val tempDirectory = createSafePath(tmpPath, repository, reference)
+            withContext(Dispatchers.IO) {
+                SystemFileSystem.createDirectories(tempDirectory.toKotlinPath())
+            }
 
             try {
                 // read from tar and deserialize (can throw; ensure cleanup in finally)
                 val uploadContainerImage = readFromTar(tar, tempDirectory)
 
-        // upload architecture images
-            for ((manifest, manifestDigest, blobs) in uploadContainerImage.images) {
-                // upload blobs in parallel, but only up to three at once to mimic how Docker does it
-                coroutineScope {
-                    val semaphore = Semaphore(3)
+                // upload architecture images
+                for ((manifest, manifestDigest, blobs) in uploadContainerImage.images) {
+                    // upload blobs in parallel, but only up to three at once to mimic how Docker does it
+                    coroutineScope {
+                        val semaphore = Semaphore(3)
 
-                    for (blob in blobs.distinctBy(UploadBlobPath::digest)) {
-                        launch {
-                            semaphore.withPermit {
-                                uploadBlob(repository, blob, mode)
+                        for (blob in blobs.distinctBy(UploadBlobPath::digest)) {
+                            launch {
+                                semaphore.withPermit {
+                                    uploadBlob(repository, blob, mode)
+                                }
                             }
                         }
                     }
+                    client.uploadManifest(repository, manifestDigest, manifest)
                 }
-                client.uploadManifest(repository, manifestDigest, manifest)
-                }
-            // upload index (manifest list) last
-            client.uploadManifest(repository, reference, uploadContainerImage.index)
+                // upload index (manifest list) last
+                client.uploadManifest(repository, reference, uploadContainerImage.index)
             } catch (e: RuntimeException) {
-            handleError(e)
-        } finally {
-            // clear up temporary blob files
-            runCatching { cleanupTempDirectory(tempDirectory) }
-                .onFailure { t ->
-                    logger.info(t) { "Failed to fully cleanup temp directory: ${tempDirectory.pathString}" }
-                }
-        }
+                handleError(e)
+            } finally {
+                // clear up temporary blob files
+                runCatching { cleanupTempDirectory(tempDirectory) }
+                    .onFailure { t ->
+                        logger.info(t) { "Failed to fully cleanup temp directory: ${tempDirectory.pathString}" }
+                    }
+            }
         }
 
-    private suspend fun uploadBlob(repository: Repository, blob: UploadBlobPath, mode: BlobUploadMode) {
+    private suspend fun uploadBlob(repository: Repository, blob: UploadBlobPath, mode: UploadMode) {
         if (!client.existsBlob(repository, blob.digest)) {
             val session = client.initiateBlobUpload(repository)
 
             when (mode) {
-                BlobUploadMode.Stream -> client.uploadBlobStream(session, blob.digest, blob.path, blob.size)
+                UploadMode.Stream -> client.uploadBlobStream(session, blob.digest, blob.path, blob.size)
 
-                is BlobUploadMode.Chunks -> {
+                is UploadMode.Chunks -> {
                     val endSession = client.uploadBlobChunks(session, blob.path, mode.chunkSize)
                     // chunked upload requires a final request
                     client.finishBlobUpload(endSession, blob.digest)

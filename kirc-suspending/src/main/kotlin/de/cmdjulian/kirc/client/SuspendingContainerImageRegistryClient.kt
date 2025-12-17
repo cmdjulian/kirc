@@ -146,7 +146,7 @@ interface SuspendingContainerImageRegistryClient {
         repository: Repository,
         reference: Reference,
         tar: Source,
-        uploadMode: BlobUploadMode = BlobUploadMode.Stream,
+        uploadMode: UploadMode = UploadMode.Stream,
     ): Digest
 
     /**
