@@ -58,7 +58,7 @@ dependencies {
     testImplementation("ch.qos.logback:logback-classic:1.5.22")
 
     // resource injection
-    testImplementation("io.hosuaby:inject-resources-junit-jupiter:0.3.5")
+    testImplementation("io.hosuaby:inject-resources-junit-jupiter:1.0.0")
 
     // test container
     testImplementation("org.testcontainers:testcontainers:2.0.3")
