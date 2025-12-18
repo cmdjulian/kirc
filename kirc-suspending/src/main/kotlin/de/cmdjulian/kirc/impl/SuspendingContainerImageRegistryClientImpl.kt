@@ -20,11 +20,13 @@ import de.cmdjulian.kirc.impl.response.TagList
 import de.cmdjulian.kirc.impl.response.UploadSession
 import de.cmdjulian.kirc.impl.serialization.JsonMapper
 import de.cmdjulian.kirc.impl.serialization.deserialize
+import de.cmdjulian.kirc.spec.Platform
 import de.cmdjulian.kirc.spec.image.DockerImageConfigV1
 import de.cmdjulian.kirc.spec.image.ImageConfig
 import de.cmdjulian.kirc.spec.image.OciImageConfigV1
 import de.cmdjulian.kirc.spec.manifest.DockerManifestV2
 import de.cmdjulian.kirc.spec.manifest.Manifest
+import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestV1
 import de.cmdjulian.kirc.utils.toKotlinPath
@@ -108,9 +110,29 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
         .getOrElse { throw it.toRegistryClientError(repository, digest) }
 
     override suspend fun config(repository: Repository, manifestReference: Reference): ImageConfig =
-        api.manifest(repository, manifestReference)
-            .map { config(repository, it) }
-            .getOrElse { throw it.toRegistryClientError(repository, manifestReference) }
+        api.manifests(repository, manifestReference)
+            .map { manifest ->
+                when (manifest) {
+                    is ManifestSingle -> config(repository, manifest)
+                    is ManifestList -> handleRecursiveConfig(repository, manifest)
+                }
+            }.getOrElse { throw it.toRegistryClientError(repository, manifestReference) }
+
+    private suspend fun handleRecursiveConfig(repository: Repository, manifest: ManifestList): ImageConfig {
+        val currentPlatform = Platform.current()
+        return manifest.manifests.firstNotNullOfOrNull { entry ->
+            when (val platform = entry.platform?.let { Platform(it.os, it.architecture) }) {
+                null -> config(repository, entry.digest)
+                    .takeIf { config ->
+                        Platform(config.os, config.architecture) == currentPlatform
+                    }
+
+                else if (platform == currentPlatform) -> config(repository, entry.digest)
+
+                else -> null
+            }
+        } ?: throw KircException.PlatformNotMatching(currentPlatform)
+    }
 
     override suspend fun config(repository: Repository, manifest: ManifestSingle): ImageConfig =
         api.blobStream(repository, manifest.config.digest)
