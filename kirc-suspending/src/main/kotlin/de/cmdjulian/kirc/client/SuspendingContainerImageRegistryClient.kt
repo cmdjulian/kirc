@@ -74,13 +74,10 @@ interface SuspendingContainerImageRegistryClient {
     suspend fun config(repository: Repository, manifest: ManifestSingle): ImageConfig
 
     /**
-     * Get the config of an Image by its reference.
-     * This method should only be used, if you know, that the underlying image identified by [manifestReference] is not a
-     * ManifestList and is identified uniquely.
-     * If the [manifestReference] points to a ManifestList, the behaviour is up to the registry. Usually the first entry of the
-     * list is returned.
+     * Recursively finds the config of provided image manifest.
+     * Finds the first config which matches current platform.
      *
-     * To be safe, it's better to use [config] instead.
+     * If no matching Platform found, throws [de.cmdjulian.kirc.exception.KircException.PlatformNotMatching]
      */
     suspend fun config(repository: Repository, manifestReference: Reference): ImageConfig
 

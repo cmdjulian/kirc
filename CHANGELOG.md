@@ -22,6 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 - Problems related to fuel library
+- Config can be retrieved with either manifest single / list references (matches on current platform)
 
 ## [v1.3.4] - 2025-12-10
 

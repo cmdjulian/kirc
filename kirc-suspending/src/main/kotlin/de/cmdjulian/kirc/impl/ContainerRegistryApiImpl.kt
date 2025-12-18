@@ -35,6 +35,7 @@ import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.head
 import io.ktor.client.request.header
+import io.ktor.client.request.headers
 import io.ktor.client.request.parameter
 import io.ktor.client.request.patch
 import io.ktor.client.request.post
@@ -255,35 +256,41 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
     }
 
     private fun HttpRequestBuilder.acceptJson() = header(HttpHeaders.Accept, APPLICATION_JSON)
-    private fun HttpRequestBuilder.acceptManifestTypes() = header(
-        HttpHeaders.Accept,
-        listOf(
-            APPLICATION_JSON,
-            OciManifestV1.MediaType,
-            OciManifestListV1.MediaType,
-            DockerManifestV2.MediaType,
-            DockerManifestListV1.MediaType,
-        ).joinToString(","),
-    )
+    private fun HttpRequestBuilder.acceptManifestTypes() = headers {
+        appendAll(
+            HttpHeaders.Accept,
+            listOf(
+                APPLICATION_JSON,
+                OciManifestV1.MediaType,
+                OciManifestListV1.MediaType,
+                DockerManifestV2.MediaType,
+                DockerManifestListV1.MediaType,
+            ),
+        )
+    }
 
-    private fun HttpRequestBuilder.acceptSingleManifestTypes() = header(
-        HttpHeaders.Accept,
-        listOf(
-            APPLICATION_JSON,
-            OciManifestV1.MediaType,
-            DockerManifestV2.MediaType,
-        ).joinToString(","),
-    )
+    private fun HttpRequestBuilder.acceptSingleManifestTypes() = headers {
+        appendAll(
+            HttpHeaders.Accept,
+            listOf(
+                APPLICATION_JSON,
+                OciManifestV1.MediaType,
+                DockerManifestV2.MediaType,
+            ),
+        )
+    }
 
-    private fun HttpRequestBuilder.acceptBlobTypes() = header(
-        HttpHeaders.Accept,
-        listOf(
-            APPLICATION_JSON,
-            APPLICATION_OCTET_STREAM,
-            DockerBlobMediaType,
-            OciBlobMediaTypeTar,
-            OciBlobMediaTypeGzip,
-            OciBlobMediaTypeZstd,
-        ).joinToString(","),
-    )
+    private fun HttpRequestBuilder.acceptBlobTypes() = headers {
+        appendAll(
+            HttpHeaders.Accept,
+            listOf(
+                APPLICATION_JSON,
+                APPLICATION_OCTET_STREAM,
+                DockerBlobMediaType,
+                OciBlobMediaTypeTar,
+                OciBlobMediaTypeGzip,
+                OciBlobMediaTypeZstd,
+            ),
+        )
+    }
 }
