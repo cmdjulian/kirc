@@ -70,6 +70,7 @@ object SuspendingContainerImageClientFactory {
                 register(ContentType.Application.Json, JacksonConverter(JsonMapper))
             }
             install(Logging) {
+                // todo only log specific requests?
                 level = LogLevel.INFO
                 logger = object : Logger {
                     override fun log(message: String) = kLogger.info { "Kirc API $message" }

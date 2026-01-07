@@ -2,7 +2,6 @@ package de.cmdjulian.kirc.impl
 
 import com.github.kittinunf.result.Result
 import com.github.kittinunf.result.flatMap
-import com.github.kittinunf.result.map
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
@@ -23,7 +22,6 @@ import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestListV1
 import de.cmdjulian.kirc.spec.manifest.OciManifestV1
-import de.cmdjulian.kirc.utils.mapSuspending
 import de.cmdjulian.kirc.utils.toDigest
 import de.cmdjulian.kirc.utils.toRange
 import de.cmdjulian.kirc.utils.toResultSource
@@ -68,9 +66,12 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
      *
      * If not, a [KircApiError.Unknown] is created with the original exception
      */
-    private suspend fun execute(block: suspend () -> HttpResponse): Result<HttpResponse, KircApiError> = runCatching {
+    private suspend inline fun <T> execute(
+        crossinline transform: suspend (HttpResponse) -> T,
+        block: suspend () -> HttpResponse,
+    ): Result<T, KircApiError> = runCatching {
         val result = block()
-        if (result.status.isSuccess()) result else throw result.toErrorResponse()
+        if (result.status.isSuccess()) transform(result) else throw result.toErrorResponse()
     }.fold(
         onSuccess = { Result.success(it) },
         onFailure = { throwable ->
@@ -108,31 +109,36 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
 
     // Status
 
-    override suspend fun ping(): Result<*, KircApiError> = execute { client.get("/v2/") }
+    override suspend fun ping(): Result<*, KircApiError> = execute({}) { client.get("/v2/") }
 
-    override suspend fun repositories(limit: Int?, last: Int?): Result<Catalog, KircApiError> = execute {
-        client.get("/v2/_catalog") {
-            if (limit != null) parameter("n", limit)
-            if (last != null) parameter("last", last)
-            acceptJson()
+    override suspend fun repositories(limit: Int?, last: Int?): Result<Catalog, KircApiError> =
+        execute(HttpResponse::body) {
+            client.get("/v2/_catalog") {
+                if (limit != null) parameter("n", limit)
+                if (last != null) parameter("last", last)
+                acceptJson()
+            }
         }
-    }.mapSuspending(HttpResponse::body)
 
-    override suspend fun tags(repository: Repository, limit: Int?, last: Int?): Result<TagList, KircApiError> =
-        execute {
+    override suspend fun tags(
+        repository: Repository,
+        limit: Int?,
+        last: Int?,
+    ): Result<TagList, KircApiError> =
+        execute(HttpResponse::body) {
             client.get("/v2/$repository/tags/list") {
                 if (limit != null) parameter("n", limit)
                 if (last != null) parameter("last", last)
                 acceptJson()
             }
-        }.mapSuspending(HttpResponse::body)
+        }
 
     override suspend fun digest(repository: Repository, reference: Reference): Result<Digest, KircApiError> =
         when (reference) {
             is Digest -> Result.success(reference)
-            is Tag -> execute {
+            is Tag -> execute(HttpResponse::toDigest) {
                 client.head("/v2/$repository/manifests/$reference") { acceptManifestTypes() }
-            }.map(HttpResponse::toDigest)
+            }
         }
 
     // Manifest
@@ -141,36 +147,36 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
         repository: Repository,
         reference: Reference,
         accept: String,
-    ): Result<*, KircApiError> = execute {
+    ): Result<*, KircApiError> = execute({}) {
         client.head("/v2/$repository/manifests/$reference") {
             header(HttpHeaders.Accept, accept)
         }
     }
 
     override suspend fun manifests(repository: Repository, reference: Reference): Result<Manifest, KircApiError> =
-        execute {
+        execute(HttpResponse::body) {
             client.get("/v2/$repository/manifests/$reference") { acceptManifestTypes() }
-        }.mapSuspending(HttpResponse::body)
+        }
 
     override suspend fun manifestStream(
         repository: Repository,
         reference: Reference,
-    ): Result<ResultSource, KircApiError> = execute {
+    ): Result<ResultSource, KircApiError> = execute(HttpResponse::toResultSource) {
         client.get("/v2/$repository/manifests/$reference") { acceptManifestTypes() }
-    }.mapSuspending(HttpResponse::toResultSource)
+    }
 
     override suspend fun manifest(repository: Repository, reference: Reference): Result<ManifestSingle, KircApiError> =
-        execute {
+        execute(HttpResponse::body) {
             client.get("/v2/$repository/manifests/$reference") {
                 acceptSingleManifestTypes()
             }
-        }.mapSuspending(HttpResponse::body)
+        }
 
     override suspend fun uploadManifest(
         repository: Repository,
         reference: Reference,
         manifest: Manifest,
-    ): Result<Digest, KircApiError> = execute {
+    ): Result<Digest, KircApiError> = execute(HttpResponse::toDigest) {
         val urlRef = when (reference) {
             is Digest -> reference.hash
             is Tag -> reference
@@ -185,73 +191,75 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
             header(HttpHeaders.ContentType, contentType)
             setBody(JsonMapper.writeValueAsString(manifest))
         }
-    }.map(HttpResponse::toDigest)
+    }
 
     override suspend fun deleteManifest(repository: Repository, reference: Reference): Result<Digest, KircApiError> =
         digest(repository, reference).flatMap { dg ->
-            execute {
+            execute({ dg }) {
                 client.delete("/v2/$repository/manifests/$dg") { acceptManifestTypes() }
-            }.map { dg }
+            }
         }
 
     // Blob
 
-    override suspend fun existsBlob(repository: Repository, digest: Digest): Result<*, KircApiError> = execute {
+    override suspend fun existsBlob(repository: Repository, digest: Digest): Result<*, KircApiError> = execute({}) {
         client.head("/v2/$repository/blobs/$digest")
     }
 
-    override suspend fun blob(repository: Repository, digest: Digest): Result<ByteArray, KircApiError> = execute {
-        client.get("/v2/$repository/blobs/$digest") { acceptBlobTypes() }
-    }.mapSuspending(HttpResponse::body)
+    override suspend fun blob(repository: Repository, digest: Digest): Result<ByteArray, KircApiError> =
+        execute(HttpResponse::body) {
+            client.get("/v2/$repository/blobs/$digest") { acceptBlobTypes() }
+        }
 
-    override suspend fun blobStream(repository: Repository, digest: Digest): Result<Source, KircApiError> = execute {
-        client.get("/v2/$repository/blobs/$digest") { acceptBlobTypes() }
-    }.mapSuspending { resp ->
-        resp.bodyAsChannel().toInputStream().asSource().buffered()
-    }
+    override suspend fun blobStream(repository: Repository, digest: Digest): Result<Source, KircApiError> = execute(
+        transform = { resp -> resp.bodyAsChannel().toInputStream().asSource().buffered() },
+        block = { client.get("/v2/$repository/blobs/$digest") { acceptBlobTypes() } },
+    )
 
-    override suspend fun initiateUpload(repository: Repository): Result<UploadSession, KircApiError> = execute {
-        client.post("/v2/$repository/blobs/uploads/")
-    }.map(HttpResponse::toUploadSession)
+    override suspend fun initiateUpload(repository: Repository): Result<UploadSession, KircApiError> =
+        execute(HttpResponse::toUploadSession) {
+            client.post("/v2/$repository/blobs/uploads/")
+        }
 
     override suspend fun finishBlobUpload(session: UploadSession, digest: Digest): Result<Digest, KircApiError> =
-        execute {
+        execute(HttpResponse::toDigest) {
             client.put(session.location) { parameter("digest", digest.toString()) }
-        }.map(HttpResponse::toDigest)
+        }
 
     override suspend fun uploadBlobChunked(
         session: UploadSession,
         buffer: Buffer,
         startRange: Long,
         endRange: Long,
-    ): Result<UploadSession, KircApiError> = execute {
+    ): Result<UploadSession, KircApiError> = execute(HttpResponse::toUploadSession) {
         client.patch(session.location) {
             header(HttpHeaders.ContentLength, buffer.size)
             header(HttpHeaders.ContentRange, "$startRange-$endRange")
             header(HttpHeaders.ContentType, APPLICATION_OCTET_STREAM)
             setBody(buffer.readByteArray())
         }
-    }.map(HttpResponse::toUploadSession)
+    }
 
     override suspend fun uploadBlobStream(
         session: UploadSession,
         digest: Digest,
         path: Path,
         size: Long,
-    ): Result<Digest, KircApiError> = execute {
+    ): Result<Digest, KircApiError> = execute(HttpResponse::toDigest) {
         client.put(session.location) {
             parameter("digest", digest.toString())
             header(HttpHeaders.ContentType, APPLICATION_OCTET_STREAM)
             header(HttpHeaders.ContentLength, size)
             setBody(RepeatableFileContent(path))
         }
-    }.map(HttpResponse::toDigest)
+    }
 
-    override suspend fun uploadStatus(session: UploadSession): Result<Pair<Long, Long>, KircApiError> = execute {
-        client.get(session.location)
-    }.map(HttpResponse::toRange)
+    override suspend fun uploadStatus(session: UploadSession): Result<Pair<Long, Long>, KircApiError> =
+        execute(HttpResponse::toRange) {
+            client.get(session.location)
+        }
 
-    override suspend fun cancelBlobUpload(session: UploadSession): Result<*, KircApiError> = execute {
+    override suspend fun cancelBlobUpload(session: UploadSession): Result<*, KircApiError> = execute({}) {
         client.delete(session.location)
     }
 
