@@ -1,3 +1,3 @@
 package de.cmdjulian.kirc.client
 
-class RegistryCredentials(val username: String, val password: String)
+data class RegistryCredentials(val username: String, val password: String)

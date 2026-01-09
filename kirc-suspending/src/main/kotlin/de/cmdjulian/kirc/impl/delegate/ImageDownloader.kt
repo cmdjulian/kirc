@@ -7,6 +7,7 @@ import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
 import de.cmdjulian.kirc.impl.KircApiError
+import de.cmdjulian.kirc.impl.auth.withAuthSession
 import de.cmdjulian.kirc.impl.serialization.JsonMapper
 import de.cmdjulian.kirc.spec.ManifestJson
 import de.cmdjulian.kirc.spec.ManifestJsonEntry
@@ -42,17 +43,19 @@ private val downloaderLogger = KotlinLogging.logger {}
 internal class ImageDownloader(private val client: SuspendingContainerImageRegistryClient, private val tmpPath: Path) {
 
     suspend fun download(repository: Repository, reference: Reference, destination: Sink) {
-        destination.use { sink ->
-            try {
-                val manifest = client.manifest(repository, reference)
-                TarArchiveOutputStream(sink.asOutputStream()).use { tarStream ->
-                    when (manifest) {
-                        is ManifestSingle -> downloadSingleImage(repository, reference, manifest, tarStream)
-                        is ManifestList -> downloadListImage(repository, reference, manifest, tarStream)
+        withAuthSession {
+            destination.use { sink ->
+                try {
+                    val manifest = client.manifest(repository, reference)
+                    TarArchiveOutputStream(sink.asOutputStream()).use { tarStream ->
+                        when (manifest) {
+                            is ManifestSingle -> downloadSingleImage(repository, reference, manifest, tarStream)
+                            is ManifestList -> downloadListImage(repository, reference, manifest, tarStream)
+                        }
                     }
+                } catch (e: Exception) {
+                    handleError(e)
                 }
-            } catch (e: Exception) {
-                handleError(e)
             }
         }
     }

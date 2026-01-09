@@ -6,6 +6,7 @@ import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
+import de.cmdjulian.kirc.impl.auth.currentSession
 import de.cmdjulian.kirc.impl.response.Catalog
 import de.cmdjulian.kirc.impl.response.ResultSource
 import de.cmdjulian.kirc.impl.response.TagList
@@ -45,6 +46,7 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.client.statement.request
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.util.AttributeKey
 import io.ktor.utils.io.jvm.javaio.toInputStream
 import kotlinx.io.Buffer
 import kotlinx.io.Source
@@ -52,6 +54,7 @@ import kotlinx.io.asSource
 import kotlinx.io.buffered
 import kotlinx.io.readByteArray
 import java.nio.file.Path
+import java.util.*
 
 private const val APPLICATION_JSON = "application/json"
 private const val APPLICATION_OCTET_STREAM = "application/octet-stream"
@@ -109,7 +112,11 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
 
     // Status
 
-    override suspend fun ping(): Result<*, KircApiError> = execute({}) { client.get("/v2/") }
+    override suspend fun ping(): Result<*, KircApiError> = execute({}) {
+        client.get("/v2/") {
+            setAuthSession(currentSession())
+        }
+    }
 
     override suspend fun repositories(limit: Int?, last: Int?): Result<Catalog, KircApiError> =
         execute(HttpResponse::body) {
@@ -117,19 +124,17 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
                 if (limit != null) parameter("n", limit)
                 if (last != null) parameter("last", last)
                 acceptJson()
+                setAuthSession(currentSession())
             }
         }
 
-    override suspend fun tags(
-        repository: Repository,
-        limit: Int?,
-        last: Int?,
-    ): Result<TagList, KircApiError> =
+    override suspend fun tags(repository: Repository, limit: Int?, last: Int?): Result<TagList, KircApiError> =
         execute(HttpResponse::body) {
             client.get("/v2/$repository/tags/list") {
                 if (limit != null) parameter("n", limit)
                 if (last != null) parameter("last", last)
                 acceptJson()
+                setAuthSession(currentSession())
             }
         }
 
@@ -137,7 +142,10 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
         when (reference) {
             is Digest -> Result.success(reference)
             is Tag -> execute(HttpResponse::toDigest) {
-                client.head("/v2/$repository/manifests/$reference") { acceptManifestTypes() }
+                client.head("/v2/$repository/manifests/$reference") {
+                    acceptManifestTypes()
+                    setAuthSession(currentSession())
+                }
             }
         }
 
@@ -150,25 +158,33 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
     ): Result<*, KircApiError> = execute({}) {
         client.head("/v2/$repository/manifests/$reference") {
             header(HttpHeaders.Accept, accept)
+            setAuthSession(currentSession())
         }
     }
 
     override suspend fun manifests(repository: Repository, reference: Reference): Result<Manifest, KircApiError> =
         execute(HttpResponse::body) {
-            client.get("/v2/$repository/manifests/$reference") { acceptManifestTypes() }
+            client.get("/v2/$repository/manifests/$reference") {
+                acceptManifestTypes()
+                setAuthSession(currentSession())
+            }
         }
 
     override suspend fun manifestStream(
         repository: Repository,
         reference: Reference,
     ): Result<ResultSource, KircApiError> = execute(HttpResponse::toResultSource) {
-        client.get("/v2/$repository/manifests/$reference") { acceptManifestTypes() }
+        client.get("/v2/$repository/manifests/$reference") {
+            acceptManifestTypes()
+            setAuthSession(currentSession())
+        }
     }
 
     override suspend fun manifest(repository: Repository, reference: Reference): Result<ManifestSingle, KircApiError> =
         execute(HttpResponse::body) {
             client.get("/v2/$repository/manifests/$reference") {
                 acceptSingleManifestTypes()
+                setAuthSession(currentSession())
             }
         }
 
@@ -190,40 +206,59 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
         client.put("/v2/$repository/manifests/$urlRef") {
             header(HttpHeaders.ContentType, contentType)
             setBody(JsonMapper.writeValueAsString(manifest))
+            setAuthSession(currentSession())
         }
     }
 
     override suspend fun deleteManifest(repository: Repository, reference: Reference): Result<Digest, KircApiError> =
         digest(repository, reference).flatMap { dg ->
             execute({ dg }) {
-                client.delete("/v2/$repository/manifests/$dg") { acceptManifestTypes() }
+                client.delete("/v2/$repository/manifests/$dg") {
+                    acceptManifestTypes()
+                    setAuthSession(currentSession())
+                }
             }
         }
 
     // Blob
 
     override suspend fun existsBlob(repository: Repository, digest: Digest): Result<*, KircApiError> = execute({}) {
-        client.head("/v2/$repository/blobs/$digest")
+        client.head("/v2/$repository/blobs/$digest") {
+            setAuthSession(currentSession())
+        }
     }
 
     override suspend fun blob(repository: Repository, digest: Digest): Result<ByteArray, KircApiError> =
         execute(HttpResponse::body) {
-            client.get("/v2/$repository/blobs/$digest") { acceptBlobTypes() }
+            client.get("/v2/$repository/blobs/$digest") {
+                acceptBlobTypes()
+                setAuthSession(currentSession())
+            }
         }
 
     override suspend fun blobStream(repository: Repository, digest: Digest): Result<Source, KircApiError> = execute(
         transform = { resp -> resp.bodyAsChannel().toInputStream().asSource().buffered() },
-        block = { client.get("/v2/$repository/blobs/$digest") { acceptBlobTypes() } },
+        block = {
+            client.get("/v2/$repository/blobs/$digest") {
+                acceptBlobTypes()
+                setAuthSession(currentSession())
+            }
+        },
     )
 
     override suspend fun initiateUpload(repository: Repository): Result<UploadSession, KircApiError> =
         execute(HttpResponse::toUploadSession) {
-            client.post("/v2/$repository/blobs/uploads/")
+            client.post("/v2/$repository/blobs/uploads/") {
+                setAuthSession(currentSession())
+            }
         }
 
     override suspend fun finishBlobUpload(session: UploadSession, digest: Digest): Result<Digest, KircApiError> =
         execute(HttpResponse::toDigest) {
-            client.put(session.location) { parameter("digest", digest.toString()) }
+            client.put(session.location) {
+                parameter("digest", digest.toString())
+                setAuthSession(currentSession())
+            }
         }
 
     override suspend fun uploadBlobChunked(
@@ -237,6 +272,7 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
             header(HttpHeaders.ContentRange, "$startRange-$endRange")
             header(HttpHeaders.ContentType, APPLICATION_OCTET_STREAM)
             setBody(buffer.readByteArray())
+            setAuthSession(currentSession())
         }
     }
 
@@ -251,17 +287,26 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
             header(HttpHeaders.ContentType, APPLICATION_OCTET_STREAM)
             header(HttpHeaders.ContentLength, size)
             setBody(RepeatableFileContent(path))
+            setAuthSession(currentSession())
+            setAttributes { put(AttributeKey("RequestID"), UUID.randomUUID()) }
         }
     }
 
     override suspend fun uploadStatus(session: UploadSession): Result<Pair<Long, Long>, KircApiError> =
         execute(HttpResponse::toRange) {
-            client.get(session.location)
+            client.get(session.location) {
+                setAuthSession(currentSession())
+            }
         }
 
-    override suspend fun cancelBlobUpload(session: UploadSession): Result<*, KircApiError> = execute({}) {
-        client.delete(session.location)
-    }
+    override suspend fun cancelBlobUpload(session: UploadSession): Result<*, KircApiError> =
+        execute({}) {
+            client.delete(session.location) {
+                setAuthSession(currentSession())
+            }
+        }
+
+    // Builder helpers
 
     private fun HttpRequestBuilder.acceptJson() = header(HttpHeaders.Accept, APPLICATION_JSON)
     private fun HttpRequestBuilder.acceptManifestTypes() = headers {
@@ -300,5 +345,11 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
                 OciBlobMediaTypeZstd,
             ),
         )
+    }
+
+    private fun HttpRequestBuilder.setAuthSession(authSessionId: UUID) {
+        setAttributes {
+            put(AttributeKey("AuthSessionId"), authSessionId.toString())
+        }
     }
 }

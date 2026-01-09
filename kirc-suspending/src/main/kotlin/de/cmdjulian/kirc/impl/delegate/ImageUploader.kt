@@ -7,6 +7,7 @@ import de.cmdjulian.kirc.exception.RegistryException
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
+import de.cmdjulian.kirc.impl.auth.withAuthSession
 import de.cmdjulian.kirc.impl.serialization.JsonMapper
 import de.cmdjulian.kirc.impl.serialization.deserialize
 import de.cmdjulian.kirc.spec.ManifestJson
@@ -41,7 +42,7 @@ private val logger = KotlinLogging.logger {}
 
 internal class ImageUploader(private val client: SuspendingContainerImageRegistryClient, private val tmpPath: Path) {
     suspend fun upload(repository: Repository, reference: Reference, tar: Source, mode: UploadMode): Digest =
-        coroutineScope {
+        withAuthSession {
             // store data temporarily (sanitize name for cross-platform safety)
             val tempDirectory = createSafePath(tmpPath, repository, reference)
             withContext(Dispatchers.IO) {
