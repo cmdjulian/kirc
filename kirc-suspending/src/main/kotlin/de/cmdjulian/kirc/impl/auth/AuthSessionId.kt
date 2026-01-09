@@ -34,6 +34,4 @@ suspend fun <T> withAuthSession(block: suspend CoroutineScope.() -> T): T {
 }
 
 // Helper to retrieve the implicit ID or generate a new standalone one
-internal suspend fun currentSession(): UUID {
-    return currentCoroutineContext()[AuthSessionId]?.id ?: UUID.randomUUID()
-}
+internal suspend fun currentSession(): UUID = currentCoroutineContext()[AuthSessionId]?.id ?: UUID.randomUUID()

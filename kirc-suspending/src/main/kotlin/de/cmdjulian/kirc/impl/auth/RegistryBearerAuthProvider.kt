@@ -49,11 +49,7 @@ internal class RegistryBearerAuthProvider(private val credentials: RegistryCrede
     private val cache: Cache<UUID, BearerToken> = Caffeine.newBuilder()
         .expireAfter(
             object : Expiry<UUID, BearerToken> {
-                override fun expireAfterCreate(
-                    key: UUID,
-                    value: BearerToken,
-                    currentTime: Long,
-                ): Long {
+                override fun expireAfterCreate(key: UUID, value: BearerToken, currentTime: Long): Long {
                     val expiresAt = value.expiresAt()?.toInstant()?.toEpochMilli() ?: return 0L
                     val now = Clock.systemDefaultZone().instant().toEpochMilli()
                     val safetyMargin = 10.seconds.inWholeMilliseconds
@@ -109,10 +105,7 @@ internal class RegistryBearerAuthProvider(private val credentials: RegistryCrede
         return resolveToken(response.request.attributes, authHeader) != null
     }
 
-    override suspend fun addRequestHeaders(
-        request: HttpRequestBuilder,
-        authHeader: HttpAuthHeader?,
-    ) {
+    override suspend fun addRequestHeaders(request: HttpRequestBuilder, authHeader: HttpAuthHeader?) {
         if (authHeader !is HttpAuthHeader.Parameterized) return
         val token = resolveToken(request.attributes, authHeader) ?: return
         request.bearerAuth(token.token)
@@ -121,10 +114,7 @@ internal class RegistryBearerAuthProvider(private val credentials: RegistryCrede
     override fun isApplicable(auth: HttpAuthHeader): Boolean =
         auth is HttpAuthHeader.Parameterized && auth.authScheme == AuthScheme.Bearer
 
-    private suspend fun resolveToken(
-        attributes: Attributes,
-        authHeader: HttpAuthHeader.Parameterized?,
-    ): BearerToken? {
+    private suspend fun resolveToken(attributes: Attributes, authHeader: HttpAuthHeader.Parameterized?): BearerToken? {
         if (credentials == null) return null
         // 1. Determine Identity
         val id = attributes.getOrNull<String>(AttributeKey("AuthSessionId"))
@@ -166,7 +156,7 @@ internal class RegistryBearerAuthProvider(private val credentials: RegistryCrede
         service: String?,
         credentials: RegistryCredentials,
     ): Result<BearerToken, KircApiError> = try {
-        val response = HttpClient(CIO).get(realm) { // todo use client?
+        val response = HttpClient(CIO).get(realm) {
             if (scope != null) parameter("scope", scope)
             if (service != null) parameter("service", service)
             basicAuth(credentials.username, credentials.password)
@@ -194,7 +184,7 @@ internal class RegistryBearerAuthProvider(private val credentials: RegistryCrede
         Result.failure(
             when (e) {
                 is KircApiError -> e
-                else -> KircApiError.Unknown(e) // todo bearer token retrieval error
+                else -> KircApiError.Unknown(e)
             },
         )
     }

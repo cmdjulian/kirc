@@ -299,12 +299,11 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
             }
         }
 
-    override suspend fun cancelBlobUpload(session: UploadSession): Result<*, KircApiError> =
-        execute({}) {
-            client.delete(session.location) {
-                setAuthSession(currentSession())
-            }
+    override suspend fun cancelBlobUpload(session: UploadSession): Result<*, KircApiError> = execute({}) {
+        client.delete(session.location) {
+            setAuthSession(currentSession())
         }
+    }
 
     // Builder helpers
 
