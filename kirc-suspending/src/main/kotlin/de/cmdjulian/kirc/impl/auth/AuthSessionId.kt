@@ -14,11 +14,12 @@ internal data class AuthSessionId(val id: UUID) : AbstractCoroutineContextElemen
 }
 
 /**
- * Starts a scope with a shared auth ID. The ID is attached to every request made within the scope.
- * Requests sharing a session can reuse bearer authentication tokens
+ * Starts a scope with a shared auth session uuid.
+ * The ID is attached to every request made within the scope so that they can reuse bearer authentication tokens
  *
- * If a session is already present in the context, it is reused.
- * Otherwise, a new one is created.
+ * - Requests sharing a session, share the same session uuid.
+ * - If a session is already present in the context, it is reused.
+ * - Different sessions contain different session ids.
  */
 suspend fun <T> withAuthSession(block: suspend CoroutineScope.() -> T): T {
     // Check if we already have a session in the current context

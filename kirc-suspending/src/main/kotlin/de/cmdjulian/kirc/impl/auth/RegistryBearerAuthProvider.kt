@@ -30,13 +30,25 @@ import kotlinx.coroutines.coroutineScope
 import java.time.Clock
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 // todo custom auth provider for basic auth to make use of session ID caching too?
 /**
  * An AuthProvider that handles Bearer authentication for container registries.
- * It supports token caching and request coalescing.
- * @param credentials The registry credentials to use for token retrieval.
+ * This provider extracts the necessary parameters from the WWW-Authenticate header in 401 responses
+ * to request new tokens as needed.
+ *
+ * Bearer tokens are cached based on a unique session ID provided in the request attributes.
+ * This allows multiple requests within the same session to reuse the same token until it expires.
+ *
+ * Request coalescing ensures that simultaneous requests for the same token only trigger a single token retrieval.
+ * Subsequent requests wait for the initial request to complete and then use the retrieved token.
+ *
+ * If a token can't be retrieved, resolved or if the WWW-Authenticate header is missing/invalid,
+ * authentication will not be performed.
+ *
+ * [credentials] - The registry credentials to use for token retrieval. If null, no authentication will be performed.
  */
 internal class RegistryBearerAuthProvider(private val credentials: RegistryCredentials?) : AuthProvider {
 
@@ -48,7 +60,8 @@ internal class RegistryBearerAuthProvider(private val credentials: RegistryCrede
         .expireAfter(
             object : Expiry<UUID, BearerToken> {
                 override fun expireAfterCreate(key: UUID, value: BearerToken, currentTime: Long): Long {
-                    val expiresAt = value.expiresAt()?.toInstant()?.toEpochMilli() ?: return 0L
+                    val expiresAt =
+                        value.expiresAt()?.toInstant()?.toEpochMilli() ?: return 5.minutes.inWholeMilliseconds
                     val now = Clock.systemDefaultZone().instant().toEpochMilli()
                     val safetyMargin = 10.seconds.inWholeMilliseconds
                     return expiresAt - now - safetyMargin
@@ -164,7 +177,7 @@ internal class RegistryBearerAuthProvider(private val credentials: RegistryCrede
             statusCode = status.value,
             url = request.url,
             method = request.method,
-            message = "Could not retrieve bearer token (status=${bodyAsText()})",
+            message = "Could not retrieve bearer token from auth server (status=${bodyAsText()})",
         )
     } else {
         try {

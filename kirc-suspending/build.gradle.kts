@@ -63,6 +63,9 @@ dependencies {
 
     // test container
     testImplementation("org.testcontainers:testcontainers:2.0.3")
+
+    // coroutine testing
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
 }
 
 tasks.jar {
