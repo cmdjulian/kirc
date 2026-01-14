@@ -60,9 +60,9 @@ internal class RegistryBearerAuthProvider(private val credentials: RegistryCrede
             object : Expiry<UUID, BearerToken> {
                 override fun expireAfterCreate(key: UUID, value: BearerToken, currentTime: Long): Long {
                     // returns nano seconds
-                    val expiresIn = value.expiresIn?.seconds?.inWholeNanoseconds ?: return 5.minutes.inWholeNanoseconds
-                    val safetyMargin = 10.seconds.inWholeNanoseconds
-                    return expiresIn - safetyMargin
+                    val expiresIn = value.expiresIn?.seconds ?: return 5.minutes.inWholeSeconds
+                    val expiresInWithSafetyMargin = expiresIn - 10.seconds
+                    return expiresInWithSafetyMargin.inWholeNanoseconds
                 }
 
                 override fun expireAfterUpdate(
