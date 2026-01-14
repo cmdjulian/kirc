@@ -27,7 +27,6 @@ import io.ktor.util.Attributes
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import java.time.Clock
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.minutes
@@ -60,11 +59,10 @@ internal class RegistryBearerAuthProvider(private val credentials: RegistryCrede
         .expireAfter(
             object : Expiry<UUID, BearerToken> {
                 override fun expireAfterCreate(key: UUID, value: BearerToken, currentTime: Long): Long {
-                    val expiresAt =
-                        value.expiresAt()?.toInstant()?.toEpochMilli() ?: return 5.minutes.inWholeMilliseconds
-                    val now = Clock.systemDefaultZone().instant().toEpochMilli()
-                    val safetyMargin = 10.seconds.inWholeMilliseconds
-                    return expiresAt - now - safetyMargin
+                    // returns nano seconds
+                    val expiresIn = value.expiresIn?.seconds?.inWholeNanoseconds ?: return 5.minutes.inWholeNanoseconds
+                    val safetyMargin = 10.seconds.inWholeNanoseconds
+                    return expiresIn - safetyMargin
                 }
 
                 override fun expireAfterUpdate(
@@ -72,7 +70,7 @@ internal class RegistryBearerAuthProvider(private val credentials: RegistryCrede
                     value: BearerToken,
                     currentTime: Long,
                     currentDuration: Long,
-                ): Long = expireAfterCreate(key, value, currentDuration)
+                ): Long = expireAfterCreate(key, value, currentTime)
 
                 override fun expireAfterRead(
                     key: UUID,
@@ -181,6 +179,7 @@ internal class RegistryBearerAuthProvider(private val credentials: RegistryCrede
         )
     } else {
         try {
+            // using bodyAsText because client for bearer retrieval isn't configured with json feature
             JsonMapper.readValue<BearerToken>(bodyAsText())
         } catch (e: Exception) {
             throw KircApiError.Json(
