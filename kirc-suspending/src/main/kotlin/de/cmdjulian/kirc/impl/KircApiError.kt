@@ -16,7 +16,11 @@ internal sealed class KircApiError(
     val url = URL(url.toString())
     val detailMessage = "$message (HTTP statusCode=$statusCode method=$method url=$url)"
 
-    /** Error as returned by the registry. */
+    /**
+     * Error as returned by the registry.
+     *
+     * According to format definition [see](https://docker-docs.uclv.cu/registry/spec/api/#errors)
+     */
     class Registry(statusCode: Int, url: Url, method: HttpMethod, val body: RegistryErrorResponse) :
         KircApiError(
             statusCode,

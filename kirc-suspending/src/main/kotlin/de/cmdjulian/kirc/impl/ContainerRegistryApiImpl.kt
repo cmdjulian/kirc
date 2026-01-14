@@ -72,43 +72,36 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
     private suspend inline fun <T> execute(
         crossinline transform: suspend (HttpResponse) -> T,
         block: suspend () -> HttpResponse,
-    ): Result<T, KircApiError> = runCatching {
+    ): Result<T, KircApiError> = try {
         val result = block()
-        if (result.status.isSuccess()) transform(result) else throw result.toErrorResponse()
-    }.fold(
-        onSuccess = { Result.success(it) },
-        onFailure = { throwable ->
-            if (throwable is KircApiError) {
-                Result.failure(throwable)
-            } else {
-                Result.failure(KircApiError.Unknown(throwable))
-            }
-        },
-    )
+        if (result.status.isSuccess()) {
+            Result.success(transform(result))
+        } else {
+            Result.failure(result.toErrorResponse())
+        }
+    } catch (e: Exception) {
+        Result.failure(KircApiError.Unknown(e))
+    }
 
     private fun HttpStatusCode.isSuccess() = value in 200..299
 
     // Tries to parse the error response body, otherwise returns a generic JSON error.
-    private suspend fun HttpResponse.toErrorResponse() = runCatching { body<RegistryErrorResponse>() }
-        .fold(
-            onSuccess = {
-                KircApiError.Registry(
-                    statusCode = status.value,
-                    url = request.url,
-                    method = request.method,
-                    body = it,
-                )
-            },
-            onFailure = {
-                KircApiError.Json(
-                    statusCode = status.value,
-                    url = request.url,
-                    method = request.method,
-                    cause = it,
-                    message = "Could not parse registry error response body (body=${bodyAsText()})",
-                )
-            },
+    private suspend fun HttpResponse.toErrorResponse() = try {
+        KircApiError.Registry(
+            statusCode = status.value,
+            url = request.url,
+            method = request.method,
+            body = body<RegistryErrorResponse>(),
         )
+    } catch (e: Exception) {
+        KircApiError.Json(
+            statusCode = status.value,
+            url = request.url,
+            method = request.method,
+            cause = e,
+            message = "Could not parse registry error response body (body=${bodyAsText()})",
+        )
+    }
 
     // Status
 

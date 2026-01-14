@@ -4,8 +4,6 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.github.benmanes.caffeine.cache.Expiry
-import com.github.kittinunf.result.Result
-import com.github.kittinunf.result.getOrElse
 import de.cmdjulian.kirc.client.RegistryCredentials
 import de.cmdjulian.kirc.impl.KircApiError
 import de.cmdjulian.kirc.impl.serialization.JsonMapper
@@ -125,7 +123,7 @@ internal class RegistryBearerAuthProvider(private val credentials: RegistryCrede
         cache.getIfPresent(id)?.let { return it }
 
         // 3. Determine Scope (from 401 challenge)
-        val realm = authHeader?.parameter("realm") ?: return null // todo throw error?
+        val realm = authHeader?.parameter("realm") ?: return null
         val scope = authHeader.parameter("scope")
         val service = authHeader.parameter("service")
 
@@ -137,7 +135,7 @@ internal class RegistryBearerAuthProvider(private val credentials: RegistryCrede
                 async {
                     try {
                         // Fetch the token
-                        val token = requestBearerToken(realm, scope, service, credentials).getOrElse { throw it }
+                        val token = requestBearerToken(realm, scope, service, credentials)
                         // Update Cache
                         cache.put(id, token)
                         token
@@ -155,37 +153,30 @@ internal class RegistryBearerAuthProvider(private val credentials: RegistryCrede
         scope: String?,
         service: String?,
         credentials: RegistryCredentials,
-    ): Result<BearerToken, KircApiError> = try {
-        val response = HttpClient(CIO).get(realm) {
-            if (scope != null) parameter("scope", scope)
-            if (service != null) parameter("service", service)
-            basicAuth(credentials.username, credentials.password)
-        }
-        val token = if (response.status.value !in 200..299) {
-            throw KircApiError.Bearer(
-                statusCode = response.status.value,
-                url = response.request.url,
-                method = response.request.method,
-                message = "Could not retrieve bearer token (status=${response.bodyAsText()})",
-            )
-        } else {
-            runCatching { JsonMapper.readValue<BearerToken>(response.bodyAsText()) }.getOrElse {
-                throw KircApiError.Json(
-                    statusCode = response.status.value,
-                    url = response.request.url,
-                    method = response.request.method,
-                    message = "Could not deserialize bearer token response",
-                    cause = it,
-                )
-            }
-        }
-        Result.success(token)
-    } catch (e: Exception) {
-        Result.failure(
-            when (e) {
-                is KircApiError -> e
-                else -> KircApiError.Unknown(e)
-            },
+    ): BearerToken = HttpClient(CIO).get(realm) {
+        if (scope != null) parameter("scope", scope)
+        if (service != null) parameter("service", service)
+        basicAuth(credentials.username, credentials.password)
+    }.toBearerToken()
+
+    private suspend fun HttpResponse.toBearerToken() = if (status.value !in 200..299) {
+        throw KircApiError.Bearer(
+            statusCode = status.value,
+            url = request.url,
+            method = request.method,
+            message = "Could not retrieve bearer token (status=${bodyAsText()})",
         )
+    } else {
+        try {
+            JsonMapper.readValue<BearerToken>(bodyAsText())
+        } catch (e: Exception) {
+            throw KircApiError.Json(
+                statusCode = status.value,
+                url = request.url,
+                method = request.method,
+                message = "Could not deserialize bearer token response",
+                cause = e,
+            )
+        }
     }
 }
