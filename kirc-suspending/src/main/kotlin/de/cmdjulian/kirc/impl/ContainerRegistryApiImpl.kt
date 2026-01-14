@@ -62,10 +62,10 @@ private const val APPLICATION_OCTET_STREAM = "application/octet-stream"
 internal class ContainerRegistryApiImpl(private val client: HttpClient) : ContainerRegistryApi {
 
     /**
-     * Executes the given [block] and maps exceptions to [KircApiError].
+     * Executes the given [block] and maps error codes to [KircApiError].
      *
-     * At best, all exceptions thrown by the [block] are of type [KircApiError] already
-     *  (including exceptions thrown during bearer auth message exchange).
+     * At best, [block] doesn't throw any exception, but if, it is caught as [KircApiError.Unknown].
+     * Exceptions thrown during bearer auth are also [KircApiError] and are not wrapped.
      *
      * If not, a [KircApiError.Unknown] is created with the original exception
      */
@@ -80,7 +80,10 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
             Result.failure(result.toErrorResponse())
         }
     } catch (e: Exception) {
-        Result.failure(KircApiError.Unknown(e))
+        when (e) {
+            is KircApiError -> Result.failure(e)
+            else -> Result.failure(KircApiError.Unknown(e))
+        }
     }
 
     private fun HttpStatusCode.isSuccess() = value in 200..299
