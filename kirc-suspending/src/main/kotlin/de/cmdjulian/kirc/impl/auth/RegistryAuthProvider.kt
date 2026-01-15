@@ -32,7 +32,6 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
-// todo custom auth provider for basic auth to make use of session ID caching too?
 /**
  * An AuthProvider that handles Bearer authentication for container registries.
  * This provider extracts the necessary parameters from the WWW-Authenticate header in 401 responses
@@ -55,38 +54,29 @@ import kotlin.time.Duration.Companion.seconds
  *
  * [credentials] - The registry credentials to use for token retrieval. If null, no authentication will be performed.
  */
-internal class RegistryBearerAuthProvider(private val credentials: RegistryCredentials?) : AuthProvider {
+internal sealed class RegistryAuthProvider<T : Any>(private val credentials: RegistryCredentials?) : AuthProvider {
 
     @Deprecated("Please use sendWithoutRequest function instead")
     override val sendWithoutRequest get() = false
+    protected val inflightRequests = ConcurrentHashMap<UUID, Deferred<T>>()
 
-    private val inflightRequests = ConcurrentHashMap<UUID, Deferred<BearerToken>>()
-    private val cache: Cache<UUID, BearerToken> = Caffeine.newBuilder()
+    abstract fun expireAfterCreate(value: T): Long
+    protected val cache: Cache<UUID, T> = Caffeine.newBuilder()
         .expireAfter(
-            object : Expiry<UUID, BearerToken> {
-                override fun expireAfterCreate(key: UUID, value: BearerToken, currentTime: Long): Long {
-                    // returns nano seconds
-                    val expiresIn = value.expiresIn?.seconds ?: 5.minutes
-                    val expiresInWithSafetyMargin = expiresIn - 10.seconds
-                    return expiresInWithSafetyMargin.inWholeNanoseconds
-                }
+            object : Expiry<UUID, T> {
+                override fun expireAfterCreate(key: UUID, value: T, currentTime: Long): Long = expireAfterCreate(value)
 
-                override fun expireAfterUpdate(
-                    key: UUID,
-                    value: BearerToken,
-                    currentTime: Long,
-                    currentDuration: Long,
-                ): Long = expireAfterCreate(key, value, currentTime)
+                override fun expireAfterUpdate(key: UUID, value: T, currentTime: Long, currentDuration: Long): Long =
+                    expireAfterCreate(key, value, currentTime)
 
-                override fun expireAfterRead(
-                    key: UUID,
-                    value: BearerToken,
-                    currentTime: Long,
-                    currentDuration: Long,
-                ): Long = currentDuration
+                override fun expireAfterRead(key: UUID, value: T, currentTime: Long, currentDuration: Long): Long =
+                    currentDuration
             },
-        )
-        .build()
+        ).build()
+
+    abstract override fun isApplicable(auth: HttpAuthHeader): Boolean
+
+    abstract override suspend fun addRequestHeaders(request: HttpRequestBuilder, authHeader: HttpAuthHeader?)
 
     override fun sendWithoutRequest(request: HttpRequestBuilder): Boolean {
         // 1. Determine Identity
@@ -122,15 +112,9 @@ internal class RegistryBearerAuthProvider(private val credentials: RegistryCrede
         return tokenResolved && !skipRefresh
     }
 
-    override suspend fun addRequestHeaders(request: HttpRequestBuilder, authHeader: HttpAuthHeader?) {
-        val token = resolveToken(request.attributes, authHeader) ?: return
-        request.bearerAuth(token.token)
-    }
+    // Helper function to resolve token from attributes and auth header
 
-    override fun isApplicable(auth: HttpAuthHeader): Boolean =
-        auth is HttpAuthHeader.Parameterized && auth.authScheme == AuthScheme.Bearer
-
-    private suspend fun resolveToken(attributes: Attributes, authHeader: HttpAuthHeader?): BearerToken? {
+    protected suspend fun resolveToken(attributes: Attributes, authHeader: HttpAuthHeader?): T? {
         if (credentials == null) return null
         // 1. Determine Identity
         val id = attributes.getOrNull<String>(AttributeKey("AuthSessionId"))
@@ -161,7 +145,7 @@ internal class RegistryBearerAuthProvider(private val credentials: RegistryCrede
                 async {
                     try {
                         // Fetch the token
-                        val token = requestBearerToken(realm, scope, service, credentials)
+                        val token = requestToken(realm, scope, service, credentials)
                         // Update Cache
                         cache.put(id, token)
                         token
@@ -174,7 +158,54 @@ internal class RegistryBearerAuthProvider(private val credentials: RegistryCrede
         }
     }
 
-    private suspend fun requestBearerToken(
+    protected abstract suspend fun requestToken(
+        realm: String,
+        scope: String?,
+        service: String?,
+        credentials: RegistryCredentials,
+    ): T
+}
+
+/**
+ * An AuthProvider that handles Bearer authentication for container registries.
+ * This provider extracts the necessary parameters from the WWW-Authenticate header in 401 responses
+ * to request new tokens as needed.
+ *
+ * Bearer tokens are cached based on a unique session ID provided in the request attributes.
+ * This allows multiple requests within the same session to reuse the same token until it expires.
+ *
+ * Request coalescing ensures that simultaneous requests for the same token only trigger a single token retrieval.
+ * Subsequent requests wait for the initial request to complete and then use the retrieved token.
+ *
+ * If a token can't be retrieved, resolved or if the WWW-Authenticate header is missing/invalid,
+ * authentication will not be performed.
+ *
+ * Following attributes can be added to a request which trigger special handling:
+ * - "AuthScopeRepo" - The repository name for the scope instead of returned scope (e.g. "library/ubuntu")
+ * - "AuthScopeType" - The scope type for the scope instead of the returned scope (e.g. "pull", "push", "pull,push")
+ * - "AuthSessionId" - The unique session ID (UUID string) to identify the auth session by unique id
+ * - "SkipAuthRefresh" - If set to true, the auth refresh will be skipped for this request (e.g. for initial auth requests)
+ *
+ * [credentials] - The registry credentials to use for token retrieval. If null, no authentication will be performed.
+ */
+internal class RegistryBearerAuthProvider(credentials: RegistryCredentials?) :
+    RegistryAuthProvider<BearerToken>(credentials) {
+
+    override fun expireAfterCreate(value: BearerToken): Long {
+        val expiresIn = value.expiresIn?.seconds ?: 5.minutes
+        val expiresInWithSafetyMargin = expiresIn - 10.seconds
+        return expiresInWithSafetyMargin.inWholeNanoseconds
+    }
+
+    override suspend fun addRequestHeaders(request: HttpRequestBuilder, authHeader: HttpAuthHeader?) {
+        val token = resolveToken(request.attributes, authHeader) ?: return
+        request.bearerAuth(token.token)
+    }
+
+    override fun isApplicable(auth: HttpAuthHeader): Boolean =
+        auth is HttpAuthHeader.Parameterized && auth.authScheme == AuthScheme.Bearer
+
+    override suspend fun requestToken(
         realm: String,
         scope: String?,
         service: String?,
@@ -206,4 +237,24 @@ internal class RegistryBearerAuthProvider(private val credentials: RegistryCrede
             )
         }
     }
+}
+
+internal class RegistryBasicAuthProvider(credentials: RegistryCredentials?) :
+    RegistryAuthProvider<RegistryCredentials>(credentials) {
+
+    override fun expireAfterCreate(value: RegistryCredentials): Long = 5.minutes.inWholeNanoseconds
+
+    override suspend fun addRequestHeaders(request: HttpRequestBuilder, authHeader: HttpAuthHeader?) {
+        val token = resolveToken(request.attributes, authHeader) ?: return
+        request.basicAuth(token.username, token.password)
+    }
+
+    override fun isApplicable(auth: HttpAuthHeader): Boolean = auth.authScheme == AuthScheme.Basic
+
+    override suspend fun requestToken(
+        realm: String,
+        scope: String?,
+        service: String?,
+        credentials: RegistryCredentials,
+    ): RegistryCredentials = credentials
 }

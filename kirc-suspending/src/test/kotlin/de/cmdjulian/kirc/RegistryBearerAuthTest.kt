@@ -80,17 +80,6 @@ internal class RegistryBearerAuthTest {
     }
 
     @Test
-    fun `upload - raw`() {
-        val data = SystemFileSystem.source(Path(helloWorldImage.path))
-        val repository = Repository("python")
-        val tag = Tag("test")
-
-        shouldNotThrowAny {
-            client.upload(repository, tag, data.buffered().asInputStream(), UploadMode.Stream)
-        }
-    }
-
-    @Test
     fun `repositories - returns correct amount of repos`() {
         client.repositories().shouldBeEmpty()
         val repository = Repository("hello-world")
@@ -178,6 +167,17 @@ internal class RegistryBearerAuthTest {
 
         blobDigests.forEach { digest ->
             client.exists(repository, digest).shouldBeTrue()
+        }
+    }
+
+    @Test
+    fun `upload - raw`() {
+        val data = SystemFileSystem.source(Path(helloWorldImage.path))
+        val repository = Repository("python")
+        val tag = Tag("test")
+
+        shouldNotThrowAny {
+            client.upload(repository, tag, data.buffered().asInputStream(), UploadMode.Stream)
         }
     }
 

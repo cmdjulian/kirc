@@ -18,7 +18,7 @@ enum class ScopeType(val value: String) {
     PUSH("push"),
     PULL_PUSH("pull,push"),
     ALL("*"),
-    NONE("")
+    NONE(""),
 }
 
 /**

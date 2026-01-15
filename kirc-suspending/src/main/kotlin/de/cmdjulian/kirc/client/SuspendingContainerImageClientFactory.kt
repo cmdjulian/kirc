@@ -5,6 +5,7 @@ import de.cmdjulian.kirc.impl.ContainerRegistryApiImpl
 import de.cmdjulian.kirc.impl.KircApiError
 import de.cmdjulian.kirc.impl.SuspendingContainerImageClientImpl
 import de.cmdjulian.kirc.impl.SuspendingContainerImageRegistryClientImpl
+import de.cmdjulian.kirc.impl.auth.RegistryBasicAuthProvider
 import de.cmdjulian.kirc.impl.auth.RegistryBearerAuthProvider
 import de.cmdjulian.kirc.impl.serialization.JsonMapper
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -14,8 +15,6 @@ import io.ktor.client.engine.cio.CIO
 import io.ktor.client.engine.http
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.auth.Auth
-import io.ktor.client.plugins.auth.providers.BasicAuthCredentials
-import io.ktor.client.plugins.auth.providers.basic
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.http.ContentType
@@ -95,12 +94,8 @@ object SuspendingContainerImageClientFactory {
                 url(url.toString())
             }
             install(Auth) {
-                basic {
-                    credentials {
-                        credentials?.let { (username, password) -> BasicAuthCredentials(username, password) }
-                    }
-                }
-                // Custom Bearer auth provider with caching and request coalescing
+                // custom auth providers handle the auth process
+                providers.add(RegistryBasicAuthProvider(credentials))
                 providers.add(RegistryBearerAuthProvider(credentials))
             }
         }
