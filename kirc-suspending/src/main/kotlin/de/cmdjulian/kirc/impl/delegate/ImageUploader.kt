@@ -7,6 +7,7 @@ import de.cmdjulian.kirc.exception.RegistryException
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
+import de.cmdjulian.kirc.impl.auth.ScopeType
 import de.cmdjulian.kirc.impl.auth.withAuthSession
 import de.cmdjulian.kirc.impl.serialization.JsonMapper
 import de.cmdjulian.kirc.impl.serialization.deserialize
@@ -52,6 +53,9 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
             try {
                 // read from tar and deserialize (can throw; ensure cleanup in finally)
                 val uploadContainerImage = readFromTar(tar, tempDirectory)
+
+                // initialize auth for upload flow
+                client.initializeAuth(repository, ScopeType.PULL_PUSH)
 
                 // upload architecture images
                 for ((manifest, manifestDigest, blobs) in uploadContainerImage.images) {

@@ -4,6 +4,7 @@ import com.github.kittinunf.result.Result
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
+import de.cmdjulian.kirc.impl.auth.ScopeType
 import de.cmdjulian.kirc.impl.response.Catalog
 import de.cmdjulian.kirc.impl.response.ResultSource
 import de.cmdjulian.kirc.impl.response.TagList
@@ -26,6 +27,7 @@ internal interface ContainerRegistryApi {
     // Status
 
     suspend fun ping(): Result<*, KircApiError>
+    suspend fun authChallenge(repository: Repository, type: ScopeType): Result<*, KircApiError>
     suspend fun repositories(limit: Int?, last: Int?): Result<Catalog, KircApiError>
     suspend fun tags(repository: Repository, limit: Int?, last: Int?): Result<TagList, KircApiError>
     suspend fun digest(repository: Repository, reference: Reference): Result<Digest, KircApiError>

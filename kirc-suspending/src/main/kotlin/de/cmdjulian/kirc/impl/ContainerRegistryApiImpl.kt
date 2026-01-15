@@ -6,6 +6,7 @@ import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
+import de.cmdjulian.kirc.impl.auth.ScopeType
 import de.cmdjulian.kirc.impl.auth.currentSession
 import de.cmdjulian.kirc.impl.response.Catalog
 import de.cmdjulian.kirc.impl.response.ResultSource
@@ -111,6 +112,18 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
     override suspend fun ping(): Result<*, KircApiError> = execute({}) {
         client.get("/v2/") {
             setAuthSession(currentSession())
+        }
+    }
+
+    override suspend fun authChallenge(repository: Repository, type: ScopeType): Result<*, KircApiError> = execute({}) {
+        client.get("/v2/") {
+            val session = currentSession()
+            setAttributes {
+                put(AttributeKey("AuthSessionId"), session.toString())
+                put(AttributeKey("SkipAuthRefresh"), true)
+                put(AttributeKey("AuthScopeRepo"), repository.toString())
+                put(AttributeKey("AuthScopeType"), type.value)
+            }
         }
     }
 

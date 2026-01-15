@@ -47,6 +47,12 @@ import kotlin.time.Duration.Companion.seconds
  * If a token can't be retrieved, resolved or if the WWW-Authenticate header is missing/invalid,
  * authentication will not be performed.
  *
+ * Following attributes can be added to a request which trigger special handling:
+ * - "AuthScopeRepo" - The repository name for the scope instead of returned scope (e.g. "library/ubuntu")
+ * - "AuthScopeType" - The scope type for the scope instead of the returned scope (e.g. "pull", "push", "pull,push")
+ * - "AuthSessionId" - The unique session ID (UUID string) to identify the auth session by unique id
+ * - "SkipAuthRefresh" - If set to true, the auth refresh will be skipped for this request (e.g. for initial auth requests)
+ *
  * [credentials] - The registry credentials to use for token retrieval. If null, no authentication will be performed.
  */
 internal class RegistryBearerAuthProvider(private val credentials: RegistryCredentials?) : AuthProvider {
@@ -60,7 +66,7 @@ internal class RegistryBearerAuthProvider(private val credentials: RegistryCrede
             object : Expiry<UUID, BearerToken> {
                 override fun expireAfterCreate(key: UUID, value: BearerToken, currentTime: Long): Long {
                     // returns nano seconds
-                    val expiresIn = value.expiresIn?.seconds ?: return 5.minutes.inWholeSeconds
+                    val expiresIn = value.expiresIn?.seconds ?: 5.minutes
                     val expiresInWithSafetyMargin = expiresIn - 10.seconds
                     return expiresInWithSafetyMargin.inWholeNanoseconds
                 }
@@ -110,12 +116,13 @@ internal class RegistryBearerAuthProvider(private val credentials: RegistryCrede
         }
 
         // 4. Trigger the fetch logic. If resolveToken returns a token, it's now in cache.
-        // We use the attributes from the ORIGINAL request (response.request) to maintain session ID.
-        return resolveToken(response.request.attributes, authHeader) != null
+        // Check if we should skip auth refresh (e.g. for init auth requests)
+        val tokenResolved = resolveToken(response.request.attributes, authHeader) != null
+        val skipRefresh = response.request.attributes.getOrNull(AttributeKey<Boolean>("SkipAuthRefresh")) == true
+        return tokenResolved && !skipRefresh
     }
 
     override suspend fun addRequestHeaders(request: HttpRequestBuilder, authHeader: HttpAuthHeader?) {
-        if (authHeader !is HttpAuthHeader.Parameterized) return
         val token = resolveToken(request.attributes, authHeader) ?: return
         request.bearerAuth(token.token)
     }
@@ -123,7 +130,7 @@ internal class RegistryBearerAuthProvider(private val credentials: RegistryCrede
     override fun isApplicable(auth: HttpAuthHeader): Boolean =
         auth is HttpAuthHeader.Parameterized && auth.authScheme == AuthScheme.Bearer
 
-    private suspend fun resolveToken(attributes: Attributes, authHeader: HttpAuthHeader.Parameterized?): BearerToken? {
+    private suspend fun resolveToken(attributes: Attributes, authHeader: HttpAuthHeader?): BearerToken? {
         if (credentials == null) return null
         // 1. Determine Identity
         val id = attributes.getOrNull<String>(AttributeKey("AuthSessionId"))
@@ -133,9 +140,17 @@ internal class RegistryBearerAuthProvider(private val credentials: RegistryCrede
         // 2. Fast Path: Check Caffeine cache immediately
         cache.getIfPresent(id)?.let { return it }
 
-        // 3. Determine Scope (from 401 challenge)
-        val realm = authHeader?.parameter("realm") ?: return null
-        val scope = authHeader.parameter("scope")
+        // 3. Determine Scope (either from triggered auth challenge to /v2/ or 401 challenge by failed request)
+        if (authHeader !is HttpAuthHeader.Parameterized) return null
+        val realm = authHeader.parameter("realm") ?: return null
+        val repo = attributes.getOrNull<String>(AttributeKey("AuthScopeRepo"))
+        val type = attributes.getOrNull<String>(AttributeKey("AuthScopeType"))
+        val scope = if (repo != null && type != null) {
+            "repository:$repo:$type"
+        } else {
+            // fallback - use scope from auth header (if attribute not set)
+            authHeader.parameter("scope")
+        }
         val service = authHeader.parameter("service")
 
         // 4. Slow Path: Request Coalescing (fetch token)

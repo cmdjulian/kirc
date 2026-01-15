@@ -9,8 +9,16 @@ import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 
 // The context element holding the Session ID
-internal data class AuthSessionId(val id: UUID) : AbstractCoroutineContextElement(AuthSessionId) {
-    companion object Key : CoroutineContext.Key<AuthSessionId>
+data class AuthSession(val id: UUID) : AbstractCoroutineContextElement(AuthSession) {
+    companion object Key : CoroutineContext.Key<AuthSession>
+}
+
+enum class ScopeType(val value: String) {
+    PULL("pull"),
+    PUSH("push"),
+    PULL_PUSH("pull,push"),
+    ALL("*"),
+    NONE("")
 }
 
 /**
@@ -23,16 +31,16 @@ internal data class AuthSessionId(val id: UUID) : AbstractCoroutineContextElemen
  */
 suspend fun <T> withAuthSession(block: suspend CoroutineScope.() -> T): T {
     // Check if we already have a session in the current context
-    if (currentCoroutineContext()[AuthSessionId] != null) {
+    if (currentCoroutineContext()[AuthSession] != null) {
         // Reuse existing session, just maintaining structured concurrency
         return coroutineScope(block)
     }
 
     // Create new session
-    return withContext(AuthSessionId(UUID.randomUUID())) {
+    return withContext(AuthSession(UUID.randomUUID())) {
         block()
     }
 }
 
 // Helper to retrieve the implicit ID or generate a new standalone one
-internal suspend fun currentSession(): UUID = currentCoroutineContext()[AuthSessionId]?.id ?: UUID.randomUUID()
+internal suspend fun currentSession(): UUID = currentCoroutineContext()[AuthSession]?.id ?: UUID.randomUUID()

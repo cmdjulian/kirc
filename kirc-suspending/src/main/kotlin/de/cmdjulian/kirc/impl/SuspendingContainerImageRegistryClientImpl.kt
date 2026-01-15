@@ -12,6 +12,7 @@ import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
+import de.cmdjulian.kirc.impl.auth.ScopeType
 import de.cmdjulian.kirc.impl.delegate.ImageDownloader
 import de.cmdjulian.kirc.impl.delegate.ImageUploader
 import de.cmdjulian.kirc.impl.response.Catalog
@@ -51,6 +52,15 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
     override suspend fun testConnection() {
         api.ping().onFailure {
             throw it.toRegistryClientError()
+        }
+    }
+
+    override suspend fun initializeAuth(repository: Repository, type: ScopeType) {
+        api.authChallenge(repository, type).onFailure {
+            // 401 is expected if it is first request in scope no credentials are provided
+            if (it.statusCode != 401 && it.statusCode !in 200..299) {
+                throw it.toRegistryClientError(repository, null)
+            }
         }
     }
 
