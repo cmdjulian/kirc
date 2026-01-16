@@ -4,9 +4,9 @@ For upload process visualization, see the sequence diagram below:
 
 ```mermaid
 sequenceDiagram
-    participant Client
-    participant Registry
-    participant Auth
+    participant Client as Docker Client
+    participant Registry as Docker Registry
+    participant Auth as Auth Service
     Client ->> Registry: GET /v2/
     Registry -->> Client: 401 Unauthorized
     Note over Client, Auth: Authentication for pull, push
