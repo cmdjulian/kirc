@@ -82,10 +82,9 @@ internal interface ContainerRegistryApi {
     /** Uploads the whole blob data [Source] as stream */
     suspend fun uploadBlobStream(
         session: UploadSession,
-        digest: Digest,
         path: Path,
         size: Long,
-    ): Result<Digest, KircApiError>
+    ): Result<UploadSession, KircApiError>
 
     /** Retrieve the status of provided [session], returning the range of already uploaded data (start, end) */
     suspend fun uploadStatus(session: UploadSession): Result<Pair<Long, Long>, KircApiError>

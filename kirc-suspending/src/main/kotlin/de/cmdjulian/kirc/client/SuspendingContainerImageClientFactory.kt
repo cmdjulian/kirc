@@ -95,6 +95,7 @@ object SuspendingContainerImageClientFactory {
             }
             install(Auth) {
                 // custom auth providers handle the auth process
+                // this is necessary to support both auth types and the flow with multiple connected requests
                 providers.add(RegistryBasicAuthProvider(credentials))
                 providers.add(RegistryBearerAuthProvider(credentials))
             }

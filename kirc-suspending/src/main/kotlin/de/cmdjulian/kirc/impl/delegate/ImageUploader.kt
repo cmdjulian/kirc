@@ -42,6 +42,17 @@ import kotlin.io.path.pathString
 private val logger = KotlinLogging.logger {}
 
 internal class ImageUploader(private val client: SuspendingContainerImageRegistryClient, private val tmpPath: Path) {
+
+    /**
+     * Uploads the provided tar source as an image to the specified repository and reference.
+     *
+     * Documentation for the upload flow can be found here: [upload-graph.md](../../../../../../../../docs/upload-graph.md)
+     *
+     * [repository] - Repository to upload the image to
+     * [reference] - Reference (tag or digest) to upload the image as
+     * [tar] - Source tar containing the image data
+     * [mode] - Upload mode to use for blob uploads (Stream or Chunks)
+     */
     suspend fun upload(repository: Repository, reference: Reference, tar: Source, mode: UploadMode): Digest =
         withAuthSession {
             // store data temporarily (sanitize name for cross-platform safety)
@@ -90,15 +101,12 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
         if (!client.existsBlob(repository, blob.digest)) {
             val session = client.initiateBlobUpload(repository)
 
-            when (mode) {
-                UploadMode.Stream -> client.uploadBlobStream(session, blob.digest, blob.path, blob.size)
-
-                is UploadMode.Chunks -> {
-                    val endSession = client.uploadBlobChunks(session, blob.path, mode.chunkSize)
-                    // chunked upload requires a final request
-                    client.finishBlobUpload(endSession, blob.digest)
-                }
+            val endSession = when (mode) {
+                is UploadMode.Stream -> client.uploadBlobStream(session, blob.path, blob.size)
+                is UploadMode.Chunks -> client.uploadBlobChunks(session, blob.path, mode.chunkSize)
             }
+
+            client.finishBlobUpload(endSession, blob.digest)
         }
     }
 

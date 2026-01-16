@@ -6,6 +6,7 @@ import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
+import de.cmdjulian.kirc.impl.auth.AuthAttributes
 import de.cmdjulian.kirc.impl.auth.ScopeType
 import de.cmdjulian.kirc.impl.auth.currentSession
 import de.cmdjulian.kirc.impl.response.Catalog
@@ -47,7 +48,6 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.client.statement.request
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import io.ktor.util.AttributeKey
 import io.ktor.utils.io.jvm.javaio.toInputStream
 import kotlinx.io.Buffer
 import kotlinx.io.Source
@@ -119,10 +119,10 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
         client.get("/v2/") {
             val session = currentSession()
             setAttributes {
-                put(AttributeKey("AuthSessionId"), session.toString())
-                put(AttributeKey("SkipAuthRefresh"), true)
-                put(AttributeKey("AuthScopeRepo"), repository.toString())
-                put(AttributeKey("AuthScopeType"), type.value)
+                put(AuthAttributes.SESSION_ID, session.toString())
+                put(AuthAttributes.SKIP_REFRESH, true)
+                put(AuthAttributes.SCOPE_REPO, repository.toString())
+                put(AuthAttributes.SCOPE_TYPE, type.value)
             }
         }
     }
@@ -287,17 +287,14 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
 
     override suspend fun uploadBlobStream(
         session: UploadSession,
-        digest: Digest,
         path: Path,
         size: Long,
-    ): Result<Digest, KircApiError> = execute(HttpResponse::toDigest) {
-        client.put(session.location) {
-            parameter("digest", digest.toString())
+    ): Result<UploadSession, KircApiError> = execute(HttpResponse::toUploadSession) {
+        client.patch(session.location) {
             header(HttpHeaders.ContentType, APPLICATION_OCTET_STREAM)
             header(HttpHeaders.ContentLength, size)
             setBody(RepeatableFileContent(path))
             setAuthSession(currentSession())
-            setAttributes { put(AttributeKey("RequestID"), UUID.randomUUID()) }
         }
     }
 
@@ -357,7 +354,7 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
 
     private fun HttpRequestBuilder.setAuthSession(authSessionId: UUID) {
         setAttributes {
-            put(AttributeKey("AuthSessionId"), authSessionId.toString())
+            put(AuthAttributes.SESSION_ID, authSessionId.toString())
         }
     }
 }

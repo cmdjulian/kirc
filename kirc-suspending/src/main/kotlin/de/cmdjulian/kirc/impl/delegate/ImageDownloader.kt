@@ -7,6 +7,7 @@ import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
 import de.cmdjulian.kirc.impl.KircApiError
+import de.cmdjulian.kirc.impl.auth.ScopeType
 import de.cmdjulian.kirc.impl.auth.withAuthSession
 import de.cmdjulian.kirc.impl.serialization.JsonMapper
 import de.cmdjulian.kirc.spec.ManifestJson
@@ -42,8 +43,19 @@ private val downloaderLogger = KotlinLogging.logger {}
 
 internal class ImageDownloader(private val client: SuspendingContainerImageRegistryClient, private val tmpPath: Path) {
 
+    /**
+     * Download image from [repository] with [reference] and write it to [destination] as tar archive.
+     *
+     * Documentation of the flow can be found here: [download-graph.md](../../../../../../../../docs/download-graph.md)
+     *
+     * [repository] - Repository to download image from
+     * [reference] - Reference (tag or digest) of the image to download
+     * [destination] - Sink to write the tar archive to
+     */
     suspend fun download(repository: Repository, reference: Reference, destination: Sink) {
         withAuthSession {
+            client.initializeAuth(repository, ScopeType.PULL)
+
             destination.use { sink ->
                 try {
                     val manifest = client.manifest(repository, reference)

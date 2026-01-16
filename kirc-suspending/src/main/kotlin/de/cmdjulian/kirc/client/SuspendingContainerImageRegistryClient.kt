@@ -121,7 +121,7 @@ interface SuspendingContainerImageRegistryClient {
     /**
      * Uploads an entire blob by stream
      */
-    suspend fun uploadBlobStream(session: UploadSession, digest: Digest, path: Path, size: Long): Digest
+    suspend fun uploadBlobStream(session: UploadSession, path: Path, size: Long): UploadSession
 
     /**
      * Upload a manifest
