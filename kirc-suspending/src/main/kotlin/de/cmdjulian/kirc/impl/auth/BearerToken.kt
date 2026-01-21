@@ -9,12 +9,10 @@ import java.time.OffsetDateTime
 @ReflectionHint
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
 @ReflectionHint(types = [PropertyNamingStrategies.SnakeCaseStrategy::class])
-class BearerToken(
+data class BearerToken(
     @get:JsonAlias("access_token", "token")
     val token: String,
     val expiresIn: Long?,
     val issuedAt: OffsetDateTime?,
     val refreshToken: String?,
-) {
-    fun expiresAt(): OffsetDateTime? = issuedAt?.plusSeconds(expiresIn ?: 0)
-}
+)

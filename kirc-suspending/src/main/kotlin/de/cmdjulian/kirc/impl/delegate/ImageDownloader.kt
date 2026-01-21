@@ -46,7 +46,7 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
     /**
      * Download image from [repository] with [reference] and write it to [destination] as tar archive.
      *
-     * Documentation of the flow can be found here: [download-graph.md](../../../../../../../../docs/download-graph.md)
+     * Documentation of the flow can be found in the `docs/download-graph.md` file at the project root.
      *
      * [repository] - Repository to download image from
      * [reference] - Reference (tag or digest) of the image to download

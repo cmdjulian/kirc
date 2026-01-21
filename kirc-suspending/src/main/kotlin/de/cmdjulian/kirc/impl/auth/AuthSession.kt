@@ -42,5 +42,16 @@ suspend fun <T> withAuthSession(block: suspend CoroutineScope.() -> T): T {
     }
 }
 
-// Helper to retrieve the implicit ID or generate a new standalone one
+/**
+ * Returns the current auth session ID from the coroutine context, if present.
+ *
+ * If an [AuthSession] is available in the current coroutine context, its [AuthSession.id]
+ * is returned. If no [AuthSession] is present, a new random [UUID] is generated and
+ * returned instead.
+ *
+ * Note:
+ * - The fallback UUID is **not** stored in the coroutine context.
+ * - Consecutive calls to this function outside a [withAuthSession] block will therefore each produce a different UUID.
+ * - Callers that rely on a stable session ID for authentication caching must ensure they execute within a [withAuthSession] scope.
+ */
 internal suspend fun currentSession(): UUID = currentCoroutineContext()[AuthSession]?.id ?: UUID.randomUUID()

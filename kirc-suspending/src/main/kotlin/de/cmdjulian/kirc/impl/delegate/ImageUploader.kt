@@ -46,7 +46,7 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
     /**
      * Uploads the provided tar source as an image to the specified repository and reference.
      *
-     * Documentation for the upload flow can be found here: [upload-graph.md](../../../../../../../../docs/upload-graph.md)
+     * Documentation for the upload flow can be found in the `docs/upload-graph.md` file at project root.
      *
      * [repository] - Repository to upload the image to
      * [reference] - Reference (tag or digest) to upload the image as

@@ -67,8 +67,6 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
      *
      * At best, [block] doesn't throw any exception, but if, it is caught as [KircApiError.Unknown].
      * Exceptions thrown during bearer auth are also [KircApiError] and are not wrapped.
-     *
-     * If not, a [KircApiError.Unknown] is created with the original exception
      */
     private suspend inline fun <T> execute(
         crossinline transform: suspend (HttpResponse) -> T,

@@ -58,7 +58,7 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
 
     override suspend fun initializeAuth(repository: Repository, type: ScopeType) {
         api.authChallenge(repository, type).onFailure {
-            // 401 is expected if it is first request in scope no credentials are provided
+            // 401 is expected if it is the first request in scope or if no credentials are provided
             if (it.statusCode != 401 && it.statusCode !in 200..299) {
                 throw it.toRegistryClientError(repository, null)
             }

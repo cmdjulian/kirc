@@ -171,7 +171,7 @@ internal class RegistryBearerAuthTest {
     }
 
     @Test
-    fun `upload - raw`() {
+    fun `upload stream - only upload`() {
         val data = SystemFileSystem.source(Path(helloWorldImage.path))
         val repository = Repository("python")
         val tag = Tag("test")

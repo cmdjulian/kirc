@@ -10,7 +10,7 @@ sequenceDiagram
     Client ->> Registry: GET /v2/
     Registry -->> Client: 401 Unauthorized
     Note over Client, Auth: Authentication for pull
-    Client ->> Auth: GET /<realm>?scope=repository:<repo>:pull,push&service=<service>
+    Client ->> Auth: GET /<realm>?scope=repository:<repo>:pull&service=<service>
     Auth -->> Client: 200 OK + Token
     Note over Client, Registry: Fetch manifest
     Client ->> Registry: GET /v2/<repo>/manifests/<reference>

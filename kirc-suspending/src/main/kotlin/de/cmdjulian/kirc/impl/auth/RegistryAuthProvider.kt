@@ -23,9 +23,12 @@ import io.ktor.http.auth.AuthScheme
 import io.ktor.http.auth.HttpAuthHeader
 import io.ktor.http.auth.parseAuthorizationHeader
 import io.ktor.util.Attributes
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.minutes
@@ -55,12 +58,11 @@ import kotlin.time.Duration.Companion.seconds
  */
 internal sealed class RegistryAuthProvider<T : Any>(private val credentials: RegistryCredentials?) : AuthProvider {
 
-    protected companion object {
-        val authHttpClient by lazy { HttpClient(CIO) }
-    }
-
     @Deprecated("Please use sendWithoutRequest function instead")
     override val sendWithoutRequest get() = false
+
+    // Mutex to guard the critical section of checking/creating inflight requests
+    protected val requestMutex = Mutex()
     protected val inflightRequests = ConcurrentHashMap<UUID, Deferred<T>>()
     protected val cache: Cache<UUID, T> = Caffeine.newBuilder()
         .expireAfter(
@@ -74,6 +76,8 @@ internal sealed class RegistryAuthProvider<T : Any>(private val credentials: Reg
                     currentDuration
             },
         ).build()
+
+    abstract val authScheme: String
 
     abstract fun expireAfterCreate(value: T): Long
 
@@ -95,8 +99,8 @@ internal sealed class RegistryAuthProvider<T : Any>(private val credentials: Reg
         // 2. Parse it into an HttpAuthHeader
         val authHeader = parseAuthHeader(response) ?: return false
 
-        // 3. Ensure it is a Bearer challenge
-        if (authHeader.authScheme != AuthScheme.Bearer) return false
+        // 3. Ensure it is a bearer / basic challenge
+        if (authHeader.authScheme != authScheme) return false
 
         // 4. Trigger the fetch logic. If resolveToken returns a token, it's now in cache.
         // Check if we should skip auth refresh (e.g. for init auth requests)
@@ -125,20 +129,30 @@ internal sealed class RegistryAuthProvider<T : Any>(private val credentials: Reg
         // Atomically get existing job or start a new one and
         // wait for the specific key's job to finish
         return coroutineScope {
-            inflightRequests.computeIfAbsent(id) {
-                async {
+            // Use Mutex to ensure atomicity when checking/starting jobs
+            val job = requestMutex.withLock {
+                // Double-check: Did a job start while we were waiting for the lock?
+                inflightRequests[id]?.let { return@withLock it }
+                // Triple-check: Did a job finish and populate cache while we were waiting?
+                cache.getIfPresent(id)?.let { return@withLock CompletableDeferred(it) }
+
+                // Start new job
+                val newJob = async {
                     try {
-                        // Fetch the token
                         val token = requestToken(realm, scope, service, credentials)
-                        // Update Cache
                         cache.put(id, token)
                         token
                     } finally {
-                        // Always remove from keys-in-flight map when done
-                        inflightRequests.remove(id)
+                        // Re-acquire lock to safely remove from map
+                        requestMutex.withLock {
+                            inflightRequests.remove(id)
+                        }
                     }
                 }
-            }.await()
+                inflightRequests[id] = newJob
+                newJob
+            }
+            job.await()
         }
     }
 
@@ -182,6 +196,10 @@ internal sealed class RegistryAuthProvider<T : Any>(private val credentials: Reg
  */
 internal class RegistryBearerAuthProvider(credentials: RegistryCredentials?) :
     RegistryAuthProvider<BearerToken>(credentials) {
+
+    val authHttpClient by lazy { HttpClient(CIO) }
+
+    override val authScheme: String get() = AuthScheme.Bearer
 
     override fun expireAfterCreate(value: BearerToken): Long {
         val expiresIn = value.expiresIn?.seconds ?: 5.minutes
@@ -245,6 +263,8 @@ internal class RegistryBearerAuthProvider(credentials: RegistryCredentials?) :
  */
 internal class RegistryBasicAuthProvider(credentials: RegistryCredentials?) :
     RegistryAuthProvider<RegistryCredentials>(credentials) {
+
+    override val authScheme: String get() = AuthScheme.Basic
 
     override fun expireAfterCreate(value: RegistryCredentials): Long = 5.minutes.inWholeNanoseconds
 
