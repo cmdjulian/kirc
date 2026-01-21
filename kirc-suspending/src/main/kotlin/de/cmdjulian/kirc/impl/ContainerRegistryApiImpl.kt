@@ -44,7 +44,6 @@ import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsChannel
-import io.ktor.client.statement.bodyAsText
 import io.ktor.client.statement.request
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -101,7 +100,7 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
             url = request.url,
             method = request.method,
             cause = e,
-            message = "Could not parse registry error response body (body=${bodyAsText()})",
+            message = "Could not parse registry error response body",
         )
     }
 
