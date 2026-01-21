@@ -1,8 +1,8 @@
 package de.cmdjulian.kirc.client
 
+import de.cmdjulian.kirc.exception.KircException
 import de.cmdjulian.kirc.image.ContainerImageName
 import de.cmdjulian.kirc.impl.ContainerRegistryApiImpl
-import de.cmdjulian.kirc.impl.KircApiError
 import de.cmdjulian.kirc.impl.SuspendingContainerImageClientImpl
 import de.cmdjulian.kirc.impl.SuspendingContainerImageRegistryClientImpl
 import de.cmdjulian.kirc.impl.auth.RegistryBasicAuthProvider
@@ -78,7 +78,7 @@ object SuspendingContainerImageClientFactory {
                             tmf.init(keystore)
                             tmf.trustManagers.filterIsInstance<X509TrustManager>().first()
                         }.getOrElse { keyStoreException ->
-                            throw KircApiError.Unknown(keyStoreException)
+                            throw KircException.UnexpectedError("Https client couldn't be set up", keyStoreException)
                         }
                     }
                 }
