@@ -29,8 +29,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.testcontainers.containers.Network
 import java.net.URI
-import java.security.KeyStore
-import java.security.cert.CertificateFactory
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 internal class RegistryBearerAuthTest {
@@ -48,18 +46,11 @@ internal class RegistryBearerAuthTest {
     @BeforeEach
     fun startRegistry() {
         val network = Network.newNetwork()
-        val certStream = javaClass.getResource("/cert.pem")?.openStream() ?: error("cert.pem not found")
-        val cert = CertificateFactory.getInstance("X.509").generateCertificate(certStream)
-        val ks = KeyStore.getInstance(KeyStore.getDefaultType()).apply {
-            load(null, null)
-            setCertificateEntry("auth-cert", cert)
-        }
         authServer = AuthServerTestContainer(network).apply { start() }
         registry = RegistryTestContainerBearer(network, authServer.addressAuth).apply { start() }
         client = BlockingContainerImageClientFactory.create(
             url = registry.addressHttp.let(URI::create),
             credentials = credentials,
-            keystore = ks,
         )
         cliHelper = DockerRegistryCliHelper(registry.addressHttp, credentials)
     }
