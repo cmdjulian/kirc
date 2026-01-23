@@ -1,12 +1,13 @@
 package de.cmdjulian.kirc.client
 
+import de.cmdjulian.kirc.exception.KircException
 import de.cmdjulian.kirc.image.ContainerImageName
 import de.cmdjulian.kirc.impl.ContainerRegistryApiImpl
 import de.cmdjulian.kirc.impl.SuspendingContainerImageClientImpl
 import de.cmdjulian.kirc.impl.SuspendingContainerImageRegistryClientImpl
+import de.cmdjulian.kirc.impl.auth.RegistryBasicAuthProvider
+import de.cmdjulian.kirc.impl.auth.RegistryBearerAuthProvider
 import de.cmdjulian.kirc.impl.serialization.JsonMapper
-import de.cmdjulian.kirc.utils.configureAuth
-import de.cmdjulian.kirc.utils.configureHttps
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.ProxyBuilder
@@ -16,9 +17,6 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.auth.Auth
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
-import io.ktor.client.plugins.logging.LogLevel
-import io.ktor.client.plugins.logging.Logger
-import io.ktor.client.plugins.logging.Logging
 import io.ktor.http.ContentType
 import io.ktor.serialization.jackson.JacksonConverter
 import java.net.InetSocketAddress
@@ -26,7 +24,10 @@ import java.net.Proxy
 import java.net.URI
 import java.nio.file.Path
 import java.security.KeyStore
+import java.security.cert.X509Certificate
 import java.time.Duration
+import javax.net.ssl.TrustManagerFactory
+import javax.net.ssl.X509TrustManager
 import kotlin.io.path.Path
 
 private val kLogger = KotlinLogging.logger {}
@@ -60,7 +61,27 @@ object SuspendingContainerImageClientFactory {
                         this.proxy = ProxyBuilder.http("http://${address.hostString}:${address.port}")
                     }
                 }
-                configureHttps(skipTlsVerify, keystore)
+                when {
+                    skipTlsVerify -> https {
+                        trustManager = object : X509TrustManager {
+                            override fun checkClientTrusted(chain: Array<X509Certificate>?, authType: String?) {}
+
+                            override fun checkServerTrusted(chain: Array<X509Certificate>?, authType: String?) {}
+
+                            override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
+                        }
+                    }
+
+                    keystore != null -> https {
+                        val tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+                        trustManager = runCatching {
+                            tmf.init(keystore)
+                            tmf.trustManagers.filterIsInstance<X509TrustManager>().first()
+                        }.getOrElse { keyStoreException ->
+                            throw KircException.UnexpectedError("Https client couldn't be set up", keyStoreException)
+                        }
+                    }
+                }
             }
             install(HttpTimeout) {
                 connectTimeoutMillis = timeout.toMillis()
@@ -69,17 +90,14 @@ object SuspendingContainerImageClientFactory {
                 // re-use existing ObjectMapper instance
                 register(ContentType.Application.Json, JacksonConverter(JsonMapper))
             }
-            install(Logging) {
-                level = LogLevel.INFO
-                logger = object : Logger {
-                    override fun log(message: String) = kLogger.info { "Kirc API $message" }
-                }
-            }
             defaultRequest {
                 url(url.toString())
             }
             install(Auth) {
-                configureAuth(credentials)
+                // custom auth providers handle the auth process
+                // this is necessary to support both auth types and the flow with multiple connected requests
+                providers.add(RegistryBasicAuthProvider(credentials))
+                providers.add(RegistryBearerAuthProvider(credentials))
             }
         }
 

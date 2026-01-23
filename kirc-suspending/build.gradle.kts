@@ -21,9 +21,10 @@ dependencies {
     implementation("io.ktor:ktor-client-auth:2.3.13")
     implementation("io.ktor:ktor-client-core:2.3.13")
     implementation("io.ktor:ktor-client-cio:2.3.13")
-    implementation("io.ktor:ktor-client-logging:2.3.13")
     implementation("io.ktor:ktor-client-content-negotiation:2.3.13")
     implementation("io.ktor:ktor-serialization-jackson:2.3.13")
+
+    implementation("com.github.ben-manes.caffeine:caffeine:3.2.3")
 
     // explicit result library
     implementation("com.github.kittinunf.result:result:5.6.0")
@@ -62,6 +63,9 @@ dependencies {
 
     // test container
     testImplementation("org.testcontainers:testcontainers:2.0.3")
+
+    // coroutine testing
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
 }
 
 tasks.jar {

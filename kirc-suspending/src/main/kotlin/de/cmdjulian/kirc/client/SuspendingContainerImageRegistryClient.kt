@@ -4,6 +4,7 @@ import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
+import de.cmdjulian.kirc.impl.auth.ScopeType
 import de.cmdjulian.kirc.impl.response.ResultSource
 import de.cmdjulian.kirc.impl.response.UploadSession
 import de.cmdjulian.kirc.spec.image.ImageConfig
@@ -24,6 +25,14 @@ interface SuspendingContainerImageRegistryClient {
      * Checks if the registry is reachable and configured correctly. If not, a detailed Exception is thrown.
      */
     suspend fun testConnection()
+
+    /**
+     * Triggers authentication challenge for certain [repository] and [type], so that auth is initialized in scope.
+     *
+     * [repository] - Repository to authenticate against
+     * [type] - Scope type for authentication, e.g. pull, push
+     */
+    suspend fun initializeAuth(repository: Repository, type: ScopeType)
 
     /**
      * Checks if registry contains a blob identified by [digest] in [repository]
@@ -112,7 +121,7 @@ interface SuspendingContainerImageRegistryClient {
     /**
      * Uploads an entire blob by stream
      */
-    suspend fun uploadBlobStream(session: UploadSession, digest: Digest, path: Path, size: Long): Digest
+    suspend fun uploadBlobStream(session: UploadSession, path: Path, size: Long): UploadSession
 
     /**
      * Upload a manifest

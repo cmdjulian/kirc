@@ -4,6 +4,7 @@ import com.github.kittinunf.result.Result
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
+import de.cmdjulian.kirc.impl.auth.ScopeType
 import de.cmdjulian.kirc.impl.response.Catalog
 import de.cmdjulian.kirc.impl.response.ResultSource
 import de.cmdjulian.kirc.impl.response.TagList
@@ -26,6 +27,12 @@ internal interface ContainerRegistryApi {
     // Status
 
     suspend fun ping(): Result<*, KircApiError>
+
+    /**
+     * Trigger auth challenge. This request won't be executed again after 401.
+     * Its purpose is only to get the auth challenge
+     */
+    suspend fun authChallenge(repository: Repository, type: ScopeType): Result<*, KircApiError>
     suspend fun repositories(limit: Int?, last: Int?): Result<Catalog, KircApiError>
     suspend fun tags(repository: Repository, limit: Int?, last: Int?): Result<TagList, KircApiError>
     suspend fun digest(repository: Repository, reference: Reference): Result<Digest, KircApiError>
@@ -78,12 +85,7 @@ internal interface ContainerRegistryApi {
     ): Result<UploadSession, KircApiError>
 
     /** Uploads the whole blob data [Source] as stream */
-    suspend fun uploadBlobStream(
-        session: UploadSession,
-        digest: Digest,
-        path: Path,
-        size: Long,
-    ): Result<Digest, KircApiError>
+    suspend fun uploadBlobStream(session: UploadSession, path: Path, size: Long): Result<UploadSession, KircApiError>
 
     /** Retrieve the status of provided [session], returning the range of already uploaded data (start, end) */
     suspend fun uploadStatus(session: UploadSession): Result<Pair<Long, Long>, KircApiError>

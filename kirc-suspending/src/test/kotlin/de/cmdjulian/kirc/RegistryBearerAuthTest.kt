@@ -3,6 +3,7 @@ package de.cmdjulian.kirc
 import de.cmdjulian.kirc.client.BlockingContainerImageClientFactory
 import de.cmdjulian.kirc.client.BlockingContainerImageRegistryClient
 import de.cmdjulian.kirc.client.RegistryCredentials
+import de.cmdjulian.kirc.client.UploadMode
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
@@ -24,15 +25,11 @@ import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.testcontainers.containers.Network
 import java.net.URI
-import java.security.KeyStore
-import java.security.cert.CertificateFactory
 
-@Disabled("Currently not working")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 internal class RegistryBearerAuthTest {
     private lateinit var client: BlockingContainerImageRegistryClient
@@ -49,18 +46,11 @@ internal class RegistryBearerAuthTest {
     @BeforeEach
     fun startRegistry() {
         val network = Network.newNetwork()
-        val certStream = javaClass.getResource("/cert.pem")?.openStream() ?: error("cert.pem not found")
-        val cert = CertificateFactory.getInstance("X.509").generateCertificate(certStream)
-        val ks = KeyStore.getInstance(KeyStore.getDefaultType()).apply {
-            load(null, null)
-            setCertificateEntry("auth-cert", cert)
-        }
         authServer = AuthServerTestContainer(network).apply { start() }
         registry = RegistryTestContainerBearer(network, authServer.addressAuth).apply { start() }
         client = BlockingContainerImageClientFactory.create(
             url = registry.addressHttp.let(URI::create),
             credentials = credentials,
-            keystore = ks,
         )
         cliHelper = DockerRegistryCliHelper(registry.addressHttp, credentials)
     }
@@ -172,7 +162,18 @@ internal class RegistryBearerAuthTest {
     }
 
     @Test
-    fun `upload - to registry`() {
+    fun `upload stream - only upload`() {
+        val data = SystemFileSystem.source(Path(helloWorldImage.path))
+        val repository = Repository("python")
+        val tag = Tag("test")
+
+        shouldNotThrowAny {
+            client.upload(repository, tag, data.buffered().asInputStream(), UploadMode.Stream)
+        }
+    }
+
+    @Test
+    fun `upload stream - to registry`() {
         val data = SystemFileSystem.source(Path(helloWorldImage.path))
         val repository = Repository("python")
         val tag = Tag("test")
@@ -180,7 +181,23 @@ internal class RegistryBearerAuthTest {
         client.exists(repository, tag) shouldBe false
 
         shouldNotThrowAny {
-            client.upload(repository, tag, data.buffered().asInputStream())
+            client.upload(repository, tag, data.buffered().asInputStream(), UploadMode.Stream)
+        }
+
+        client.exists(repository, tag) shouldBe true
+    }
+
+    @Test
+    fun `upload chunked - to registry`() {
+        val data = SystemFileSystem.source(Path(helloWorldImage.path))
+        val repository = Repository("python")
+        val tag = Tag("test")
+        val chunks = UploadMode.Chunks(1024)
+
+        client.exists(repository, tag) shouldBe false
+
+        shouldNotThrowAny {
+            client.upload(repository, tag, data.buffered().asInputStream(), chunks)
         }
 
         client.exists(repository, tag) shouldBe true

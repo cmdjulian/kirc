@@ -153,6 +153,17 @@ internal class RegistryBasicAuthTest {
     }
 
     @Test
+    fun `upload stream - only upload`() {
+        val data = SystemFileSystem.source(Path(helloWorldImage.path))
+        val repository = Repository("python")
+        val tag = Tag("test")
+
+        shouldNotThrowAny {
+            client.upload(repository, tag, data.buffered().asInputStream(), UploadMode.Stream)
+        }
+    }
+
+    @Test
     fun `upload - stream`() {
         val data = SystemFileSystem.source(Path(helloWorldImage.path))
         val repository = Repository("python")

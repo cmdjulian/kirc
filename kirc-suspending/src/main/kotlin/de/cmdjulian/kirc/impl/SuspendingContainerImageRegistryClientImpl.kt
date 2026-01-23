@@ -12,6 +12,8 @@ import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository
 import de.cmdjulian.kirc.image.Tag
+import de.cmdjulian.kirc.impl.auth.ScopeType
+import de.cmdjulian.kirc.impl.auth.withAuthSession
 import de.cmdjulian.kirc.impl.delegate.ImageDownloader
 import de.cmdjulian.kirc.impl.delegate.ImageUploader
 import de.cmdjulian.kirc.impl.response.Catalog
@@ -54,6 +56,15 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
         }
     }
 
+    override suspend fun initializeAuth(repository: Repository, type: ScopeType) {
+        api.authChallenge(repository, type).onFailure {
+            // 401 is expected if it is the first request in scope or if no credentials are provided
+            if (it.statusCode != 401 && it.statusCode !in 200..299) {
+                throw it.toRegistryClientError(repository, null)
+            }
+        }
+    }
+
     override suspend fun existsBlob(repository: Repository, digest: Digest): Boolean =
         api.existsBlob(repository, digest)
             .map { true }
@@ -74,10 +85,10 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
             .map(TagList::tags)
             .getOrElse { throw it.toRegistryClientError(repository, null) }
 
-    override suspend fun tags(repository: Repository, digest: Digest): List<Tag> {
+    override suspend fun tags(repository: Repository, digest: Digest): List<Tag> = withAuthSession {
         val allTags = tags(repository)
         val tagDigests = allTags.associateWith { tag -> manifestDigest(repository, tag) }
-        return tagDigests.filterValues { tagDigest -> tagDigest == digest }.keys.toList()
+        tagDigests.filterValues { tagDigest -> tagDigest == digest }.keys.toList()
     }
 
     override suspend fun exists(repository: Repository, reference: Reference): Boolean =
@@ -109,7 +120,7 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
     override suspend fun blobStream(repository: Repository, digest: Digest): Source = api.blobStream(repository, digest)
         .getOrElse { throw it.toRegistryClientError(repository, digest) }
 
-    override suspend fun config(repository: Repository, manifestReference: Reference): ImageConfig =
+    override suspend fun config(repository: Repository, manifestReference: Reference): ImageConfig = withAuthSession {
         api.manifests(repository, manifestReference)
             .map { manifest ->
                 when (manifest) {
@@ -117,6 +128,7 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
                     is ManifestList -> handleRecursiveConfig(repository, manifest)
                 }
             }.getOrElse { throw it.toRegistryClientError(repository, manifestReference) }
+    }
 
     private suspend fun handleRecursiveConfig(repository: Repository, manifest: ManifestList): ImageConfig {
         val currentPlatform = Platform.current()
@@ -157,8 +169,8 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
     override suspend fun initiateBlobUpload(repository: Repository): UploadSession =
         api.initiateUpload(repository).getOrElse { throw it.toRegistryClientError(repository, null) }
 
-    override suspend fun uploadBlobStream(session: UploadSession, digest: Digest, path: Path, size: Long): Digest =
-        api.uploadBlobStream(session, digest, path, size).getOrElse { throw it.toRegistryClientError() }
+    override suspend fun uploadBlobStream(session: UploadSession, path: Path, size: Long): UploadSession =
+        api.uploadBlobStream(session, path, size).getOrElse { throw it.toRegistryClientError() }
 
     override suspend fun uploadBlobChunks(session: UploadSession, path: Path, chunkSize: Long): UploadSession =
         withContext(Dispatchers.IO) { SystemFileSystem.source(path.toKotlinPath()).buffered() }.use { stream ->

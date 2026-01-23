@@ -1,6 +1,5 @@
 package de.cmdjulian.kirc.utils
 
-import com.github.kittinunf.result.Result
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.impl.KircApiError
 import de.cmdjulian.kirc.impl.response.ResultSource
@@ -65,18 +64,4 @@ internal fun HttpResponse.toRange(): Pair<Long, Long> {
         "Missing Range header, part 'end' is missing in \"bytes=<from>-<end>\"",
     )
     return Pair(from, end)
-}
-
-suspend inline fun <T, U, reified E : Throwable> Result<T, E>.mapSuspending(
-    crossinline transform: suspend (T) -> U,
-): Result<U, E> = try {
-    when (this) {
-        is Result.Success -> Result.success(transform(value))
-        is Result.Failure -> Result.failure(error)
-    }
-} catch (ex: Exception) {
-    when (ex) {
-        is E -> Result.failure(ex)
-        else -> throw ex
-    }
 }

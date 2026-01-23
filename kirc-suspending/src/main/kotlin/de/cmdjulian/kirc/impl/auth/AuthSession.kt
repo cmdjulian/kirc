@@ -1,0 +1,57 @@
+package de.cmdjulian.kirc.impl.auth
+
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.withContext
+import java.util.*
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
+
+// The context element holding the Session ID
+data class AuthSession(val id: UUID) : AbstractCoroutineContextElement(AuthSession) {
+    companion object Key : CoroutineContext.Key<AuthSession>
+}
+
+enum class ScopeType(val value: String) {
+    PULL("pull"),
+    PUSH("push"),
+    PULL_PUSH("pull,push"),
+    ALL("*"),
+    NONE(""),
+}
+
+/**
+ * Starts a scope with a shared auth session uuid.
+ * The ID is attached to every request made within the scope so that they can reuse bearer authentication tokens
+ *
+ * - Requests sharing a session, share the same session uuid.
+ * - If a session is already present in the context, it is reused.
+ * - Different sessions contain different session ids.
+ */
+suspend fun <T> withAuthSession(block: suspend CoroutineScope.() -> T): T {
+    // Check if we already have a session in the current context
+    if (currentCoroutineContext()[AuthSession] != null) {
+        // Reuse existing session, just maintaining structured concurrency
+        return coroutineScope(block)
+    }
+
+    // Create new session
+    return withContext(AuthSession(UUID.randomUUID())) {
+        block()
+    }
+}
+
+/**
+ * Returns the current auth session ID from the coroutine context, if present.
+ *
+ * If an [AuthSession] is available in the current coroutine context, its [AuthSession.id]
+ * is returned. If no [AuthSession] is present, a new random [UUID] is generated and
+ * returned instead.
+ *
+ * Note:
+ * - The fallback UUID is **not** stored in the coroutine context.
+ * - Consecutive calls to this function outside a [withAuthSession] block will therefore each produce a different UUID.
+ * - Callers that rely on a stable session ID for authentication caching must ensure they execute within a [withAuthSession] scope.
+ */
+internal suspend fun currentSession(): UUID = currentCoroutineContext()[AuthSession]?.id ?: UUID.randomUUID()
