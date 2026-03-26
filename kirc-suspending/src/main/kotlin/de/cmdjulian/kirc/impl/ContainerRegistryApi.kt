@@ -64,11 +64,24 @@ internal interface ContainerRegistryApi {
 
     suspend fun existsBlob(repository: Repository, digest: Digest): Result<*, KircApiError>
 
-    /** Retrieve blob data as [ByteArray] (loaded into memory) */
+    /**
+     * Retrieve blob data as [ByteArray]
+     * This loads data into memory!
+     * Max ~2GB can be read (limit of ByteArray), use [blobStream] instead
+     */
     suspend fun blob(repository: Repository, digest: Digest): Result<ByteArray, KircApiError>
 
-    /** Retrieve blob data as [Source] stream (postponing data being loaded) */
-    suspend fun blobStream(repository: Repository, digest: Digest): Result<Source, KircApiError>
+    /**
+     * Retrieve blob data as a stream, passing it to [block].
+     *
+     * The [Source] is only valid inside [block]; the underlying connection is released once [block] returns.
+     * This avoids buffering the entire body in memory, which would overflow for blobs larger than ~2 GB.
+     */
+    suspend fun <T> blobStream(
+        repository: Repository,
+        digest: Digest,
+        block: suspend (Source) -> T,
+    ): Result<T, KircApiError>
 
     /** Initiates an upload session, returning the [UploadSession] containing a session id and upload location */
     suspend fun initiateUpload(repository: Repository): Result<UploadSession, KircApiError>

@@ -117,8 +117,9 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
     override suspend fun blob(repository: Repository, digest: Digest): ByteArray = api.blob(repository, digest)
         .getOrElse { throw it.toRegistryClientError(repository, digest) }
 
-    override suspend fun blobStream(repository: Repository, digest: Digest): Source = api.blobStream(repository, digest)
-        .getOrElse { throw it.toRegistryClientError(repository, digest) }
+    override suspend fun <T> blobStream(repository: Repository, digest: Digest, block: suspend (Source) -> T): T =
+        api.blobStream(repository, digest, block)
+            .getOrElse { throw it.toRegistryClientError(repository, digest) }
 
     override suspend fun config(repository: Repository, manifestReference: Reference): ImageConfig = withAuthSession {
         api.manifests(repository, manifestReference)
@@ -147,22 +148,19 @@ internal class SuspendingContainerImageRegistryClientImpl(private val api: Conta
     }
 
     override suspend fun config(repository: Repository, manifest: ManifestSingle): ImageConfig =
-        api.blobStream(repository, manifest.config.digest)
-            .map(Source::asInputStream)
-            .map { config ->
-                runCatching {
-                    when (manifest) {
-                        is DockerManifestV2 -> JsonMapper.deserialize<DockerImageConfigV1>(config)
-                        is OciManifestV1 -> JsonMapper.deserialize<OciImageConfigV1>(config)
-                    }
-                }.getOrElse {
-                    throw KircException.UnexpectedError(
-                        "Failed to deserialize image config for manifest type ${manifest::class.simpleName}",
-                        it,
-                    )
+        api.blobStream(repository, manifest.config.digest) { source ->
+            runCatching {
+                when (manifest) {
+                    is DockerManifestV2 -> JsonMapper.deserialize<DockerImageConfigV1>(source.asInputStream())
+                    is OciManifestV1 -> JsonMapper.deserialize<OciImageConfigV1>(source.asInputStream())
                 }
+            }.getOrElse {
+                throw KircException.UnexpectedError(
+                    "Failed to deserialize image config for manifest type ${manifest::class.simpleName}",
+                    it,
+                )
             }
-            .getOrElse { throw it.toRegistryClientError(repository) }
+        }.getOrElse { throw it.toRegistryClientError(repository) }
 
     // Upload
 

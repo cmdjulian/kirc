@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Blob stream download now can handle content length of more than ~2GB
+
 ## [v1.4.0] - 2025-12-17
 
 ### Added

@@ -98,11 +98,12 @@ interface SuspendingContainerImageRegistryClient {
     suspend fun blob(repository: Repository, digest: Digest): ByteArray
 
     /**
-     *  Retrieve a Blob for an image as [Source] data stream
+     *  Retrieve a Blob for an image as a stream, passing it to [block].
      *
-     *  Data not directly loaded into memory
+     *  The [Source] is only valid inside [block]; the underlying connection is released once [block] returns.
+     *  This avoids buffering the entire blob in memory, which would overflow for blobs larger than ~2 GB.
      */
-    suspend fun blobStream(repository: Repository, digest: Digest): Source
+    suspend fun <T> blobStream(repository: Repository, digest: Digest, block: suspend (Source) -> T): T
 
     /**
      * Initiate data upload
