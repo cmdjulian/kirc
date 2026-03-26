@@ -24,10 +24,6 @@ import de.cmdjulian.kirc.utils.createSafePath
 import de.cmdjulian.kirc.utils.toKotlinPath
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.io.Sink
 import kotlinx.io.Source
@@ -120,15 +116,15 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
             if (resolved is ResolvedManifest.Single) {
                 // write config blob
                 val config = resolved.manifest.config
-                tarStream.writeSourceEntry("blobs/sha256/${config.digest.hash}", resolved.configStream, config.size)
+                client.blobStream(repository, config.digest) { configStream ->
+                    tarStream.writeSourceEntry("blobs/sha256/${config.digest.hash}", configStream, config.size)
+                }
 
-                // write layer blobs
+                // write layer blobs sequentially; each stream is consumed immediately inside the lambda
                 for (layer in resolved.manifest.layers) {
-                    tarStream.writeSourceEntry(
-                        "blobs/sha256/${layer.digest.hash}",
-                        client.blobStream(repository, layer.digest),
-                        layer.size,
-                    )
+                    client.blobStream(repository, layer.digest) { layerStream ->
+                        tarStream.writeSourceEntry("blobs/sha256/${layer.digest.hash}", layerStream, layer.size)
+                    }
                 }
             }
         }
@@ -141,10 +137,9 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
                 // Some manifest attachments are not retrievable, skip those as they aren't currently supported in kirc
                 if (manifestEntry.platformIsUnknown()) continue
                 when (val manifest = client.manifest(repository, manifestEntry.digest)) {
-                    is ManifestSingle -> {
-                        val configStream = client.blobStream(repository, manifest.config.digest)
-                        add(ResolvedManifest.Single(manifest, manifestEntry.digest, manifestEntry.size, configStream))
-                    }
+                    is ManifestSingle -> add(
+                        ResolvedManifest.Single(manifest, manifestEntry.digest, manifestEntry.size),
+                    )
 
                     is ManifestList -> {
                         add(ResolvedManifest.List(manifest, manifestEntry.digest, manifestEntry.size))
@@ -159,20 +154,10 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
         reference: Reference,
         manifest: ManifestSingle,
         tarStream: TarArchiveOutputStream,
-    ): Unit = coroutineScope {
+    ) {
         val config = client.config(repository, reference)
-        val configBlob = client.blobStream(repository, manifest.config.digest)
         val digest = (reference as? Digest) ?: client.manifestDigest(repository, reference)
         val manifestStream = client.manifestStream(repository, digest)
-
-        // limit concurrent pull of layers to three at a time, like Docker does it
-        val layerBlobs = with(Semaphore(3)) {
-            manifest.layers.asSequence().associateWith { layer ->
-                async {
-                    withPermit { client.blobStream(repository, layer.digest) }
-                }
-            }
-        }
 
         val indexManifest = ManifestListEntry(
             mediaType = OciManifestListV1.MediaType,
@@ -198,13 +183,19 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
         tarStream.writeJsonEntry("repositories.json", repositories)
         tarStream.writeJsonEntry("oci-layout", OciLayout())
 
-        // Write manifest blob, config blob
+        // Write manifest blob
         tarStream.writeSourceEntry("blobs/sha256/${digest.hash}", manifestStream.source, manifestStream.size)
-        tarStream.writeSourceEntry("blobs/sha256/${manifest.config.digest.hash}", configBlob, manifest.config.size)
 
-        // Write layer blobs
-        layerBlobs.forEach { (layer, blobSource) ->
-            tarStream.writeSourceEntry("blobs/sha256/${layer.digest.hash}", blobSource.await(), layer.size)
+        // Write config blob; stream is consumed immediately inside the lambda
+        client.blobStream(repository, manifest.config.digest) { configBlob ->
+            tarStream.writeSourceEntry("blobs/sha256/${manifest.config.digest.hash}", configBlob, manifest.config.size)
+        }
+
+        // Write layer blobs sequentially; each stream is consumed immediately inside the lambda
+        for (layer in manifest.layers) {
+            client.blobStream(repository, layer.digest) { layerBlob ->
+                tarStream.writeSourceEntry("blobs/sha256/${layer.digest.hash}", layerBlob, layer.size)
+            }
         }
     }
 
@@ -265,6 +256,7 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
         downloaderLogger.error(e) { "Error downloading image from registry" }
         when (e) {
             is KircException, is KircApiError -> throw e
+
             else -> throw KircException.UnexpectedError(
                 "Could not download image from registry: ${e.cause}",
                 e,
@@ -282,7 +274,6 @@ internal class ImageDownloader(private val client: SuspendingContainerImageRegis
             override val manifest: ManifestSingle,
             override val digest: Digest,
             override val size: Long,
-            val configStream: Source,
         ) : ResolvedManifest
 
         data class List(override val manifest: ManifestList, override val digest: Digest, override val size: Long) :

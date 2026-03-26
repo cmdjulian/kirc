@@ -40,6 +40,7 @@ import io.ktor.client.request.headers
 import io.ktor.client.request.parameter
 import io.ktor.client.request.patch
 import io.ktor.client.request.post
+import io.ktor.client.request.prepareGet
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
@@ -147,6 +148,7 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
     override suspend fun digest(repository: Repository, reference: Reference): Result<Digest, KircApiError> =
         when (reference) {
             is Digest -> Result.success(reference)
+
             is Tag -> execute(HttpResponse::toDigest) {
                 client.head("/v2/$repository/manifests/$reference") {
                     acceptManifestTypes()
@@ -242,15 +244,30 @@ internal class ContainerRegistryApiImpl(private val client: HttpClient) : Contai
             }
         }
 
-    override suspend fun blobStream(repository: Repository, digest: Digest): Result<Source, KircApiError> = execute(
-        transform = { resp -> resp.bodyAsChannel().toInputStream().asSource().buffered() },
-        block = {
-            client.get("/v2/$repository/blobs/$digest") {
-                acceptBlobTypes()
-                setAuthSession(currentSession())
+    override suspend fun <T> blobStream(
+        repository: Repository,
+        digest: Digest,
+        block: suspend (Source) -> T,
+    ): Result<T, KircApiError> = try {
+        client.prepareGet("/v2/$repository/blobs/$digest") {
+            acceptBlobTypes()
+            setAuthSession(currentSession())
+        }.execute { response ->
+            if (response.status.isSuccess()) {
+                // The connection stays open for the duration of this lambda.
+                // block() must fully consume the Source before returning.
+                val source = response.bodyAsChannel().toInputStream().asSource().buffered()
+                Result.success(block(source))
+            } else {
+                Result.failure(response.toErrorResponse())
             }
-        },
-    )
+        }
+    } catch (e: Exception) {
+        when (e) {
+            is KircApiError -> Result.failure(e)
+            else -> Result.failure(KircApiError.Unknown(e))
+        }
+    }
 
     override suspend fun initiateUpload(repository: Repository): Result<UploadSession, KircApiError> =
         execute(HttpResponse::toUploadSession) {
