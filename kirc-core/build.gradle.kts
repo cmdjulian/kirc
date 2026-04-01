@@ -4,8 +4,10 @@ plugins {
     kotlin("kapt")
 }
 
+group = "com.github.cmdjulian.kirc"
+
 dependencies {
-    implementation(project(":kirc-image"))
+    api(project(":kirc-image"))
 
     // graal reflect config
     kapt(graalHints.processor)
