@@ -9,6 +9,7 @@ group = "com.github.cmdjulian.kirc"
 dependencies {
     api(project(":kirc-core"))
     api(project(":kirc-image"))
+    api(project(":kirc-tar"))
 
     // kotlin
     implementation(kotlin("stdlib"))
@@ -46,9 +47,6 @@ dependencies {
 
     // insecure connections
     implementation("io.github.hakky54:ayza:10.0.2")
-
-    // tar file handling
-    implementation("org.apache.commons:commons-compress:1.28.0")
 
     // tests
     testImplementation(project(":kirc-blocking"))

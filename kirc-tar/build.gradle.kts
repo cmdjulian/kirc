@@ -1,25 +1,24 @@
 plugins {
     `java-library`
     kotlin("libs.publisher")
-    kotlin("kapt")
 }
 
 group = "com.github.cmdjulian.kirc"
 
 dependencies {
-    api(project(":kirc-image"))
+    api(project(":kirc-core"))
 
-    // graal reflect config
-    kapt(graalHints.processor)
-    compileOnly(graalHints.annotations)
+    // kotlin
+    implementation(kotlin("stdlib"))
+    api(libs.coroutines)
+    api(libs.kotlinx.io)
 
-    // jackson
+    // tar file handling
+    api("org.apache.commons:commons-compress:1.28.0")
+
+    // jackson (needed for InvalidDefinitionException and JsonMapper type)
     implementation(platform(jackson.bom))
-    implementation("com.fasterxml.jackson.core:jackson-annotations")
     implementation("com.fasterxml.jackson.core:jackson-databind")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
-    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jdk8")
-    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 
     // tests
     testImplementation(platform(tests.junit.bom))
@@ -35,7 +34,7 @@ tasks.jar {
 
 kotlinPublications {
     publication {
-        publicationName = "core"
-        description = "kirc core components"
+        publicationName = "tar"
+        description = "kirc tar image extraction utilities"
     }
 }

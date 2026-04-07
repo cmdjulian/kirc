@@ -4,6 +4,7 @@ include("kirc-core")
 include("kirc-image")
 include("kirc-reactive")
 include("kirc-suspending")
+include("kirc-tar")
 include("aot-smoke-test")
 
 pluginManagement {
@@ -19,7 +20,11 @@ dependencyResolutionManagement {
             version("coroutines", "1.10.2")
             library("kotlinx-io", "org.jetbrains.kotlinx", "kotlinx-io-core").version("0.8.2")
             library("coroutines", "org.jetbrains.kotlinx", "kotlinx-coroutines-core").versionRef("coroutines")
-            library("coroutines-reactor", "org.jetbrains.kotlinx", "kotlinx-coroutines-reactor").versionRef("coroutines")
+            library(
+                "coroutines-reactor",
+                "org.jetbrains.kotlinx",
+                "kotlinx-coroutines-reactor",
+            ).versionRef("coroutines")
         }
         create("jackson") {
             library("bom", "com.fasterxml.jackson:jackson-bom:2.20.1")

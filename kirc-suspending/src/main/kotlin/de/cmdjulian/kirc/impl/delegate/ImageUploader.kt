@@ -1,5 +1,8 @@
+@file:OptIn(InternalKircApi::class)
+
 package de.cmdjulian.kirc.impl.delegate
 
+import de.cmdjulian.kirc.annotation.InternalKircApi
 import de.cmdjulian.kirc.client.SuspendingContainerImageRegistryClient
 import de.cmdjulian.kirc.client.UploadMode
 import de.cmdjulian.kirc.exception.KircException
@@ -22,6 +25,8 @@ import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestListV1
+import de.cmdjulian.kirc.tar.deserializeEntry
+import de.cmdjulian.kirc.tar.processBlobEntry
 import de.cmdjulian.kirc.utils.createSafePath
 import de.cmdjulian.kirc.utils.toKotlinPath
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -113,6 +118,7 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
     private fun handleError(e: Exception): Nothing {
         val sanitizedError = when (e) {
             is KircException, is RegistryException -> e
+
             else -> KircException.UnexpectedError(
                 "Unexpected error, could not upload image to registry: ${e.cause}",
                 e,
@@ -226,6 +232,7 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
     ) = buildList {
         when (val manifest = resolveManifest(blobPaths, entryDigest)) {
             null -> Unit
+
             is ManifestList -> {
                 // recursively resolve manifests
                 val (processedManifestList, processedManifests) = resolveManifestsAndBlobs(manifest, blobPaths)

@@ -1,5 +1,8 @@
+@file:OptIn(InternalKircApi::class)
+
 package de.cmdjulian.kirc.client
 
+import de.cmdjulian.kirc.annotation.InternalKircApi
 import de.cmdjulian.kirc.exception.KircException
 import de.cmdjulian.kirc.image.ContainerImageName
 import de.cmdjulian.kirc.impl.ContainerRegistryApiImpl

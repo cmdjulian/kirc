@@ -1,7 +1,7 @@
 package de.cmdjulian.kirc.impl
 
 import de.cmdjulian.kirc.image.Digest
-import de.cmdjulian.kirc.impl.delegate.ImageExtractor
+import de.cmdjulian.kirc.tar.ImageExtractor
 import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.maps.shouldHaveSize

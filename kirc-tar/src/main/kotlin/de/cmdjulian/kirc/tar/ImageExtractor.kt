@@ -1,6 +1,9 @@
-package de.cmdjulian.kirc.impl.delegate
+@file:OptIn(InternalKircApi::class)
+
+package de.cmdjulian.kirc.tar
 
 import com.fasterxml.jackson.databind.exc.InvalidDefinitionException
+import de.cmdjulian.kirc.annotation.InternalKircApi
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.spec.ManifestJson
 import de.cmdjulian.kirc.spec.Repositories
