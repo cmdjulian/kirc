@@ -1,4 +1,5 @@
 import com.github.benmanes.gradle.versions.updates.DependencyUpdatesTask
+import org.gradle.api.publish.tasks.GenerateModuleMetadata
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.kotlinx.publisher.apache2
@@ -62,6 +63,16 @@ subprojects {
 
     // only configured if subProject applies the publishing plugin
     plugins.withId("org.jetbrains.kotlin.libs.publisher") {
+        // JitPack rewrites Gradle module metadata component identity to com.github.cmdjulian:kirc for all
+        // submodules, breaking transitive dependency resolution. Disable module metadata on JitPack so consumers
+        // fall back to POM files which JitPack handles correctly.
+        if (System.getenv("JITPACK") == "true") {
+            logger.lifecycle("JitPack build detected: disabling Gradle module metadata generation for ${project.name}")
+            tasks.withType<GenerateModuleMetadata>().configureEach {
+                enabled = false
+            }
+        }
+
         publishing {
             repositories {
                 maven {
