@@ -3,6 +3,8 @@ plugins {
     kotlin("libs.publisher")
 }
 
+group = "com.github.cmdjulian.kirc"
+
 dependencies {
     api(project(":kirc-core"))
     api(project(":kirc-image"))
