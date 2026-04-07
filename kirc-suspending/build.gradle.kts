@@ -48,6 +48,9 @@ dependencies {
     // insecure connections
     implementation("io.github.hakky54:ayza:10.0.2")
 
+    // tar file handling
+    implementation("org.apache.commons:commons-compress:1.28.0")
+
     // tests
     testImplementation(project(":kirc-blocking"))
 
