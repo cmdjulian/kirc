@@ -2,26 +2,30 @@
 
 package de.cmdjulian.kirc.tar
 
-import com.fasterxml.jackson.databind.exc.InvalidDefinitionException
 import de.cmdjulian.kirc.annotation.InternalKircApi
+import de.cmdjulian.kirc.exception.KircException
 import de.cmdjulian.kirc.image.Digest
+import de.cmdjulian.kirc.impl.serialization.JsonMapper
+import de.cmdjulian.kirc.impl.serialization.deserialize
 import de.cmdjulian.kirc.spec.ManifestJson
+import de.cmdjulian.kirc.spec.OciLayout
 import de.cmdjulian.kirc.spec.Repositories
-import de.cmdjulian.kirc.spec.image.DockerImageConfigV1
-import de.cmdjulian.kirc.spec.image.ImageConfig
-import de.cmdjulian.kirc.spec.image.OciImageConfigV1
+import de.cmdjulian.kirc.spec.manifest.DockerManifestListV1
+import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
-import kotlinx.coroutines.runBlocking
+import de.cmdjulian.kirc.spec.manifest.OciManifestListV1
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.io.Source
 import kotlinx.io.asInputStream
-import kotlinx.io.asSource
 import kotlinx.io.buffered
-import org.apache.commons.compress.archivers.tar.TarArchiveEntry
+import kotlinx.io.files.SystemFileSystem
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
+import java.io.InputStream
 import java.nio.file.Path
-import java.util.zip.GZIPInputStream
-import kotlin.io.path.inputStream
+import kotlin.io.path.pathString
+import kotlinx.io.files.Path as KotlinPath
 
 /**
  * Helper class to extract certain parts of a docker image, e.g. Index, Manifest, Config
@@ -29,67 +33,149 @@ import kotlin.io.path.inputStream
  * @param path location of docker image
  * @param isGzipped optionally, to signalize tar archive is gzipped, and it needs to be unwrapped during extraction
  */
-class ImageExtractor(private val path: Path, private val isGzipped: Boolean = false) {
+object ImageExtractor {
 
-    private val source: Source
-        get() = path.inputStream().asSource().buffered()
-    private val blobPath: String = "blobs/sha256/"
+    suspend fun parse(source: Source): ContainerImageTar = source.use {
+        parse(it)
+    }
 
-    private inline fun <reified T : Any> extract(path: String): T? = source.use { source ->
-        val unwrapStream = if (isGzipped) GZIPInputStream(source.asInputStream()) else source.asInputStream()
+    /**
+     * Performs a single sequential pass through [input], spilling blobs to [tempDirectory], then resolves and
+     * returns a fully-parsed [ContainerImageTar].
+     *
+     * [input] - the tar source to read from (consumed exactly once)
+     * [tempDirectory] - directory where blob files are spilled during parsing
+     */
+    suspend fun parse(input: InputStream, tempDirectory: Path): ContainerImageTar = input.use { stream ->
+        TarArchiveInputStream(stream).use { stream ->
+            val blobs = mutableMapOf<Digest, Path>()
+            var indexFile: ManifestList? = null
+            var repositoriesFile: Repositories? = null
+            var manifestJsonFile: ManifestJson? = null
+            var ociLayoutFile: OciLayout? = null
 
-        unwrapStream.use { unwrapStream ->
-            TarArchiveInputStream(unwrapStream).use { stream ->
-                generateSequence(stream::getNextEntry)
-                    .filterNot(TarArchiveEntry::isDirectory)
-                    .firstOrNull { entry -> entry.name == path }
-                    ?.let { entry -> runBlocking { stream.deserializeEntry(entry) } }
+            generateSequence(stream::getNextEntry).forEach { entry ->
+                when {
+                    entry.isDirectory -> stream.skip(entry.size)
+
+                    entry.name.startsWith("blobs/sha256/") -> {
+                        val digest = Digest.of("sha256:" + entry.name.removePrefix("blobs/sha256/"))
+                        blobs[digest] = stream.processBlobEntry(entry, tempDirectory)
+                    }
+
+                    "index.json" == entry.name -> indexFile = stream.deserializeEntry<ManifestList>(entry)
+
+                    "repositories" == entry.name ->
+                        repositoriesFile = stream.deserializeEntry<Repositories>(entry)
+
+                    "manifest.json" == entry.name ->
+                        manifestJsonFile = stream.deserializeEntry<ManifestJson>(entry)
+
+                    "oci-layout" == entry.name -> ociLayoutFile = stream.deserializeEntry<OciLayout>(entry)
+
+                    else -> stream.skip(entry.size)
+                }
+            }
+
+            when {
+                indexFile == null -> throw KircException.CorruptArchiveError(
+                    "index should be present inside provided docker image",
+                )
+
+                ociLayoutFile == null -> throw KircException.CorruptArchiveError(
+                    "'oci-layout' file should be present inside the provided docker image",
+                )
+            }
+
+            val (processedIndex, resolvedManifests) = resolveManifestsAndBlobs(indexFile, blobs)
+            ContainerImageTar(
+                index = processedIndex,
+                images = resolvedManifests,
+                manifest = manifestJsonFile,
+                repositories = repositoriesFile,
+                layout = ociLayoutFile,
+            )
+        }
+    }
+
+    /**
+     * Recursively resolves all Manifests from blobs and associates manifest with its layer blobs and config blobs.
+     * Removes manifest attachments from manifests in the process if their platform contains UNKNOWN.
+     *
+     * Returns the resolved images as well as the index provided, stripped from all attachments
+     * (attestations, cache, etc.).
+     *
+     * [index] - the provided [ManifestList] for which manifests should be resolved
+     * [blobPaths] - a mapping of blob digests to their source path
+     */
+    private suspend fun resolveManifestsAndBlobs(
+        index: ManifestList,
+        blobPaths: Map<Digest, Path>,
+    ): Pair<ManifestList, List<ContainerImageSingle>> {
+        val attachments = mutableListOf<Digest>()
+        val manifestBlobs = buildList {
+            for (manifestEntry in index.manifests) {
+                val entryDigest = manifestEntry.digest
+                // skip manifests with unknown platform (attestations, cache, etc.), they will be filtered out
+                if (manifestEntry.platformIsUnknown()) {
+                    attachments.add(entryDigest)
+                    continue
+                }
+                // resolve manifests from index
+                val manifestBlobPath = blobPaths[entryDigest] ?: continue
+                val manifestBlob =
+                    BlobPath(entryDigest, manifestEntry.mediaType, manifestBlobPath, manifestEntry.size)
+                addAll(resolveManifestsRecursively(entryDigest, blobPaths, manifestBlob))
+            }
+        }
+        val manifests = index.manifests.filterNot { it.digest in attachments }
+        val resolvedIndex = when (index) {
+            is DockerManifestListV1 -> index.copy(manifests = manifests)
+            is OciManifestListV1 -> index.copy(manifests = manifests)
+        }
+        return resolvedIndex to manifestBlobs
+    }
+
+    private suspend fun resolveManifestsRecursively(
+        entryDigest: Digest,
+        blobPaths: Map<Digest, Path>,
+        manifestBlob: BlobPath,
+    ) = buildList {
+        when (val manifest = resolveManifest(blobPaths, entryDigest)) {
+            null -> Unit
+
+            is ManifestList -> {
+                // recursively resolve manifests
+                val (processedManifestList, processedManifests) = resolveManifestsAndBlobs(manifest, blobPaths)
+                addAll(processedManifests)
+                // add the manifest list itself as an image too, so that it can be referenced elsewhere
+                add(ContainerImageSingle(processedManifestList, entryDigest, listOf(manifestBlob)))
+            }
+
+            is ManifestSingle -> {
+                // associate manifests to their layer blobs and config blob
+                val blobs = (manifest.layers + manifest.config).map { layer ->
+                    val blobPath = blobPaths[layer.digest] ?: throw KircException.CorruptArchiveError(
+                        "Could not resolve blob for layer or " +
+                            "config with digest '${layer.digest}' during upload",
+                    )
+                    BlobPath(layer.digest, layer.mediaType, blobPath, layer.size)
+                }
+                add(ContainerImageSingle(manifest, entryDigest, blobs + manifestBlob))
             }
         }
     }
 
-    // --- TOP LEVEL MODELS ---
+    private suspend fun resolveManifest(blobs: Map<Digest, Path>, manifestDigest: Digest): Manifest? {
+        val blobPath = blobs[manifestDigest] ?: return null
 
-    fun index(): ManifestList? = extract("index.json")
-
-    fun repositoriesJson(): Repositories? = extract("repositories")
-
-    fun manifestJson(): ManifestJson? = extract("manifest.json")
-
-    // --- BLOB LEVEL MODELS ---
-
-    /** Get manifest by extracting from [ManifestList] */
-    fun manifest(index: ManifestList): ManifestSingle? =
-        index.manifests.firstOrNull()?.digest?.let { digest -> extract(blobPath + digest.hash) }
-
-    /** Get manifest by [Digest] */
-    fun manifest(digest: Digest): ManifestSingle? = blobAsType(digest)
-
-    /**
-     *  Get config by extracting from [ManifestSingle]
-     *
-     *  Deserializes based on config media type defined in manifest
-     */
-    fun config(manifest: ManifestSingle): ImageConfig? = when (manifest.config.mediaType) {
-        OciImageConfigV1.MediaType -> extract<OciImageConfigV1>(blobPath + manifest.config.digest.hash)
-        DockerImageConfigV1.MediaType -> extract<DockerImageConfigV1>(blobPath + manifest.config.digest.hash)
-        else -> error("Unknown manifest single type encountered in manifest: ${manifest.mediaType}")
+        val manifestStream = withContext(Dispatchers.IO) {
+            SystemFileSystem.source(KotlinPath(blobPath.pathString)).buffered().asInputStream()
+        }
+        return runCatching {
+            JsonMapper.deserialize<Manifest>(manifestStream)
+        }.getOrElse {
+            throw KircException.CorruptArchiveError("Could not deserialize manifest (digest=$manifestDigest)", it)
+        }
     }
-
-    /**
-     * Get config by [Digest]
-     *
-     * Since both Docker and OCI config have the same structure, we try to parse as OCI first,
-     */
-    fun config(digest: Digest): ImageConfig? = try {
-        blobAsType<OciImageConfigV1>(digest)
-    } catch (_: InvalidDefinitionException) {
-        blobAsType<DockerImageConfigV1>(digest)
-    }
-
-    /** Be careful, as this loads the content of a potentially large blob into memory */
-    fun blob(digest: Digest): ByteArray? = extract(blobPath + digest.hash)
-
-    /** Retrieve Blob with certain [Digest] as type [T] */
-    private inline fun <reified T : Any> blobAsType(digest: Digest): T? = extract(blobPath + digest.hash)
 }
