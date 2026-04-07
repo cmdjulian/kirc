@@ -18,12 +18,15 @@ import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestListV1
+import de.cmdjulian.kirc.tar.ImageExtractor.readManifest
+import de.cmdjulian.kirc.tar.ImageExtractor.scanEntries
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.io.Source
 import kotlinx.io.asInputStream
 import kotlinx.io.buffered
 import kotlinx.io.files.SystemFileSystem
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import java.io.InputStream
 import java.nio.file.Path
@@ -36,6 +39,8 @@ import kotlinx.io.files.Path as KotlinPath
  * Utility object to parse docker image tar archives.
  */
 object ImageExtractor {
+
+    // --- PUBLIC API ---
 
     /**
      * Performs a single sequential pass through [source], spilling blobs to [tempDirectory], then resolves and
@@ -56,55 +61,19 @@ object ImageExtractor {
      * [tempDirectory] - directory where blob files are spilled during parsing
      */
     suspend fun parse(input: InputStream, tempDirectory: Path): ContainerImageTar = input.use { stream ->
-        TarArchiveInputStream(stream).use { tar ->
-            val blobs = mutableMapOf<Digest, Path>()
-            var indexFile: ManifestList? = null
-            var repositoriesFile: Repositories? = null
-            var manifestJsonFile: ManifestJson? = null
-            var ociLayoutFile: OciLayout? = null
-
-            generateSequence(tar::getNextEntry).forEach { entry ->
-                when {
-                    entry.isDirectory -> tar.skip(entry.size)
-
-                    entry.name.startsWith("blobs/sha256/") -> {
-                        val digest = Digest.of("sha256:" + entry.name.removePrefix("blobs/sha256/"))
-                        blobs[digest] = tar.processBlobEntry(entry, tempDirectory)
-                    }
-
-                    "index.json" == entry.name -> indexFile = tar.deserializeEntry<ManifestList>(entry)
-
-                    "repositories" == entry.name ->
-                        repositoriesFile = tar.deserializeEntry<Repositories>(entry)
-
-                    "manifest.json" == entry.name ->
-                        manifestJsonFile = tar.deserializeEntry<ManifestJson>(entry)
-
-                    "oci-layout" == entry.name -> ociLayoutFile = tar.deserializeEntry<OciLayout>(entry)
-
-                    else -> tar.skip(entry.size)
-                }
-            }
-
-            when {
-                indexFile == null -> throw KircException.CorruptArchiveError(
-                    "index should be present inside provided docker image",
-                )
-
-                ociLayoutFile == null -> throw KircException.CorruptArchiveError(
-                    "'oci-layout' file should be present inside the provided docker image",
-                )
-            }
-
-            val (processedIndex, resolvedManifests) = resolveManifestsAndBlobs(indexFile, blobs)
-            ContainerImageTar(
-                index = processedIndex,
-                images = resolvedManifests,
-                manifest = manifestJsonFile,
-                repositories = repositoriesFile,
-                layout = ociLayoutFile,
-            )
+        val blobs = mutableMapOf<Digest, Path>()
+        val scan = TarArchiveInputStream(stream).use { tar ->
+            tar.scanEntries { digest, entry -> blobs[digest] = tar.processBlobEntry(entry, tempDirectory) }
         }
+
+        val (processedIndex, resolvedManifests) = resolveManifestsAndBlobs(scan.index, blobs)
+        ContainerImageTar(
+            index = processedIndex,
+            images = resolvedManifests,
+            manifest = scan.manifestJson,
+            repositories = scan.repositories,
+            layout = scan.ociLayout,
+        )
     }
 
     /**
@@ -117,46 +86,9 @@ object ImageExtractor {
      * [isGzipped] - whether the tar archive is gzip-compressed
      */
     suspend fun parse(path: Path, isGzipped: Boolean = false): ContainerImageMetadata {
-        // single pass: collect structural entries and record blob entry names (no blob data read)
         val blobEntryNames = mutableMapOf<Digest, String>()
-        var indexFile: ManifestList? = null
-        var repositoriesFile: Repositories? = null
-        var manifestJsonFile: ManifestJson? = null
-        var ociLayoutFile: OciLayout? = null
-
-        openTar(path, isGzipped).use { tar ->
-            generateSequence(tar::getNextEntry).forEach { entry ->
-                when {
-                    entry.isDirectory -> tar.skip(entry.size)
-
-                    entry.name.startsWith("blobs/sha256/") -> {
-                        val digest = Digest.of("sha256:" + entry.name.removePrefix("blobs/sha256/"))
-                        blobEntryNames[digest] = entry.name
-                    }
-
-                    "index.json" == entry.name -> indexFile = tar.deserializeEntry<ManifestList>(entry)
-
-                    "repositories" == entry.name ->
-                        repositoriesFile = tar.deserializeEntry<Repositories>(entry)
-
-                    "manifest.json" == entry.name ->
-                        manifestJsonFile = tar.deserializeEntry<ManifestJson>(entry)
-
-                    "oci-layout" == entry.name -> ociLayoutFile = tar.deserializeEntry<OciLayout>(entry)
-
-                    else -> tar.skip(entry.size)
-                }
-            }
-        }
-
-        when {
-            indexFile == null -> throw KircException.CorruptArchiveError(
-                "index should be present inside provided docker image",
-            )
-
-            ociLayoutFile == null -> throw KircException.CorruptArchiveError(
-                "'oci-layout' file should be present inside the provided docker image",
-            )
+        val scan = openTar(path, isGzipped).use { tar ->
+            tar.scanEntries { digest, entry -> blobEntryNames[digest] = entry.name }
         }
 
         // reopens tar from path each time a blob needs to be read
@@ -165,13 +97,13 @@ object ImageExtractor {
             return withContext(Dispatchers.IO) { readBlobEntry(path, isGzipped, entryName) }
         }
 
-        val (processedIndex, resolvedImages) = resolveManifestsMetadata(indexFile, ::blobReader)
+        val (processedIndex, resolvedImages) = resolveManifestsMetadata(scan.index, ::blobReader)
         return ContainerImageMetadata(
             index = processedIndex,
             images = resolvedImages,
-            manifest = manifestJsonFile,
-            repositories = repositoriesFile,
-            layout = ociLayoutFile,
+            manifest = scan.manifestJson,
+            repositories = scan.repositories,
+            layout = scan.ociLayout,
         )
     }
 
@@ -195,12 +127,7 @@ object ImageExtractor {
                 addAll(resolveManifestsRecursively(entryDigest, blobPaths, manifestBlob))
             }
         }
-        val manifests = index.manifests.filterNot { it.digest in attachments }
-        val resolvedIndex = when (index) {
-            is DockerManifestListV1 -> index.copy(manifests = manifests)
-            is OciManifestListV1 -> index.copy(manifests = manifests)
-        }
-        return resolvedIndex to manifestBlobs
+        return index.withoutAttachments(attachments) to manifestBlobs
     }
 
     private suspend fun resolveManifestsRecursively(
@@ -208,7 +135,7 @@ object ImageExtractor {
         blobPaths: Map<Digest, Path>,
         manifestBlob: BlobPath,
     ) = buildList {
-        when (val manifest = readManifestFromDisk(blobPaths, entryDigest)) {
+        when (val manifest = readManifest(entryDigest, diskBlobReader(blobPaths))) {
             null -> Unit
 
             is ManifestList -> {
@@ -220,25 +147,12 @@ object ImageExtractor {
             is ManifestSingle -> {
                 val blobs = (manifest.layers + manifest.config).map { layer ->
                     val blobPath = blobPaths[layer.digest] ?: throw KircException.CorruptArchiveError(
-                        "Could not resolve blob for layer or " +
-                            "config with digest '${layer.digest}' during upload",
+                        "Could not resolve blob for layer or config with digest '${layer.digest}' during upload",
                     )
                     BlobPath(layer.digest, layer.mediaType, blobPath, layer.size)
                 }
                 add(ContainerImageSingle(manifest, entryDigest, blobs + manifestBlob))
             }
-        }
-    }
-
-    private suspend fun readManifestFromDisk(blobs: Map<Digest, Path>, manifestDigest: Digest): Manifest? {
-        val blobPath = blobs[manifestDigest] ?: return null
-        val stream = withContext(Dispatchers.IO) {
-            SystemFileSystem.source(KotlinPath(blobPath.pathString)).buffered().asInputStream()
-        }
-        return runCatching {
-            JsonMapper.deserialize<Manifest>(stream)
-        }.getOrElse {
-            throw KircException.CorruptArchiveError("Could not deserialize manifest (digest=$manifestDigest)", it)
         }
     }
 
@@ -259,19 +173,14 @@ object ImageExtractor {
                 addAll(resolveManifestsMetadataRecursively(entryDigest, blobReader))
             }
         }
-        val manifests = index.manifests.filterNot { it.digest in attachments }
-        val resolvedIndex = when (index) {
-            is DockerManifestListV1 -> index.copy(manifests = manifests)
-            is OciManifestListV1 -> index.copy(manifests = manifests)
-        }
-        return resolvedIndex to images
+        return index.withoutAttachments(attachments) to images
     }
 
     private suspend fun resolveManifestsMetadataRecursively(
         entryDigest: Digest,
         blobReader: suspend (Digest) -> InputStream?,
     ): List<ContainerImageSingleMetadata> = buildList {
-        when (val manifest = readManifestFromTar(entryDigest, blobReader)) {
+        when (val manifest = readManifest(entryDigest, blobReader)) {
             null -> Unit
 
             is ManifestList -> {
@@ -280,25 +189,28 @@ object ImageExtractor {
             }
 
             is ManifestSingle -> {
-                val config = readConfigFromTar(manifest, blobReader)
+                val config = readConfig(manifest, blobReader)
                 add(ContainerImageSingleMetadata(manifest, entryDigest, manifest.layers, config))
             }
         }
     }
 
-    private suspend fun readManifestFromTar(
-        manifestDigest: Digest,
-        blobReader: suspend (Digest) -> InputStream?,
-    ): Manifest? {
-        val stream = blobReader(manifestDigest) ?: return null
+    // --- SHARED BLOB READING ---
+
+    /**
+     * Reads and deserialises a [Manifest] blob identified by [digest] using [blobReader].
+     * Returns null if [blobReader] returns null for the given digest.
+     */
+    private suspend fun readManifest(digest: Digest, blobReader: suspend (Digest) -> InputStream?): Manifest? {
+        val stream = blobReader(digest) ?: return null
         return runCatching {
             JsonMapper.deserialize<Manifest>(stream)
         }.getOrElse {
-            throw KircException.CorruptArchiveError("Could not deserialize manifest (digest=$manifestDigest)", it)
+            throw KircException.CorruptArchiveError("Could not deserialize manifest (digest=$digest)", it)
         }
     }
 
-    private suspend fun readConfigFromTar(
+    private suspend fun readConfig(
         manifest: ManifestSingle,
         blobReader: suspend (Digest) -> InputStream?,
     ): ImageConfig {
@@ -322,7 +234,85 @@ object ImageExtractor {
         }
     }
 
+    /**
+     * Returns a [blobReader][readManifest] lambda that opens blobs from already-spilled files in [blobPaths].
+     */
+    private fun diskBlobReader(blobPaths: Map<Digest, Path>): suspend (Digest) -> InputStream? = { digest ->
+        blobPaths[digest]?.let { blobPath ->
+            withContext(Dispatchers.IO) {
+                SystemFileSystem.source(KotlinPath(blobPath.pathString)).buffered().asInputStream()
+            }
+        }
+    }
+
     // --- TAR UTILITIES ---
+
+    /**
+     * Holds the structural (non-blob) entries collected during a [scanEntries] pass.
+     */
+    private class TarScanResult(
+        val index: ManifestList,
+        val ociLayout: OciLayout,
+        val manifestJson: ManifestJson?,
+        val repositories: Repositories?,
+    )
+
+    /**
+     * Scans all entries in this [TarArchiveInputStream], dispatching structural entries into a [TarScanResult]
+     * and delegating every blob entry (`blobs/sha256/…`) to [onBlob].
+     *
+     * Directories and unrecognised entries are skipped automatically.
+     * Throws [KircException.CorruptArchiveError] if `index.json` or `oci-layout` are missing.
+     */
+    private suspend fun TarArchiveInputStream.scanEntries(
+        onBlob: suspend (digest: Digest, entry: TarArchiveEntry) -> Unit,
+    ): TarScanResult {
+        var indexFile: ManifestList? = null
+        var repositoriesFile: Repositories? = null
+        var manifestJsonFile: ManifestJson? = null
+        var ociLayoutFile: OciLayout? = null
+
+        generateSequence(::getNextEntry).forEach { entry ->
+            when {
+                entry.isDirectory -> skip(entry.size)
+
+                entry.name.startsWith("blobs/sha256/") -> {
+                    val digest = Digest.of("sha256:" + entry.name.removePrefix("blobs/sha256/"))
+                    onBlob(digest, entry)
+                }
+
+                "index.json" == entry.name -> indexFile = deserializeEntry<ManifestList>(entry)
+
+                "repositories" == entry.name -> repositoriesFile = deserializeEntry<Repositories>(entry)
+
+                "manifest.json" == entry.name -> manifestJsonFile = deserializeEntry<ManifestJson>(entry)
+
+                "oci-layout" == entry.name -> ociLayoutFile = deserializeEntry<OciLayout>(entry)
+
+                else -> skip(entry.size)
+            }
+        }
+
+        val index = indexFile ?: throw KircException.CorruptArchiveError(
+            "index should be present inside provided docker image",
+        )
+        val ociLayout = ociLayoutFile ?: throw KircException.CorruptArchiveError(
+            "'oci-layout' file should be present inside the provided docker image",
+        )
+        return TarScanResult(index, ociLayout, manifestJsonFile, repositoriesFile)
+    }
+
+    /**
+     * Returns a [ManifestList] with entries whose digest is in [attachments] removed,
+     * preserving the concrete subtype.
+     */
+    private fun ManifestList.withoutAttachments(attachments: Collection<Digest>): ManifestList {
+        val filtered = manifests.filterNot { it.digest in attachments }
+        return when (this) {
+            is DockerManifestListV1 -> copy(manifests = filtered)
+            is OciManifestListV1 -> copy(manifests = filtered)
+        }
+    }
 
     private fun openTar(path: Path, isGzipped: Boolean): TarArchiveInputStream {
         val raw = path.inputStream()

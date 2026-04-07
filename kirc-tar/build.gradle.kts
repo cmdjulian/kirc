@@ -14,7 +14,7 @@ dependencies {
     api(libs.kotlinx.io)
 
     // tar file handling
-    api("org.apache.commons:commons-compress:1.28.0")
+    implementation("org.apache.commons:commons-compress:1.28.0")
 
     // jackson (needed for InvalidDefinitionException and JsonMapper type)
     implementation(platform(jackson.bom))
