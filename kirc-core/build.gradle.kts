@@ -4,6 +4,8 @@ plugins {
     kotlin("kapt")
 }
 
+group = "com.github.cmdjulian.kirc"
+
 dependencies {
     api(project(":kirc-image"))
 
