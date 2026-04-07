@@ -4,8 +4,6 @@ plugins {
     kotlin("kapt")
 }
 
-group = "com.github.cmdjulian.kirc"
-
 tasks.jar {
     manifest {
         attributes(mapOf("Implementation-Title" to project.name, "Implementation-Version" to project.version))
