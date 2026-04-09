@@ -36,6 +36,7 @@ val JsonMapper = jsonMapper {
     addMixIn(ManifestList::class.java, ManifestListMixIn::class.java)
 }
 
-inline fun <reified T> JsonMapper.deserialize(bytes: ByteArray): T = readValue(bytes, T::class.java)
+internal inline fun <reified T> JsonMapper.deserialize(bytes: ByteArray): T = readValue(bytes, T::class.java)
 
-inline fun <reified T> JsonMapper.deserialize(inputStream: InputStream): T = readValue(inputStream, T::class.java)
+internal inline fun <reified T> JsonMapper.deserialize(inputStream: InputStream): T =
+    readValue(inputStream, T::class.java)
