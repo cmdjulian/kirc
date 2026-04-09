@@ -8,7 +8,6 @@ group = "com.github.cmdjulian.kirc"
 dependencies {
     api(project(":kirc-core"))
     api(project(":kirc-image"))
-    api(project(":kirc-tar"))
     implementation(project(":kirc-suspending"))
 
     api(libs.kotlinx.io)

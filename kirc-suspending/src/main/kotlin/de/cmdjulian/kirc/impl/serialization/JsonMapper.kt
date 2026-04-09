@@ -12,7 +12,6 @@ import com.fasterxml.jackson.module.kotlin.KotlinFeature.SingletonSupport
 import com.fasterxml.jackson.module.kotlin.KotlinFeature.StrictNullChecks
 import com.fasterxml.jackson.module.kotlin.jsonMapper
 import com.fasterxml.jackson.module.kotlin.kotlinModule
-import de.cmdjulian.kirc.annotation.InternalKircApi
 import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
@@ -25,7 +24,6 @@ private val KotlinModule = kotlinModule {
     configure(StrictNullChecks, true)
 }
 
-@InternalKircApi
 val JsonMapper = jsonMapper {
     addModules(KotlinModule, JavaTimeModule(), Jdk8Module())
 
@@ -38,8 +36,6 @@ val JsonMapper = jsonMapper {
     addMixIn(ManifestList::class.java, ManifestListMixIn::class.java)
 }
 
-@InternalKircApi
 inline fun <reified T> JsonMapper.deserialize(bytes: ByteArray): T = readValue(bytes, T::class.java)
 
-@InternalKircApi
 inline fun <reified T> JsonMapper.deserialize(inputStream: InputStream): T = readValue(inputStream, T::class.java)

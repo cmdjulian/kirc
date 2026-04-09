@@ -1,10 +1,7 @@
-@file:OptIn(InternalKircApi::class)
-
 package de.cmdjulian.kirc.impl
 
 import com.github.kittinunf.result.Result
 import com.github.kittinunf.result.flatMap
-import de.cmdjulian.kirc.annotation.InternalKircApi
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.image.Reference
 import de.cmdjulian.kirc.image.Repository

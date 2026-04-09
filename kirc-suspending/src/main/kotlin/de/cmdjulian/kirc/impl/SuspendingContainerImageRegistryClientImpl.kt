@@ -1,11 +1,8 @@
-@file:OptIn(InternalKircApi::class)
-
 package de.cmdjulian.kirc.impl
 
 import com.github.kittinunf.result.getOrElse
 import com.github.kittinunf.result.map
 import com.github.kittinunf.result.onFailure
-import de.cmdjulian.kirc.annotation.InternalKircApi
 import de.cmdjulian.kirc.client.SuspendingContainerImageClient
 import de.cmdjulian.kirc.client.SuspendingContainerImageRegistryClient
 import de.cmdjulian.kirc.client.UploadMode

@@ -4,7 +4,6 @@ include("kirc-core")
 include("kirc-image")
 include("kirc-reactive")
 include("kirc-suspending")
-include("kirc-tar")
 include("aot-smoke-test")
 
 pluginManagement {

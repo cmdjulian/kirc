@@ -1,12 +1,9 @@
-@file:OptIn(InternalKircApi::class)
-
 package de.cmdjulian.kirc.impl.auth
 
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.github.benmanes.caffeine.cache.Expiry
-import de.cmdjulian.kirc.annotation.InternalKircApi
 import de.cmdjulian.kirc.client.RegistryCredentials
 import de.cmdjulian.kirc.impl.KircApiError
 import de.cmdjulian.kirc.impl.serialization.JsonMapper

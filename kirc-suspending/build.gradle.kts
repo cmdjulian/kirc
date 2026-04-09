@@ -9,7 +9,6 @@ group = "com.github.cmdjulian.kirc"
 dependencies {
     api(project(":kirc-core"))
     api(project(":kirc-image"))
-    api(project(":kirc-tar"))
 
     // kotlin
     implementation(kotlin("stdlib"))

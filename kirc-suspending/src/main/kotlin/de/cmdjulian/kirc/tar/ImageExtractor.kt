@@ -1,8 +1,5 @@
-@file:OptIn(InternalKircApi::class)
-
 package de.cmdjulian.kirc.tar
 
-import de.cmdjulian.kirc.annotation.InternalKircApi
 import de.cmdjulian.kirc.exception.KircException
 import de.cmdjulian.kirc.image.Digest
 import de.cmdjulian.kirc.impl.serialization.JsonMapper
@@ -18,11 +15,8 @@ import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestListV1
-import de.cmdjulian.kirc.tar.ImageExtractor.readManifest
-import de.cmdjulian.kirc.tar.ImageExtractor.scanEntries
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.io.Source
 import kotlinx.io.asInputStream
 import kotlinx.io.buffered
 import kotlinx.io.files.SystemFileSystem
@@ -43,17 +37,6 @@ object ImageExtractor {
     // --- PUBLIC API ---
 
     /**
-     * Performs a single sequential pass through [source], spilling blobs to [tempDirectory], then resolves and
-     * returns a fully-parsed [ContainerImageTar].
-     *
-     * [source] - the tar source to read from (consumed exactly once)
-     * [tempDirectory] - directory where blob files are spilled during parsing
-     */
-    suspend fun parse(source: Source, tempDirectory: Path): ContainerImageTar = source.use {
-        parse(it.asInputStream(), tempDirectory)
-    }
-
-    /**
      * Performs a single sequential pass through [input], spilling blobs to [tempDirectory], then resolves and
      * returns a fully-parsed [ContainerImageTar].
      *
@@ -68,6 +51,48 @@ object ImageExtractor {
 
         val (processedIndex, resolvedManifests) = resolveManifestsAndBlobs(scan.index, blobs)
         ContainerImageTar(
+            index = processedIndex,
+            images = resolvedManifests,
+            manifest = scan.manifestJson,
+            repositories = scan.repositories,
+            layout = scan.ociLayout,
+        )
+    }
+
+    /**
+     * Two-phase parse: first reads metadata from [path] without spilling blobs, then performs a second pass
+     * to spill required blobs to [tempDirectory], and returns a fully-resolved [ContainerImageTar].
+     *
+     * [path] - path to the docker image tar on disk (optionally gzip-compressed)
+     * [isGzipped] - whether the tar archive is gzip-compressed
+     * [tempDirectory] - directory where blob files are spilled during the second pass
+     */
+    suspend fun parse(path: Path, isGzipped: Boolean = false, tempDirectory: Path): ContainerImageTar {
+        val blobEntryNames = mutableMapOf<Digest, String>()
+        val scan = openTar(path, isGzipped).use { tar ->
+            tar.scanEntries { digest, entry -> blobEntryNames[digest] = entry.name }
+        }
+
+        // second pass: spill only the blobs referenced by manifests
+        val blobs = mutableMapOf<Digest, Path>()
+        openTar(path, isGzipped).use { tar ->
+            generateSequence(tar::getNextEntry).forEach { entry ->
+                val digest = if (entry.name.startsWith("blobs/sha256/")) {
+                    Digest.of("sha256:" + entry.name.removePrefix("blobs/sha256/"))
+                } else {
+                    tar.skip(entry.size)
+                    return@forEach
+                }
+                if (digest in blobEntryNames) {
+                    blobs[digest] = tar.processBlobEntry(entry, tempDirectory)
+                } else {
+                    tar.skip(entry.size)
+                }
+            }
+        }
+
+        val (processedIndex, resolvedManifests) = resolveManifestsAndBlobs(scan.index, blobs)
+        return ContainerImageTar(
             index = processedIndex,
             images = resolvedManifests,
             manifest = scan.manifestJson,

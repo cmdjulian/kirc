@@ -1,8 +1,5 @@
-@file:OptIn(InternalKircApi::class)
-
 package de.cmdjulian.kirc.impl.delegate
 
-import de.cmdjulian.kirc.annotation.InternalKircApi
 import de.cmdjulian.kirc.client.SuspendingContainerImageRegistryClient
 import de.cmdjulian.kirc.client.UploadMode
 import de.cmdjulian.kirc.exception.KircException
@@ -24,6 +21,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.io.Source
+import kotlinx.io.asInputStream
 import kotlinx.io.files.SystemFileSystem
 import java.nio.file.Path
 import kotlin.io.path.pathString
@@ -52,7 +50,7 @@ internal class ImageUploader(private val client: SuspendingContainerImageRegistr
 
             try {
                 // read from tar and deserialize (can throw; ensure cleanup in finally)
-                val uploadContainerImage = ImageExtractor.parse(tar, tempDirectory)
+                val uploadContainerImage = ImageExtractor.parse(tar.asInputStream(), tempDirectory)
 
                 // initialize auth for upload flow
                 client.initializeAuth(repository, ScopeType.PULL_PUSH)
