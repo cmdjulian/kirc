@@ -17,9 +17,9 @@ import java.nio.file.Path
  * @param repositories content of OPTIONAL repositories file
  * @param layout content of oci-layout file
  */
-internal data class ContainerImageUpload(
+internal data class UploadContainerImage(
     val index: ManifestList,
-    val images: List<UploadImage>,
+    val images: List<UploadSingleImage>,
     val manifest: ManifestJson?,
     val repositories: Repositories?,
     val layout: OciLayout,
@@ -34,7 +34,7 @@ internal data class ContainerImageUpload(
  * @param digest digest of platform image manifest
  * @param blobs layer blobs + config blob ready for upload
  */
-internal data class UploadImage(val manifest: Manifest, val digest: Digest, val blobs: List<BlobPath>)
+internal data class UploadSingleImage(val manifest: Manifest, val digest: Digest, val blobs: List<BlobPath>)
 
 internal class BlobPath(val digest: Digest, val mediaType: String, val path: Path, val size: Long) {
     override fun equals(other: Any?): Boolean = when {

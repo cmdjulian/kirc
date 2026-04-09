@@ -15,6 +15,8 @@ import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestListV1
+import de.cmdjulian.kirc.tar.ImageExtractor.readManifest
+import de.cmdjulian.kirc.tar.ImageExtractor.scanEntries
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
@@ -31,19 +33,19 @@ object ImageExtractor {
 
     /**
      * Performs a single sequential pass through [input], spilling blobs to [tempDirectory], then resolves and
-     * returns a fully-parsed [ContainerImageUpload].
+     * returns a fully-parsed [UploadContainerImage].
      *
      * [input] - the tar input stream to read from (consumed exactly once)
      * [tempDirectory] - directory where blob files are spilled during parsing
      */
-    internal suspend fun parse(input: InputStream, tempDirectory: Path): ContainerImageUpload = input.use { stream ->
+    internal suspend fun parse(input: InputStream, tempDirectory: Path): UploadContainerImage = input.use { stream ->
         val blobs = mutableMapOf<Digest, Path>()
         val scan = TarArchiveInputStream(stream).use { tar ->
             tar.scanEntries { digest, entry -> blobs[digest] = tar.processBlobEntry(entry, tempDirectory) }
         }
 
         val (processedIndex, resolvedManifests) = resolveManifestsAndBlobs(scan.index, blobs)
-        ContainerImageUpload(
+        UploadContainerImage(
             index = processedIndex,
             images = resolvedManifests,
             manifest = scan.manifestJson,
@@ -88,7 +90,7 @@ object ImageExtractor {
     private suspend fun resolveManifestsAndBlobs(
         index: ManifestList,
         blobPaths: Map<Digest, Path>,
-    ): Pair<ManifestList, List<UploadImage>> {
+    ): Pair<ManifestList, List<UploadSingleImage>> {
         val attachments = mutableListOf<Digest>()
         val manifestBlobs = buildList {
             for (manifestEntry in index.manifests) {
@@ -117,7 +119,7 @@ object ImageExtractor {
             is ManifestList -> {
                 val (processedManifestList, processedManifests) = resolveManifestsAndBlobs(manifest, blobPaths)
                 addAll(processedManifests)
-                add(UploadImage(processedManifestList, entryDigest, listOf(manifestBlob)))
+                add(UploadSingleImage(processedManifestList, entryDigest, listOf(manifestBlob)))
             }
 
             is ManifestSingle -> {
@@ -127,7 +129,7 @@ object ImageExtractor {
                     )
                     BlobPath(layer.digest, layer.mediaType, blobPath, layer.size)
                 }
-                add(UploadImage(manifest, entryDigest, blobs + manifestBlob))
+                add(UploadSingleImage(manifest, entryDigest, blobs + manifestBlob))
             }
         }
     }
