@@ -15,21 +15,14 @@ import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestListV1
-import de.cmdjulian.kirc.tar.ImageExtractor.readManifest
-import de.cmdjulian.kirc.tar.ImageExtractor.scanEntries
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.io.asInputStream
-import kotlinx.io.buffered
-import kotlinx.io.files.SystemFileSystem
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import java.io.InputStream
 import java.nio.file.Path
 import java.util.zip.GZIPInputStream
 import kotlin.io.path.inputStream
-import kotlin.io.path.pathString
-import kotlinx.io.files.Path as KotlinPath
 
 /**
  * Utility object to parse docker image tar archives.
@@ -222,9 +215,7 @@ object ImageExtractor {
      */
     private fun diskBlobReader(blobPaths: Map<Digest, Path>): suspend (Digest) -> InputStream? = { digest ->
         blobPaths[digest]?.let { blobPath ->
-            withContext(Dispatchers.IO) {
-                SystemFileSystem.source(KotlinPath(blobPath.pathString)).buffered().asInputStream()
-            }
+            withContext(Dispatchers.IO) { blobPath.inputStream() }
         }
     }
 
