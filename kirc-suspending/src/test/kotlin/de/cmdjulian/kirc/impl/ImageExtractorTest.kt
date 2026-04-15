@@ -5,7 +5,6 @@ import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.tar.ImageExtractor
 import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.collections.shouldHaveSize
-import io.kotest.matchers.maps.shouldHaveSize
 import io.kotest.matchers.nulls.shouldNotBeNull
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
@@ -22,17 +21,10 @@ internal class ImageExtractorTest {
     }
 
     @Test
-    fun `extract repositories`() = runTest {
-        ImageExtractor.parse(path).repositories.shouldNotBeNull().shouldHaveSize(1)
-    }
-
-    @Test
-    fun `extract manifest json`() = runTest {
-        ImageExtractor.parse(path).manifestJson.shouldNotBeNull().shouldBeSingleton {
-            it.layers.shouldHaveSize(1)
-            it.layerSources.shouldHaveSize(1)
-            it.repoTags.shouldHaveSize(1)
-        }
+    fun `extract tags`() = runTest {
+        // hello-world.tar is a Docker-format archive that also carries an OCI index annotation,
+        // so we expect both "latest" (OCI ref.name) and "hello-world:latest" (Docker repoTags)
+        ImageExtractor.parse(path).images.shouldBeSingleton { it.tags.shouldHaveSize(2) }
     }
 
     @Test

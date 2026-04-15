@@ -15,8 +15,6 @@ import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import de.cmdjulian.kirc.spec.manifest.ManifestSingle
 import de.cmdjulian.kirc.spec.manifest.OciManifestListV1
-import de.cmdjulian.kirc.tar.ImageExtractor.readManifest
-import de.cmdjulian.kirc.tar.ImageExtractor.scanEntries
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
@@ -33,7 +31,7 @@ object ImageExtractor {
 
     /**
      * Performs a single sequential pass through [input], spilling blobs to [tempDirectory], then resolves and
-     * returns a fully-parsed [UploadContainerImage].
+     * returns a fully-parsed upload container image.
      *
      * [input] - the tar input stream to read from (consumed exactly once)
      * [tempDirectory] - directory where blob files are spilled during parsing
@@ -75,13 +73,10 @@ object ImageExtractor {
             return withContext(Dispatchers.IO) { readBlobEntry(path, isGzipped, entryName) }
         }
 
-        val (processedIndex, resolvedImages) = resolveManifestsMetadata(scan.index, ::blobReader)
+        val (processedIndex, resolvedImages) = resolveManifestsMetadata(scan.index, scan.manifestJson, ::blobReader)
         return ContainerImageMetadata(
             index = processedIndex,
             images = resolvedImages,
-            manifestJson = scan.manifestJson,
-            repositories = scan.repositories,
-            layout = scan.ociLayout,
         )
     }
 
@@ -100,8 +95,7 @@ object ImageExtractor {
                     continue
                 }
                 val manifestBlobPath = blobPaths[entryDigest] ?: continue
-                val manifestBlob =
-                    BlobPath(entryDigest, manifestEntry.mediaType, manifestBlobPath, manifestEntry.size)
+                val manifestBlob = BlobPath(entryDigest, manifestEntry.mediaType, manifestBlobPath, manifestEntry.size)
                 addAll(resolveManifestsRecursively(entryDigest, blobPaths, manifestBlob))
             }
         }
@@ -138,6 +132,7 @@ object ImageExtractor {
 
     private suspend fun resolveManifestsMetadata(
         index: ManifestList,
+        manifestJson: ManifestJson?,
         blobReader: suspend (Digest) -> InputStream?,
     ): Pair<ManifestList, List<ContainerImageSingleMetadata>> {
         val attachments = mutableListOf<Digest>()
@@ -148,7 +143,7 @@ object ImageExtractor {
                     attachments.add(entryDigest)
                     continue
                 }
-                addAll(resolveManifestsMetadataRecursively(entryDigest, blobReader))
+                addAll(resolveManifestsMetadataRecursively(entryDigest, index, manifestJson, blobReader))
             }
         }
         return index.withoutAttachments(attachments) to images
@@ -156,19 +151,22 @@ object ImageExtractor {
 
     private suspend fun resolveManifestsMetadataRecursively(
         entryDigest: Digest,
+        index: ManifestList,
+        manifestJson: ManifestJson?,
         blobReader: suspend (Digest) -> InputStream?,
     ): List<ContainerImageSingleMetadata> = buildList {
         when (val manifest = readManifest(entryDigest, blobReader)) {
             null -> Unit
 
             is ManifestList -> {
-                val (_, images) = resolveManifestsMetadata(manifest, blobReader)
+                val (_, images) = resolveManifestsMetadata(manifest, manifestJson, blobReader)
                 addAll(images)
             }
 
             is ManifestSingle -> {
                 val config = readConfig(manifest, blobReader)
-                add(ContainerImageSingleMetadata(manifest, entryDigest, manifest.layers, config))
+                val tags = resolveTags(entryDigest, manifest.config.digest, index, manifestJson)
+                add(ContainerImageSingleMetadata(manifest, entryDigest, manifest.layers, config, tags))
             }
         }
     }
@@ -210,6 +208,34 @@ object ImageExtractor {
             if (it is KircException) throw it
             throw KircException.CorruptArchiveError("Could not deserialize config (digest=$configDigest)", it)
         }
+    }
+
+    /**
+     * Resolves human-readable tags for the image identified by [entryDigest] and [configDigest].
+     *
+     * Two sources are checked and merged:
+     * - **OCI**: `org.opencontainers.image.ref.name` annotation on the [index] entry whose digest matches [entryDigest]
+     * - **Docker**: `repoTags` from the [manifestJson] entry whose config path ends with [configDigest]'s hash
+     */
+    private fun resolveTags(
+        entryDigest: Digest,
+        configDigest: Digest,
+        index: ManifestList,
+        manifestJson: ManifestJson?,
+    ): List<String> {
+        val ociTags = index.manifests
+            .firstOrNull { it.digest == entryDigest }
+            ?.annotations
+            ?.get("org.opencontainers.image.ref.name")
+            ?.let { listOf(it) }
+            ?: emptyList()
+
+        val dockerTags = manifestJson
+            ?.firstOrNull { entry -> entry.config.endsWith(configDigest.hash) }
+            ?.repoTags
+            ?: emptyList()
+
+        return (ociTags + dockerTags).distinct()
     }
 
     /**
