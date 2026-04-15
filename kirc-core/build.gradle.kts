@@ -7,7 +7,7 @@ plugins {
 group = "com.github.cmdjulian.kirc"
 
 dependencies {
-    api(project(":kirc-image"))
+    implementation(project(":kirc-image"))
 
     // graal reflect config
     kapt(graalHints.processor)
@@ -17,9 +17,6 @@ dependencies {
     implementation(platform(jackson.bom))
     implementation("com.fasterxml.jackson.core:jackson-annotations")
     implementation("com.fasterxml.jackson.core:jackson-databind")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
-    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jdk8")
-    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 
     // tests
     testImplementation(platform(tests.junit.bom))

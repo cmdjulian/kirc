@@ -79,7 +79,7 @@ object ImageExtractor {
         return ContainerImageMetadata(
             index = processedIndex,
             images = resolvedImages,
-            manifest = scan.manifestJson,
+            manifestJson = scan.manifestJson,
             repositories = scan.repositories,
             layout = scan.ociLayout,
         )

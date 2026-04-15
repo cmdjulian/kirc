@@ -14,14 +14,14 @@ import de.cmdjulian.kirc.spec.manifest.ManifestList
  *
  * @param index content of index.json
  * @param images collected manifests specified in index with their metadata
- * @param manifest content of OPTIONAL manifest.json
+ * @param manifestJson content of OPTIONAL manifest.json
  * @param repositories content of OPTIONAL repositories file
  * @param layout content of oci-layout file
  */
 data class ContainerImageMetadata(
     val index: ManifestList,
     val images: List<ContainerImageSingleMetadata>,
-    val manifest: ManifestJson?,
+    val manifestJson: ManifestJson?,
     val repositories: Repositories?,
     val layout: OciLayout,
 )

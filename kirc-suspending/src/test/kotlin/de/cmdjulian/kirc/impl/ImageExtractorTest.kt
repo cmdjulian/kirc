@@ -28,7 +28,7 @@ internal class ImageExtractorTest {
 
     @Test
     fun `extract manifest json`() = runTest {
-        ImageExtractor.parse(path).manifest.shouldNotBeNull().shouldBeSingleton {
+        ImageExtractor.parse(path).manifestJson.shouldNotBeNull().shouldBeSingleton {
             it.layers.shouldHaveSize(1)
             it.layerSources.shouldHaveSize(1)
             it.repoTags.shouldHaveSize(1)
