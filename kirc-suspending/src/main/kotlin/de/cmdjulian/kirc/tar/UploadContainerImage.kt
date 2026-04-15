@@ -1,12 +1,15 @@
-package de.cmdjulian.kirc.spec
+package de.cmdjulian.kirc.tar
 
 import de.cmdjulian.kirc.image.Digest
+import de.cmdjulian.kirc.spec.ManifestJson
+import de.cmdjulian.kirc.spec.OciLayout
+import de.cmdjulian.kirc.spec.Repositories
 import de.cmdjulian.kirc.spec.manifest.Manifest
 import de.cmdjulian.kirc.spec.manifest.ManifestList
 import java.nio.file.Path
 
 /**
- * Represents the whole content of uploaded image
+ * Represents the whole content of an uploaded image tar archive
  *
  * @param index content of index.json
  * @param images collected manifests specified in index with their blobs
@@ -14,7 +17,7 @@ import java.nio.file.Path
  * @param repositories content of OPTIONAL repositories file
  * @param layout content of oci-layout file
  */
-data class UploadContainerImage(
+internal data class UploadContainerImage(
     val index: ManifestList,
     val images: List<UploadSingleImage>,
     val manifest: ManifestJson?,
@@ -25,18 +28,18 @@ data class UploadContainerImage(
 /**
  * Represents the content of a single platform image
  *
- * > config is handled as blob upon upload
+ * > config is handled as blob
  *
  * @param manifest manifest of platform image
  * @param digest digest of platform image manifest
  * @param blobs layer blobs + config blob ready for upload
  */
-data class UploadSingleImage(val manifest: Manifest, val digest: Digest, val blobs: List<UploadBlobPath>)
+internal data class UploadSingleImage(val manifest: Manifest, val digest: Digest, val blobs: List<BlobPath>)
 
-class UploadBlobPath(val digest: Digest, val mediaType: String, val path: Path, val size: Long) {
+internal class BlobPath(val digest: Digest, val mediaType: String, val path: Path, val size: Long) {
     override fun equals(other: Any?): Boolean = when {
         this === other -> true
-        other !is UploadBlobPath -> false
+        other !is BlobPath -> false
         mediaType != other.mediaType -> false
         digest != other.digest -> false
         path != other.path -> false
