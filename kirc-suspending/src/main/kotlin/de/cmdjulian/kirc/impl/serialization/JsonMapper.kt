@@ -24,7 +24,7 @@ private val KotlinModule = kotlinModule {
     configure(StrictNullChecks, true)
 }
 
-val JsonMapper = jsonMapper {
+internal val JsonMapper = jsonMapper {
     addModules(KotlinModule, JavaTimeModule(), Jdk8Module())
 
     configure(READ_UNKNOWN_ENUM_VALUES_USING_DEFAULT_VALUE, true)
