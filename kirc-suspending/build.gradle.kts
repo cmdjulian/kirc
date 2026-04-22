@@ -18,11 +18,11 @@ dependencies {
     compileOnly(graalHints.annotations)
 
     // http client
-    implementation("io.ktor:ktor-client-auth:2.3.13")
-    implementation("io.ktor:ktor-client-core:2.3.13")
-    implementation("io.ktor:ktor-client-cio:2.3.13")
-    implementation("io.ktor:ktor-client-content-negotiation:2.3.13")
-    implementation("io.ktor:ktor-serialization-jackson:2.3.13")
+    implementation("io.ktor:ktor-client-auth:3.4.3")
+    implementation("io.ktor:ktor-client-core:3.4.3")
+    implementation("io.ktor:ktor-client-cio:3.4.3")
+    implementation("io.ktor:ktor-client-content-negotiation:3.4.3")
+    implementation("io.ktor:ktor-serialization-jackson:3.4.3")
 
     implementation("com.github.ben-manes.caffeine:caffeine:3.2.3")
 
