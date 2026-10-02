@@ -1,7 +1,5 @@
 package de.cmdjulian.kirc.impl
 
-import com.adelean.inject.resources.junit.jupiter.GivenTextResource
-import com.adelean.inject.resources.junit.jupiter.TestWithResources
 import de.cmdjulian.kirc.spec.Architecture
 import de.cmdjulian.kirc.spec.OS
 import de.cmdjulian.kirc.spec.image.DockerImageConfigV1
@@ -9,6 +7,8 @@ import de.cmdjulian.kirc.spec.image.History
 import de.cmdjulian.kirc.spec.image.OciImageConfigV1
 import de.cmdjulian.kirc.spec.image.RootFs
 import de.cmdjulian.kirc.unmarshal
+import io.hosuaby.inject.resources.junit.jupiter.GivenTextResource
+import io.hosuaby.inject.resources.junit.jupiter.TestWithResources
 import io.kotest.assertions.assertSoftly
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContainExactly

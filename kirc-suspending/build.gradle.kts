@@ -18,13 +18,13 @@ dependencies {
     compileOnly(graalHints.annotations)
 
     // http client
-    implementation("io.ktor:ktor-client-auth:2.3.13")
-    implementation("io.ktor:ktor-client-core:2.3.13")
-    implementation("io.ktor:ktor-client-cio:2.3.13")
-    implementation("io.ktor:ktor-client-content-negotiation:2.3.13")
-    implementation("io.ktor:ktor-serialization-jackson:2.3.13")
+    implementation("io.ktor:ktor-client-auth:3.6.0")
+    implementation("io.ktor:ktor-client-core:3.6.0")
+    implementation("io.ktor:ktor-client-cio:3.6.0")
+    implementation("io.ktor:ktor-client-content-negotiation:3.6.0")
+    implementation("io.ktor:ktor-serialization-jackson:3.6.0")
 
-    implementation("com.github.ben-manes.caffeine:caffeine:3.2.3")
+    implementation("com.github.ben-manes.caffeine:caffeine:3.3.0")
 
     // explicit result library
     implementation("com.github.kittinunf.result:result:5.6.0")
@@ -40,10 +40,10 @@ dependencies {
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 
     // logging
-    implementation("io.github.oshai:kotlin-logging-jvm:7.0.13")
+    implementation("io.github.oshai:kotlin-logging-jvm:8.0.4")
 
     // insecure connections
-    implementation("io.github.hakky54:ayza:10.0.2")
+    implementation("io.github.hakky54:ayza:10.1.0")
 
     // tar file handling
     implementation("org.apache.commons:commons-compress:1.28.0")
@@ -56,16 +56,16 @@ dependencies {
     testImplementation(tests.bundles.kotest)
 
     // logback logger for tests
-    testImplementation("ch.qos.logback:logback-classic:1.5.22")
+    testImplementation("ch.qos.logback:logback-classic:1.6.4")
 
     // resource injection
-    testImplementation("io.hosuaby:inject-resources-junit-jupiter:0.3.5")
+    testImplementation("io.hosuaby:inject-resources-junit-jupiter:1.0.0")
 
     // test container
-    testImplementation("org.testcontainers:testcontainers:2.0.3")
+    testImplementation("org.testcontainers:testcontainers:2.0.5")
 
     // coroutine testing
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
 }
 
 tasks.jar {
