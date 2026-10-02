@@ -2,7 +2,6 @@ import com.github.benmanes.gradle.versions.updates.DependencyUpdatesTask
 import org.gradle.api.publish.tasks.GenerateModuleMetadata
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import org.jetbrains.kotlinx.publisher.apache2
 import org.jetbrains.kotlinx.publisher.developer
 import org.jetbrains.kotlinx.publisher.githubRepo
 import java.util.*
@@ -24,7 +23,11 @@ kotlinPublications {
     pom {
         inceptionYear = "2022"
         licenses {
-            apache2()
+            license {
+                name = "MIT License"
+                url = "https://opensource.org/licenses/MIT"
+                distribution = "repo"
+            }
         }
         githubRepo("cmdjulian", "kirc")
         developers {
