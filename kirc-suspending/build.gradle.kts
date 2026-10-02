@@ -24,7 +24,7 @@ dependencies {
     implementation("io.ktor:ktor-client-content-negotiation:3.6.0")
     implementation("io.ktor:ktor-serialization-jackson:3.6.0")
 
-    implementation("com.github.ben-manes.caffeine:caffeine:3.2.3")
+    implementation("com.github.ben-manes.caffeine:caffeine:3.3.0")
 
     // explicit result library
     implementation("com.github.kittinunf.result:result:5.6.0")
@@ -40,7 +40,7 @@ dependencies {
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 
     // logging
-    implementation("io.github.oshai:kotlin-logging-jvm:7.0.14")
+    implementation("io.github.oshai:kotlin-logging-jvm:8.0.4")
 
     // insecure connections
     implementation("io.github.hakky54:ayza:10.1.0")
@@ -62,10 +62,10 @@ dependencies {
     testImplementation("io.hosuaby:inject-resources-junit-jupiter:1.0.0")
 
     // test container
-    testImplementation("org.testcontainers:testcontainers:2.0.3")
+    testImplementation("org.testcontainers:testcontainers:2.0.5")
 
     // coroutine testing
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
 }
 
 tasks.jar {

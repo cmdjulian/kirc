@@ -16,8 +16,8 @@ pluginManagement {
 dependencyResolutionManagement {
     versionCatalogs {
         create("libs") {
-            version("coroutines", "1.10.2")
-            library("kotlinx-io", "org.jetbrains.kotlinx", "kotlinx-io-core").version("0.8.2")
+            version("coroutines", "1.11.0")
+            library("kotlinx-io", "org.jetbrains.kotlinx", "kotlinx-io-core").version("0.9.1")
             library("coroutines", "org.jetbrains.kotlinx", "kotlinx-coroutines-core").versionRef("coroutines")
             library("coroutines-reactor", "org.jetbrains.kotlinx", "kotlinx-coroutines-reactor").versionRef("coroutines")
         }
@@ -36,7 +36,7 @@ dependencyResolutionManagement {
             library("junit-engine", "org.junit.jupiter", "junit-jupiter-engine").withoutVersion()
             bundle("junit", listOf("junit-api", "junit-params", "junit-engine"))
 
-            version("kotest", "6.0.7")
+            version("kotest", "6.2.5")
             library("kotest-runner", "io.kotest", "kotest-runner-junit5").versionRef("kotest")
             library("kotest-assertions", "io.kotest", "kotest-assertions-core-jvm").versionRef("kotest")
             bundle("kotest", listOf("kotest-runner", "kotest-assertions"))
