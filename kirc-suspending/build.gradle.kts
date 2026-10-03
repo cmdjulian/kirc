@@ -56,7 +56,7 @@ dependencies {
     testImplementation(tests.bundles.kotest)
 
     // logback logger for tests
-    testImplementation("ch.qos.logback:logback-classic:1.6.4")
+    testImplementation("ch.qos.logback:logback-classic:1.6.5")
 
     // resource injection
     testImplementation("io.hosuaby:inject-resources-junit-jupiter:1.0.0")
