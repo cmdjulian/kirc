@@ -12,7 +12,7 @@ plugins {
     kotlin("libs.publisher") version "0.0.61-dev-34"
     id("org.jlleitschuh.gradle.ktlint") version "14.2.0" apply false
     id("org.owasp.dependencycheck") version "13.0.0" apply false // "dependencyCheckAnalyze"
-    id("com.github.ben-manes.versions") version "0.64.0" apply false // "dependencyUpdates --refresh-dependencies"
+    id("com.github.ben-manes.versions") version "0.65.0" apply false // "dependencyUpdates --refresh-dependencies"
     id("me.qoomon.git-versioning") version "6.4.4"
 }
 
