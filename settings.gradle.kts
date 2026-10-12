@@ -19,7 +19,11 @@ dependencyResolutionManagement {
             version("coroutines", "1.11.0")
             library("kotlinx-io", "org.jetbrains.kotlinx", "kotlinx-io-core").version("0.9.1")
             library("coroutines", "org.jetbrains.kotlinx", "kotlinx-coroutines-core").versionRef("coroutines")
-            library("coroutines-reactor", "org.jetbrains.kotlinx", "kotlinx-coroutines-reactor").versionRef("coroutines")
+            library(
+                "coroutines-reactor",
+                "org.jetbrains.kotlinx",
+                "kotlinx-coroutines-reactor",
+            ).versionRef("coroutines")
         }
         create("jackson") {
             library("bom", "com.fasterxml.jackson:jackson-bom:2.22.3")
