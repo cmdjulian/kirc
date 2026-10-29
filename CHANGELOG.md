@@ -6,9 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `ImageExtractor.index(digest)` to read a nested image index from an image archive
+
+### Changed
+
+- `ImageExtractor.manifest(index, platform)` resolves the manifest matching a platform (default: current platform),
+  following nested image indexes and skipping attestation manifests; throws `KircException.PlatformNotMatching` if
+  none matches
+
 ### Fixed
 
 - Blob stream download now can handle content length of more than ~2GB
+- `ImageExtractor.blob(digest)` returns the raw blob bytes instead of failing to deserialize them as JSON
 
 ## [v1.4.0] - 2025-12-17
 
