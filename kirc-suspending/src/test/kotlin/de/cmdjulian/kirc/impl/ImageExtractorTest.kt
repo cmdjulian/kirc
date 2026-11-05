@@ -11,11 +11,19 @@ import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.maps.shouldHaveSize
 import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
+import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Path
 import java.security.MessageDigest
+import java.util.zip.GZIPOutputStream
 import kotlin.io.path.Path
+import kotlin.io.path.inputStream
+import kotlin.io.path.outputStream
 
 internal class ImageExtractorTest {
 
@@ -77,6 +85,27 @@ internal class ImageExtractorTest {
         Digest("sha256:$hash") shouldBe digest
     }
 
+    @Test
+    fun `metadata - single arch`() {
+        val index = extractor.index().shouldNotBeNull()
+        val manifest = extractor.manifest(index).shouldNotBeNull()
+
+        extractor.metadata().should { metadata ->
+            metadata.index shouldBe index
+            metadata.manifest shouldBe manifest
+            metadata.config shouldBe extractor.config(manifest)
+            metadata.manifestJson shouldBe extractor.manifestJson()?.toList()
+        }
+    }
+
+    @Test
+    fun `metadata - gzipped archive`(@TempDir dir: Path) {
+        val gzipped = dir.resolve("hello-world.tar.gz")
+        gzipped.outputStream().use { out -> GZIPOutputStream(out).use { Path(resource.path).inputStream().copyTo(it) } }
+
+        ImageExtractor(gzipped, isGzipped = true).metadata().config shouldBe extractor.metadata().config
+    }
+
     /**
      * `index.json` points to a nested image index, as written by the containerd image store, which lists an
      * attestation manifest (`unknown/unknown`) before the `linux/amd64` image manifest
@@ -117,6 +146,45 @@ internal class ImageExtractorTest {
 
             shouldThrow<KircException.PlatformNotMatching> {
                 extractor.manifest(index, Platform(OS.LINUX, Architecture.ARM64))
+            }
+        }
+
+        @Test
+        fun `metadata - resolves nested index and skips attestation`() {
+            val manifest = extractor.manifest(imageManifestDigest).shouldNotBeNull()
+
+            extractor.metadata(linuxAmd64).should { metadata ->
+                metadata.manifest shouldBe manifest
+                metadata.config.shouldNotBeNull() shouldBe extractor.config(manifest)
+            }
+        }
+
+        @Test
+        fun `metadata - without matching platform`() {
+            shouldThrow<KircException.PlatformNotMatching> {
+                extractor.metadata(Platform(OS.LINUX, Architecture.ARM64))
+            }
+        }
+
+        // tar entry order is not fixed by the OCI image layout; blobs may come before the index referencing them
+        @Test
+        fun `metadata - index and manifest json after blobs`(@TempDir dir: Path) {
+            val reordered = dir.resolve("reordered.tar")
+            reorderBlobsFirst(Path(resource.path), reordered)
+
+            ImageExtractor(reordered).metadata(linuxAmd64) shouldBe extractor.metadata(linuxAmd64)
+        }
+    }
+
+    private fun reorderBlobsFirst(source: Path, target: Path) {
+        val entries = TarArchiveInputStream(source.inputStream()).use { tar ->
+            generateSequence(tar::getNextEntry).filterNot { it.isDirectory }.map { it to tar.readAllBytes() }.toList()
+        }
+        TarArchiveOutputStream(target.outputStream()).use { out ->
+            entries.sortedByDescending { (entry, _) -> entry.name.startsWith("blobs/") }.forEach { (entry, bytes) ->
+                out.putArchiveEntry(entry)
+                out.write(bytes)
+                out.closeArchiveEntry()
             }
         }
     }
