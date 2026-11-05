@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- `ImageExtractor.metadata(platform)` resolves index, the manifest for a platform, its config and `manifest.json` in
+  a single read of the archive, independent of the tar entry order; the other `ImageExtractor` methods read the
+  archive from the start on every call
+
+## [v1.6.1]
+
+### Added
+
 - `ImageExtractor.index(digest)` to read a nested image index from an image archive
 
 ### Changed
